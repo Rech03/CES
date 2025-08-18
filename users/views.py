@@ -58,7 +58,7 @@ class LoginView(APIView):
 
 class LogoutView(APIView):
     """Handle user logout"""
-    authentication_classes = [TokenAuthentication]  # Added this
+    authentication_classes = [TokenAuthentication]  
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request):
@@ -140,7 +140,7 @@ class ChangePasswordView(APIView):
 
 
 @api_view(['GET'])
-@authentication_classes([TokenAuthentication])  # Added this
+@authentication_classes([TokenAuthentication])  
 @permission_classes([permissions.IsAuthenticated])
 def dashboard_data(request):
     """Get dashboard data for current user"""
