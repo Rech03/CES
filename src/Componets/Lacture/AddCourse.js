@@ -117,7 +117,7 @@ export default function CreateCourseForm() {
         {/* Submit Button */}
         <button
           type="submit"
-          className="submit-btn"
+          class="submit-btn"
         >
           Create Course
         </button>
