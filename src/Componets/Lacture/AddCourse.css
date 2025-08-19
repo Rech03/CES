@@ -70,26 +70,31 @@
 .Course_Capacity{
   
   position: absolute;
-  left: 30px;
+  left: 50%;
 
 }
 .Course_Start{
   position: absolute;
-  left: 45%;
+  left: 30px;
+  top: 200px
   
 }
 .Course_End{
   position: absolute;
-  left: 30px;
+  left: 50%;
+  top:200px
   
 }
 .Course_Room{
   position: absolute;
-  left: 45%;
+  left: 30px;
+  top: 300px;
+
 }
 .Course_Description{
   position: absolute;
-  left: 30pc;
+  left: 30px;
+  top: 400px;
   
 }
 
