@@ -32,7 +32,7 @@
   border: 1px solid #dcdcdc;
   border-radius: 8px;
   font-size: 14px;
-  min-width: 300px;
+  min-width: 200px;
 }
 
 .course-form textarea {
@@ -48,12 +48,13 @@
 
 .submit-btn {
   position: absolute;
-  left: 50%;
+  left: 40%;
+  top:300px;
   padding: 12px;
   background: #3498db;
   color: white;
   border: none;
-  width: 200px;
+  width: 300px;
   border-radius: 8px;
   font-size: 16px;
   cursor: pointer;
