@@ -48,7 +48,7 @@
 
 .submit-btn {
   position: absolute;
-  margin-left: 30%;
+  left: 50%;
   padding: 12px;
   background: #3498db;
   color: white;
@@ -77,25 +77,25 @@
 .Course_Start{
   position: absolute;
   left: 30px;
-  top: 100px
+  top: 150px
   
 }
 .Course_End{
   position: absolute;
   left: 50%;
-  top:100px
+  top:150px
   
 }
 .Course_Room{
   position: absolute;
   left: 30px;
-  top: 150px;
+  top: 200px;
 
 }
 .Course_Description{
   position: absolute;
   left: 30px;
-  top: 200px;
+  top: 250px;
   
 }
 
