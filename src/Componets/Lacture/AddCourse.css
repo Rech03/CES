@@ -1,6 +1,6 @@
 .course_form_Container {
   max-width: 800px;
-  height: 800px;
+  min-height: 500px;
   padding: 25px;
   margin: 50px auto;
   background: #ffffff;
