@@ -31,12 +31,12 @@ export default function QuizBuilder() {
   };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto bg-white rounded-2xl shadow-md">
-      <h1 className="text-2xl font-bold mb-4">Create a Quiz</h1>
+    <div className="quiz-container">
+      <h1>Create a Quiz</h1>
 
       {/* Quiz Title */}
-      <div className="mb-4">
-        <label className="block font-medium">Quiz Title</label>
+      <div className="Quiz_Title">
+        <label className="label">Quiz Title</label>
         <input
           type="text"
           value={quizTitle}
@@ -46,22 +46,9 @@ export default function QuizBuilder() {
         />
       </div>
 
-      {/* Quiz Type */}
-      <div className="mb-4">
-        <label className="block font-medium">Quiz Type</label>
-        <select
-          value={quizType}
-          onChange={(e) => setQuizType(e.target.value)}
-          className="border rounded-lg p-2 w-full"
-        >
-          <option value="in-class">In Class</option>
-          <option value="start-class">Start Class</option>
-          <option value="end-class">End Class</option>
-        </select>
-      </div>
-
+      
       {/* Questions */}
-      <div className="space-y-6">
+      <div className="Question">
         {questions.map((q, index) => (
           <div
             key={index}
