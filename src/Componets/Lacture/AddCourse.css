@@ -1,5 +1,6 @@
 .course_form_Container {
   max-width: 800px;
+  padding: 25px;
   margin: 50px auto;
   background: #ffffff;
   border-radius: 12px;
@@ -14,7 +15,7 @@
 }
 
 .course-form {
-  display: block;
+  display: flex;
   flex-direction: column;
   gap: 15px;
 }

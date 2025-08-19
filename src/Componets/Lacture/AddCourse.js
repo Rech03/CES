@@ -35,7 +35,7 @@ export default function CreateCourseForm() {
       <form className="course-form" onSubmit={handleSubmit}>
         
         {/* Course Name */}
-        <div>
+        <div class="Course_Name">
           <label className="course-form label">Course Name</label>
           <input
             type="text"
@@ -49,7 +49,7 @@ export default function CreateCourseForm() {
         </div>
 
         {/* Capacity */}
-        <div>
+        <div class="Course_Capacity">
           <label className="course-form label">Capacity</label>
           <input
             type="number"
@@ -63,7 +63,7 @@ export default function CreateCourseForm() {
         </div>
 
         {/* Start Date */}
-        <div>
+        <div class="Course_Start">
           <label className="course-form label">Start Date</label>
           <input
             type="date"
@@ -76,7 +76,7 @@ export default function CreateCourseForm() {
         </div>
 
         {/* End Date */}
-        <div>
+        <div class="Course_End">
           <label className="course-form label">End Date</label>
           <input
             type="date"
@@ -89,7 +89,7 @@ export default function CreateCourseForm() {
         </div>
 
         {/* Lecture Room */}
-        <div>
+        <div class="Course_Room"> 
           <label className="course-form label">Lecture Room</label>
           <input
             type="text"
@@ -103,7 +103,7 @@ export default function CreateCourseForm() {
         </div>
 
         {/* Description */}
-        <div>
+        <div class="Course_Description">
           <label className="course-form label">Description</label>
           <textarea
             name="description"
