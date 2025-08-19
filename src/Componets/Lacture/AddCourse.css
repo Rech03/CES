@@ -30,7 +30,6 @@
 
 .course-form input,
 .course-form textarea,
-
 .course-form select {
   margin-top: 5px;
   padding: 10px;
@@ -45,7 +44,7 @@
   border: 1px solid #dcdcdc;
   border-radius: 8px;
   font-size: 14px;
-  min-width: 700px;
+  width: 700px;
 
 }
 
