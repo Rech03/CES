@@ -9,7 +9,6 @@
 
 .course-form-container h2 {
   text-align: center;
-  margin-top: 20px;
   color: #000000;
 }
 
@@ -59,5 +58,25 @@
 
 .submit-btn:hover {
   background: #2980b9;
+}
+.Course_Name{
+  position: absolute;
+  left: 30px;
+
+}
+.Course_Capacity{
+  
+}
+.Course_Start{
+  
+}
+.Course_End{
+  
+}
+.Course_Room{
+  
+}
+.Course_Descprition{
+  
 }
 
