@@ -1,172 +1,154 @@
 import { useState } from "react";
-import "./AddQuiz.css";
 
-export default function CreateQuiz() {
+export default function QuizBuilder() {
   const [quizTitle, setQuizTitle] = useState("");
+  const [quizType, setQuizType] = useState("in-class");
   const [questions, setQuestions] = useState([]);
-  const [currentType, setCurrentType] = useState("");
-  const [currentQuestion, setCurrentQuestion] = useState({});
 
-  const handleAddQuestion = () => {
-    setQuestions([...questions, { type: currentType, ...currentQuestion }]);
-    setCurrentType("");
-    setCurrentQuestion({});
+  const addQuestion = () => {
+    setQuestions([
+      ...questions,
+      { type: "mcq", text: "", time: "", correctAnswer: "", options: [""] },
+    ]);
   };
 
-  const renderQuestionForm = () => {
-    switch (currentType) {
-      case "mcq":
-        return (
-          <div className="form-section">
-            <label>Question</label>
-            <input
-              type="text"
-              value={currentQuestion.text || ""}
-              onChange={(e) =>
-                setCurrentQuestion({ ...currentQuestion, text: e.target.value })
-              }
-            />
-            <label>Options (comma separated)</label>
-            <input
-              type="text"
-              value={currentQuestion.options || ""}
-              onChange={(e) =>
-                setCurrentQuestion({
-                  ...currentQuestion,
-                  options: e.target.value.split(","),
-                })
-              }
-            />
-            <label>Correct Answer</label>
-            <input
-              type="text"
-              value={currentQuestion.answer || ""}
-              onChange={(e) =>
-                setCurrentQuestion({ ...currentQuestion, answer: e.target.value })
-              }
-            />
-          </div>
-        );
-      case "open":
-        return (
-          <div className="form-section">
-            <label>Question</label>
-            <input
-              type="text"
-              value={currentQuestion.text || ""}
-              onChange={(e) =>
-                setCurrentQuestion({ ...currentQuestion, text: e.target.value })
-              }
-            />
-          </div>
-        );
-      case "oneword":
-        return (
-          <div className="form-section">
-            <label>Question</label>
-            <input
-              type="text"
-              value={currentQuestion.text || ""}
-              onChange={(e) =>
-                setCurrentQuestion({ ...currentQuestion, text: e.target.value })
-              }
-            />
-            <label>Answer (one word)</label>
-            <input
-              type="text"
-              value={currentQuestion.answer || ""}
-              onChange={(e) =>
-                setCurrentQuestion({ ...currentQuestion, answer: e.target.value })
-              }
-            />
-          </div>
-        );
-      case "truefalse":
-        return (
-          <div className="form-section">
-            <label>Question</label>
-            <input
-              type="text"
-              value={currentQuestion.text || ""}
-              onChange={(e) =>
-                setCurrentQuestion({ ...currentQuestion, text: e.target.value })
-              }
-            />
-            <label>Correct Answer</label>
-            <select
-              value={currentQuestion.answer || ""}
-              onChange={(e) =>
-                setCurrentQuestion({ ...currentQuestion, answer: e.target.value })
-              }
-            >
-              <option value="">Select</option>
-              <option value="true">True</option>
-              <option value="false">False</option>
-            </select>
-          </div>
-        );
-      default:
-        return null;
-    }
+  const updateQuestion = (index, field, value) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[index][field] = value;
+    setQuestions(updatedQuestions);
   };
 
-  const handleSubmitQuiz = (e) => {
-    e.preventDefault();
-    const quiz = {
-      title: quizTitle,
-      questions: questions,
-    };
-    console.log("Quiz Created:", quiz);
-    alert("Quiz Created! Check console for data.");
+  const updateOption = (qIndex, optIndex, value) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[qIndex].options[optIndex] = value;
+    setQuestions(updatedQuestions);
+  };
+
+  const addOption = (qIndex) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[qIndex].options.push("");
+    setQuestions(updatedQuestions);
   };
 
   return (
-    <div className="quiz-container">
-      <h2>Create a Quiz</h2>
-      <form onSubmit={handleSubmitQuiz}>
-        <label>Quiz Title</label>
+    <div className="p-6 max-w-3xl mx-auto bg-white rounded-2xl shadow-md">
+      <h1 className="text-2xl font-bold mb-4">Create a Quiz</h1>
+
+      {/* Quiz Title */}
+      <div className="mb-4">
+        <label className="block font-medium">Quiz Title</label>
         <input
           type="text"
           value={quizTitle}
           onChange={(e) => setQuizTitle(e.target.value)}
+          className="border rounded-lg p-2 w-full"
+          placeholder="Enter quiz title..."
         />
+      </div>
 
-        <h3>Add Questions</h3>
-        <label>Select Question Type</label>
+      {/* Quiz Type */}
+      <div className="mb-4">
+        <label className="block font-medium">Quiz Type</label>
         <select
-          value={currentType}
-          onChange={(e) => setCurrentType(e.target.value)}
+          value={quizType}
+          onChange={(e) => setQuizType(e.target.value)}
+          className="border rounded-lg p-2 w-full"
         >
-          <option value="">Select Type</option>
-          <option value="mcq">Multiple Choice (MCQ)</option>
-          <option value="open">Open Ended</option>
-          <option value="oneword">One Word Answer</option>
-          <option value="truefalse">True / False</option>
+          <option value="in-class">In Class</option>
+          <option value="start-class">Start Class</option>
+          <option value="end-class">End Class</option>
         </select>
+      </div>
 
-        {renderQuestionForm()}
+      {/* Questions */}
+      <div className="space-y-6">
+        {questions.map((q, index) => (
+          <div
+            key={index}
+            className="border rounded-xl p-4 bg-gray-50 shadow-sm"
+          >
+            {/* Question Type */}
+            <label className="block font-medium">Question Type</label>
+            <select
+              value={q.type}
+              onChange={(e) => updateQuestion(index, "type", e.target.value)}
+              className="border rounded-lg p-2 w-full mb-2"
+            >
+              <option value="mcq">Multiple Choice</option>
+              <option value="open">Open Ended</option>
+              <option value="one-word">One Word Answer</option>
+              <option value="true-false">True / False</option>
+            </select>
 
-        {currentType && (
-          <button type="button" onClick={handleAddQuestion}>
-            Add Question
-          </button>
-        )}
+            {/* Time Limit */}
+            <label className="block font-medium">Time Limit (seconds)</label>
+            <input
+              type="number"
+              value={q.time}
+              onChange={(e) => updateQuestion(index, "time", e.target.value)}
+              className="border rounded-lg p-2 w-full mb-2"
+              placeholder="Enter time..."
+            />
 
-        <h3>Questions Added</h3>
-        <ul>
-          {questions.map((q, index) => (
-            <li key={index}>
-              <strong>{q.type.toUpperCase()}:</strong> {q.text}{" "}
-              {q.options ? `(Options: ${q.options.join(", ")})` : ""}{" "}
-              {q.answer ? `Answer: ${q.answer}` : ""}
-            </li>
-          ))}
-        </ul>
+            {/* Question Text */}
+            <label className="block font-medium">Question</label>
+            <input
+              type="text"
+              value={q.text}
+              onChange={(e) => updateQuestion(index, "text", e.target.value)}
+              className="border rounded-lg p-2 w-full mb-2"
+              placeholder="Enter question..."
+            />
 
-        <button type="submit" className="submit-btn">
-          Save Quiz
+            {/* Options for MCQ */}
+            {q.type === "mcq" && (
+              <div className="mb-2">
+                <label className="block font-medium">Options</label>
+                {q.options.map((opt, optIndex) => (
+                  <input
+                    key={optIndex}
+                    type="text"
+                    value={opt}
+                    onChange={(e) =>
+                      updateOption(index, optIndex, e.target.value)
+                    }
+                    className="border rounded-lg p-2 w-full mb-1"
+                    placeholder={`Option ${optIndex + 1}`}
+                  />
+                ))}
+                <button
+                  onClick={() => addOption(index)}
+                  className="text-blue-600 mt-1"
+                >
+                  + Add Option
+                </button>
+              </div>
+            )}
+
+            {/* Correct Answer */}
+            <label className="block font-medium">Correct Answer</label>
+            <input
+              type="text"
+              value={q.correctAnswer}
+              onChange={(e) =>
+                updateQuestion(index, "correctAnswer", e.target.value)
+              }
+              className="border rounded-lg p-2 w-full"
+              placeholder="Enter correct answer..."
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Add Question Button */}
+      <div className="mt-6">
+        <button
+          onClick={addQuestion}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700"
+        >
+          + Add Question
         </button>
-      </form>
+      </div>
     </div>
   );
 }
