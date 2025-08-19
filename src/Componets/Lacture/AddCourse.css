@@ -16,12 +16,14 @@
 
 .course-form {
   gap: 15px;
+  display: flex;
+  flex-direction: column;
 }
 
 .course-form label {
   font-weight: 500;
   color: #000000;
-  padding-right: 20px;
+  
 }
 
 .course-form input,
