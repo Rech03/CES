@@ -20,20 +20,7 @@ export default function CreateCourseForm() {
     setCourseData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle CSV upload
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        setStudents(results.data);
-      },
-    });
-  };
-
+  
   // Submit form
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -43,13 +30,13 @@ export default function CreateCourseForm() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white shadow-lg rounded-2xl p-6 mt-8">
-      <h2 className="text-xl font-bold mb-4">Create New Course</h2>
+    <div className="course_form_Container">
+      <h2>Create New Course</h2>
       <form className="space-y-4" onSubmit={handleSubmit}>
         
         {/* Course Name */}
         <div>
-          <label className="block text-gray-700 font-medium">Course Name</label>
+          <label className="course-form label">Course Name</label>
           <input
             type="text"
             name="name"
@@ -63,7 +50,7 @@ export default function CreateCourseForm() {
 
         {/* Capacity */}
         <div>
-          <label className="block text-gray-700 font-medium">Capacity</label>
+          <label className="course-form label">Capacity</label>
           <input
             type="number"
             name="capacity"
@@ -77,7 +64,7 @@ export default function CreateCourseForm() {
 
         {/* Start Date */}
         <div>
-          <label className="block text-gray-700 font-medium">Start Date</label>
+          <label className="course-form label">Start Date</label>
           <input
             type="date"
             name="startDate"
@@ -90,7 +77,7 @@ export default function CreateCourseForm() {
 
         {/* End Date */}
         <div>
-          <label className="block text-gray-700 font-medium">End Date</label>
+          <label className="course-form label">End Date</label>
           <input
             type="date"
             name="endDate"
@@ -103,7 +90,7 @@ export default function CreateCourseForm() {
 
         {/* Lecture Room */}
         <div>
-          <label className="block text-gray-700 font-medium">Lecture Room</label>
+          <label className="course-form label">Lecture Room</label>
           <input
             type="text"
             name="lectureRoom"
@@ -117,26 +104,13 @@ export default function CreateCourseForm() {
 
         {/* Description */}
         <div>
-          <label className="block text-gray-700 font-medium">Description</label>
+          <label className="course-form label">Description</label>
           <textarea
             name="description"
             value={courseData.description}
             onChange={handleChange}
             className="w-full p-2 border rounded-lg"
             placeholder="Short course description"
-          />
-        </div>
-
-        {/* Upload CSV */}
-        <div>
-          <label className="block text-gray-700 font-medium">
-            Upload Students (CSV)
-          </label>
-          <input
-            type="file"
-            accept=".csv"
-            onChange={handleFileUpload}
-            className="w-full p-2 border rounded-lg"
           />
         </div>
 
@@ -155,7 +129,7 @@ export default function CreateCourseForm() {
         {/* Submit Button */}
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          className="course-form label"
         >
           Create Course
         </button>
