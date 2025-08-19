@@ -56,7 +56,7 @@
   background: #3498db;
   color: white;
   border: none;
-  width: 300px;
+  width: 400px;
   border-radius: 8px;
   font-size: 16px;
   cursor: pointer;
@@ -80,25 +80,25 @@
 .Course_Start{
   position: absolute;
   left: 30px;
-  top: 150px
+  top: 200px
   
 }
 .Course_End{
   position: absolute;
   left: 50%;
-  top:150px
+  top:200px
   
 }
 .Course_Room{
   position: absolute;
   left: 30px;
-  top: 200px;
+  top: 250px;
 
 }
 .Course_Description{
   position: absolute;
   left: 30px;
-  top: 250px;
+  top: 300px;
   
 }
 
