@@ -42,7 +42,7 @@ export default function CreateCourseForm() {
             name="name"
             value={courseData.name}
             onChange={handleChange}
-            className="w-full p-2 border rounded-lg"
+            className="course-form input"
             placeholder="Enter course name"
             required
           />
@@ -56,7 +56,7 @@ export default function CreateCourseForm() {
             name="capacity"
             value={courseData.capacity}
             onChange={handleChange}
-            className="w-full p-2 border rounded-lg"
+            className="course-form input"
             placeholder="Enter number of students"
             required
           />
@@ -70,7 +70,7 @@ export default function CreateCourseForm() {
             name="startDate"
             value={courseData.startDate}
             onChange={handleChange}
-            className="w-full p-2 border rounded-lg"
+            className="course-form select"
             required
           />
         </div>
@@ -83,7 +83,7 @@ export default function CreateCourseForm() {
             name="endDate"
             value={courseData.endDate}
             onChange={handleChange}
-            className="w-full p-2 border rounded-lg"
+            className="course-form select"
             required
           />
         </div>
@@ -96,7 +96,7 @@ export default function CreateCourseForm() {
             name="lectureRoom"
             value={courseData.lectureRoom}
             onChange={handleChange}
-            className="w-full p-2 border rounded-lg"
+            className="course-form inpu"
             placeholder="Enter lecture room"
             required
           />
@@ -109,27 +109,15 @@ export default function CreateCourseForm() {
             name="description"
             value={courseData.description}
             onChange={handleChange}
-            className="w-full p-2 border rounded-lg"
+            className="course-form textarea"
             placeholder="Short course description"
           />
         </div>
 
-        {/* Preview uploaded students */}
-        {students.length > 0 && (
-          <div className="bg-gray-100 p-3 rounded-lg mt-2">
-            <h3 className="font-medium mb-2">Students Preview</h3>
-            <ul className="list-disc pl-5 text-sm">
-              {students.map((student, index) => (
-                <li key={index}>{student.name || JSON.stringify(student)}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         {/* Submit Button */}
         <button
           type="submit"
-          className="course-form label"
+          className="submit-btn"
         >
           Create Course
         </button>
