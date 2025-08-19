@@ -34,7 +34,7 @@
   border: 1px solid #dcdcdc;
   border-radius: 8px;
   font-size: 14px;
-  min-width: 200px;
+  min-width: 300px;
 }
 
 .course-form textarea {
@@ -92,13 +92,13 @@
 .Course_Room{
   position: absolute;
   left: 30px;
-  top: 220px;
+  top: 240px;
 
 }
 .Course_Description{
   position: absolute;
   left: 30px;
-  top: 300px;
+  top: 320px;
   
 }
 
