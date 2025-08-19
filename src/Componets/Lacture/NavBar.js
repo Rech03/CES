@@ -7,6 +7,7 @@ function NavBar(){
         <ul>
         <li><a class="active" href="#home">Dashboard</a></li>
         <li><a href="#news">Create A Course</a></li>
+        <li><a href="#news">Add Students</a></li>
         <li><a href="#contact">Create New Quiz</a></li>
         <li><a href="#about">Student Analysis</a></li>
         <li><a href="#about">Quiz History</a></li>

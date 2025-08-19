@@ -1,4 +1,3 @@
-import Papa from "papaparse";
 import { useState } from "react";
 import "./AddCourse.css";
 

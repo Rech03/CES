@@ -1,11 +1,10 @@
 import './App.css';
-import AddCourse from './Componets/Lacture/AddCourse';
-
+import AddQuestion from './Componets/Lacture/AddQuestion';
 
 function App() {
   return (
     <div className="App">
-      <AddCourse></AddCourse>
+      <AddQuestion></AddQuestion>
       
       
     </div>

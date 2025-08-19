@@ -1,5 +1,5 @@
 import { useState } from "react";
-import "./CreateQuiz.css";
+import "./AddQuiz.css";
 
 export default function CreateQuiz() {
   const [quizTitle, setQuizTitle] = useState("");
