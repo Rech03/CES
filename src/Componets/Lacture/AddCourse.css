@@ -52,7 +52,7 @@
   background: #3498db;
   color: white;
   border: none;
-  width: 300px;
+  width: 200px;
   border-radius: 8px;
   font-size: 16px;
   cursor: pointer;
@@ -69,17 +69,27 @@
 }
 .Course_Capacity{
   
+  position: absolute;
+  left: 30px;
+
 }
 .Course_Start{
+  position: absolute;
+  left: 45%;
   
 }
 .Course_End{
+  position: absolute;
+  left: 30px;
   
 }
 .Course_Room{
-  
+  position: absolute;
+  left: 45%;
 }
-.Course_Descprition{
+.Course_Description{
+  position: absolute;
+  left: 30pc;
   
 }
 
