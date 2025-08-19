@@ -32,7 +32,7 @@ export default function CreateCourseForm() {
   return (
     <div className="course_form_Container">
       <h2>Create New Course</h2>
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form className="course-form" onSubmit={handleSubmit}>
         
         {/* Course Name */}
         <div>
