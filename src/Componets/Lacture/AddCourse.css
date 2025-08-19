@@ -7,16 +7,13 @@
 }
 
 .course-form-container h2 {
-  position:absolute;
   text-align: center;
   margin-bottom: 20px;
-  margin-top: 50px;
+  margin-top: 20px;
   color: #000000;
 }
 
 .course-form {
-  position: absolute;
-
   display: block;
   flex-direction: column;
   gap: 15px;
