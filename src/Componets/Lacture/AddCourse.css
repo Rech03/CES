@@ -80,19 +80,19 @@
 .Course_Start{
   position: absolute;
   left: 30px;
-  top: 200px
+  top: 150px
   
 }
 .Course_End{
   position: absolute;
   left: 50%;
-  top:200px
+  top:150px
   
 }
 .Course_Room{
   position: absolute;
   left: 30px;
-  top: 250px;
+  top: 200px;
 
 }
 .Course_Description{
