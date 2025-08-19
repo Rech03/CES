@@ -96,7 +96,7 @@ export default function CreateCourseForm() {
             name="lectureRoom"
             value={courseData.lectureRoom}
             onChange={handleChange}
-            className="course-form inpu"
+            className="course-form input"
             placeholder="Enter lecture room"
             required
           />
