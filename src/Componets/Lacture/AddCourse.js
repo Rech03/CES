@@ -109,7 +109,7 @@ export default function CreateCourseForm() {
             name="description"
             value={courseData.description}
             onChange={handleChange}
-            className="course-form textarea"
+            className="Dcourse-form textarea"
             placeholder="Short course description"
           />
         </div>

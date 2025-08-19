@@ -22,13 +22,15 @@
 
 .course-form label {
   font-weight: 500;
-  color: #000000;
+  color: #3f3c3c;
   text-align: left;
+  margin-left: 10px;
   
 }
 
 .course-form input,
 .course-form textarea,
+
 .course-form select {
   margin-top: 5px;
   padding: 10px;
@@ -37,6 +39,16 @@
   font-size: 14px;
   min-width: 350px;
 }
+.Dcourse-form textarea {
+  margin-top: 5px;
+  padding: 10px;
+  border: 1px solid #dcdcdc;
+  border-radius: 8px;
+  font-size: 14px;
+  min-width: 700px;
+
+}
+
 
 .course-form textarea {
   resize: vertical;
