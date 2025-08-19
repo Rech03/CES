@@ -7,14 +7,17 @@
 }
 
 .course-form-container h2 {
+  position:absolute;
   text-align: center;
   margin-bottom: 20px;
-  margin-top: 20px;
+  margin-top: 50px;
   color: #000000;
 }
 
 .course-form {
-  display: flex;
+  position: absolute;
+
+  display: block;
   flex-direction: column;
   gap: 15px;
 }
@@ -52,6 +55,7 @@
   background: #3498db;
   color: white;
   border: none;
+  width: 100px;
   border-radius: 8px;
   font-size: 16px;
   cursor: pointer;
