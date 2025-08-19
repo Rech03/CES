@@ -23,6 +23,7 @@
 .course-form label {
   font-weight: 500;
   color: #000000;
+  text-align: left;
   
 }
 
@@ -34,7 +35,7 @@
   border: 1px solid #dcdcdc;
   border-radius: 8px;
   font-size: 14px;
-  min-width: 300px;
+  min-width: 350px;
 }
 
 .course-form textarea {
