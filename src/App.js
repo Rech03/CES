@@ -1,23 +1,13 @@
 import './App.css';
-import logo from './logo.svg';
+import AddCourse from './Componets/Lacture/AddCourse';
+
 
 function App() {
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          my name is asanda ntuli
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <AddCourse></AddCourse>
+      
+      
     </div>
   );
 }
