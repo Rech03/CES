@@ -1939,3 +1939,44 @@ Watching for file changes with StatReloader
 Not Found: /LogIN.jpeg
 "GET /LogIN.jpeg HTTP/1.1" 404 3819
 "POST /api/auth/login/ HTTP/1.1" 200 354
+Watching for file changes with StatReloader
+Not Found: /LogIN.jpeg
+"GET /LogIN.jpeg HTTP/1.1" 404 3819
+"POST /api/auth/login/ HTTP/1.1" 200 354
+Watching for file changes with StatReloader
+C:\Users\rechs\OneDrive\Desktop\CES-CourseEngagementSystem\backend\ces_main\settings.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rechs\OneDrive\Desktop\CES-CourseEngagementSystem\backend\ces_main\settings.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rechs\OneDrive\Desktop\CES-CourseEngagementSystem\backend\ces_main\settings.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rechs\OneDrive\Desktop\CES-CourseEngagementSystem\backend\ces_main\settings.py changed, reloading.
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Not Found: /LogIN.jpeg
+"GET /LogIN.jpeg HTTP/1.1" 404 3819
+Not Found: /LogIN.jpeg
+"GET /LogIN.jpeg HTTP/1.1" 404 3819
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+code 400, message Bad request version ('\x1a\x1a\x13\x01\x13\x02\x13\x03À+À/À,À0Ì©Ì¨À\x13À\x14\x00\x9c\x00\x9d\x00/\x005\x01\x00\x06sJJ\x00\x00\x00')
+code 400, message Bad request version ('ñú©B\x19\x06Ib\x99aj¤Á\x8b±')
+You're accessing the development server over HTTPS, but it only supports HTTP.
+You're accessing the development server over HTTPS, but it only supports HTTP.
+code 400, message Bad request version ('XÍ\x00')
+You're accessing the development server over HTTPS, but it only supports HTTP.
+code 400, message Bad request version ('Â»Ð\x13\x8c\xad4\x9as´\x18\x8at\x13ïæ(×³P\\\x9b\x81\x0f')
+You're accessing the development server over HTTPS, but it only supports HTTP.
+C:\Users\rechs\OneDrive\Desktop\CES-CourseEngagementSystem\backend\ces_main\settings.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rechs\OneDrive\Desktop\CES-CourseEngagementSystem\backend\ces_main\settings.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 101
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 3826
+"GET / HTTP/1.1" 200 101
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Not Found: /LogIN.jpeg
+"GET /LogIN.jpeg HTTP/1.1" 404 3823
+"POST /api/auth/login/ HTTP/1.1" 200 354

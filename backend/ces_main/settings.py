@@ -25,8 +25,9 @@ SECRET_KEY = 'django-insecure-6sqz#-v^fhkvhf#w10gq-@m_o#l(%%0%n#53aj7*)9p!c8bzdv
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
-
+#ALLOWED_HOSTS = ['localhost', '127.0.0.1', '196.42.70.236']
+ALLOWED_HOSTS = ["*",]
+SECURE_SSL_REDIRECT = False
 
 # Application definition
 
@@ -165,7 +166,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_CREDENTIALS = False
 
 # Session settings
 SESSION_COOKIE_AGE = 86400  # 24 hours

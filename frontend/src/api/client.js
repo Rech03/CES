@@ -2,7 +2,10 @@ import axios from 'axios';
 
 const BASE_URL = process.env.REACT_APP_API_URL || '/api/'; // prod env optional
 
-const api = axios.create({ baseURL: BASE_URL });
+//const api = axios.create({ baseURL: BASE_URL });
+const api = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || "/api/", // env wins, else local proxy
+})
 
 // Build Authorization header (Bearer by default; falls back to Token if needed)
 function getAuthHeader() {
