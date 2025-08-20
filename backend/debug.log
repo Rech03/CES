@@ -1935,3 +1935,7 @@ Watching for file changes with StatReloader
 Watching for file changes with StatReloader
 "POST /api/auth/login/ HTTP/1.1" 200 354
 Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Not Found: /LogIN.jpeg
+"GET /LogIN.jpeg HTTP/1.1" 404 3819
+"POST /api/auth/login/ HTTP/1.1" 200 354

@@ -1,40 +1,68 @@
 import { useState } from "react";
 import "./AddCourse.css";
+import { createCourse } from "../../api/courses"; // adjust path if needed
 
 export default function CreateCourseForm() {
   const [courseData, setCourseData] = useState({
     name: "",
+    code: "",            // added for API
     capacity: "",
     startDate: "",
     endDate: "",
     lectureRoom: "",
     description: "",
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const [students, setStudents] = useState([]);
-
-  // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     setCourseData((prev) => ({ ...prev, [name]: value }));
   };
 
-  
-  // Submit form
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Course Data:", courseData);
-    console.log("Enrolled Students:", students);
-    alert("Course created successfully!");
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const payload = {
+        name: courseData.name,
+        code: courseData.code,                      // required by API
+        description: courseData.description || "",
+        max_students: Number(courseData.capacity || 0),
+      };
+      await createCourse(payload);
+      alert("Course created successfully!");
+      setCourseData({
+        name: "",
+        code: "",
+        capacity: "",
+        startDate: "",
+        endDate: "",
+        lectureRoom: "",
+        description: "",
+      });
+    } catch (err) {
+      const msg =
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        "Failed to create course";
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="course_form_Container">
       <h2>Create New Course</h2>
+
+      {error && <p className="error">{error}</p>}
+
       <form className="course-form" onSubmit={handleSubmit}>
-        
         {/* Course Name */}
-        <div class="Course_Name">
+        <div className="Course_Name">
           <label className="course-form label">Course Name</label>
           <input
             type="text"
@@ -47,8 +75,22 @@ export default function CreateCourseForm() {
           />
         </div>
 
+        {/* Course Code (added) */}
+        <div className="Course_Code">
+          <label className="course-form label">Course Code</label>
+          <input
+            type="text"
+            name="code"
+            value={courseData.code}
+            onChange={handleChange}
+            className="course-form input"
+            placeholder="e.g., CSC3003F"
+            required
+          />
+        </div>
+
         {/* Capacity */}
-        <div class="Course_Capacity">
+        <div className="Course_Capacity">
           <label className="course-form label">Capacity</label>
           <input
             type="number"
@@ -61,8 +103,8 @@ export default function CreateCourseForm() {
           />
         </div>
 
-        {/* Start Date */}
-        <div class="Course_Start">
+        {/* (Optional UI-only fields retained) */}
+        <div className="Course_Start">
           <label className="course-form label">Start Date</label>
           <input
             type="date"
@@ -70,12 +112,10 @@ export default function CreateCourseForm() {
             value={courseData.startDate}
             onChange={handleChange}
             className="course-form select"
-            required
           />
         </div>
 
-        {/* End Date */}
-        <div class="Course_End">
+        <div className="Course_End">
           <label className="course-form label">End Date</label>
           <input
             type="date"
@@ -83,12 +123,10 @@ export default function CreateCourseForm() {
             value={courseData.endDate}
             onChange={handleChange}
             className="course-form select"
-            required
           />
         </div>
 
-        {/* Lecture Room */}
-        <div class="Course_Room"> 
+        <div className="Course_Room">
           <label className="course-form label">Lecture Room</label>
           <input
             type="text"
@@ -97,12 +135,10 @@ export default function CreateCourseForm() {
             onChange={handleChange}
             className="course-form input"
             placeholder="Enter lecture room"
-            required
           />
         </div>
 
-        {/* Description */}
-        <div class="Course_Description">
+        <div className="Course_Description">
           <label className="course-form label">Description</label>
           <textarea
             name="description"
@@ -113,12 +149,8 @@ export default function CreateCourseForm() {
           />
         </div>
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          class="submit-btn"
-        >
-          Create Course
+        <button type="submit" className="submit-btn" disabled={isLoading}>
+          {isLoading ? "Creating..." : "Create Course"}
         </button>
       </form>
     </div>
