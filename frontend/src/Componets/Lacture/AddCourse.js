@@ -1,6 +1,6 @@
 import { useState } from "react";
-import "./AddCourse.css";
 import { createCourse } from "../../api/courses"; // adjust path if needed
+import "./AddCourse.css";
 
 export default function CreateCourseForm() {
   const [courseData, setCourseData] = useState({
@@ -55,7 +55,7 @@ export default function CreateCourseForm() {
   };
 
   return (
-    <div className="course_form_Container">
+    <div className="course-form_container">
       <h2>Create New Course</h2>
 
       {error && <p className="error">{error}</p>}

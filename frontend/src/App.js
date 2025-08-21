@@ -19,12 +19,12 @@ function App() {
         {/* Routes */}
         <Routes>
           <Route path="/" element={<Login />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/add-students" element={<AddStudents />} />
-          <Route path="/create-quiz" element={<Createquiz />} />
-          <Route path="/quiz-history" element={<QuizHistory />} />
-          <Route path="/student-analytics" element={<StudentAnalytics />} />
-          <Route path="/create-course" element={<CreateCourse />} />
+          <Route path="/Dashboard" element={<Dashboard />} />
+          <Route path="/AddStudents" element={<AddStudents />} />
+          <Route path="/Createquiz" element={<Createquiz />} />
+          <Route path="/QuizHistory" element={<QuizHistory />} />
+          <Route path="/StudentAnalytics" element={<StudentAnalytics />} />
+          <Route path="/CreateCourse" element={<CreateCourse />} />
         </Routes>
       </BrowserRouter>
     </div>
