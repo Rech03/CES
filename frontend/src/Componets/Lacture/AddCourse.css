@@ -1,10 +1,13 @@
-.course-form-container {
-  max-width: 600px;
-  margin: 30px auto;
+.course-form_container {
+  width: 800px;
+  top: 100px;
   padding: 25px;
   background: #ffffff;
   border-radius: 12px;
   box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.1);
+  position: absolute;
+  left: 20%;
+
 }
 
 .course-form-container h2 {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import "./CreateQuiz.css";
 import { listTopics } from "../../api/courses"; // adjust path if needed
-import { createQuiz, createQuestion, addChoiceToQuestion } from "./api/quizzes";
+import { addChoiceToQuestion, createQuestion, createQuiz } from "../../api/quizzes";
+import "./AddQuiz.css";
 
 export default function CreateQuiz() {
   const [topics, setTopics] = useState([]);
@@ -13,10 +13,19 @@ export default function CreateQuiz() {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  // Load topics safely
   useEffect(() => {
     listTopics()
-      .then(({ data }) => setTopics(data))
-      .catch(() => setTopics([]));
+      .then(({ data }) => {
+        console.log("listTopics data:", data); // debug
+        if (Array.isArray(data)) setTopics(data);
+        else if (Array.isArray(data?.topics)) setTopics(data.topics);
+        else setTopics([]);
+      })
+      .catch((err) => {
+        console.error("Error fetching topics:", err);
+        setTopics([]);
+      });
   }, []);
 
   const handleAddQuestion = () => {
@@ -58,20 +67,18 @@ export default function CreateQuiz() {
         });
 
         if (type === "MCQ") {
-          // q.options is an array from your UI; q.answer is the correct one
           let order = 1;
           for (const opt of q.options || []) {
             if (!opt) continue;
             await addChoiceToQuestion(created.id, {
               choice_text: opt,
-              is_correct: q.answer && String(q.answer).trim() === String(opt).trim(),
+              is_correct: String(q.answer).trim() === String(opt).trim(),
               order: order++,
             });
           }
         }
 
         if (type === "TF") {
-          // Create True/False choices
           await addChoiceToQuestion(created.id, {
             choice_text: "True",
             is_correct: String(q.answer).toLowerCase() === "true",
@@ -83,12 +90,9 @@ export default function CreateQuiz() {
             order: 2,
           });
         }
-
-        // For "SA" (open/oneword) there’s no choices to add
       }
 
       alert("Quiz Created and Questions Saved!");
-      // reset form
       setTopicId("");
       setQuizTitle("");
       setQuestions([]);
@@ -116,7 +120,10 @@ export default function CreateQuiz() {
               type="text"
               value={(currentQuestion.options || []).join(",")}
               onChange={(e) =>
-                setCurrentQuestion({ ...currentQuestion, options: e.target.value.split(",").map(s => s.trim()) })
+                setCurrentQuestion({
+                  ...currentQuestion,
+                  options: e.target.value.split(",").map((s) => s.trim()),
+                })
               }
             />
             <label>Correct Answer</label>
@@ -181,7 +188,6 @@ export default function CreateQuiz() {
       {error && <p className="error">{error}</p>}
 
       <form onSubmit={handleSubmitQuiz}>
-        {/* Topic select (required) */}
         <label>Topic</label>
         <select value={topicId} onChange={(e) => setTopicId(e.target.value)} required>
           <option value="">Select Topic</option>

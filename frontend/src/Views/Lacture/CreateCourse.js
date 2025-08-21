@@ -1,4 +1,20 @@
-function Create_course() {
-  return <h1>Create Course Page</h1>;
+import AddCourse from "../../Componets/Lacture/AddCourse";
+import NavBar from "../../Componets/Lacture/NavBar";
+import SearchBar from "../../Componets/Lacture/SearchBar";
+function CreateCourse() {
+  return(
+    <div>
+      <div className="NavBar">
+        <NavBar></NavBar>
+      </div>
+      <div className="SeachBar">
+         <SearchBar></SearchBar>
+      </div>
+      <AddCourse></AddCourse>
+    </div> 
+  
+
+  )
 }
-export default Create_course;
+
+export default CreateCourse;
