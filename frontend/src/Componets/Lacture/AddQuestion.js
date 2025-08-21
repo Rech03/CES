@@ -1,6 +1,6 @@
 import { useState } from "react";
 import "./QuestionForm.css";
-import { createQuestion, addChoiceToQuestion } from "../../api/quizzes"; // adjust path if needed
+import { createQuestion, addChoiceToQuestion } from "../../api/quizzes"; 
 
 export default function QuestionForm({ quizId, onQuestionAdded }) {
   const [question, setQuestion] = useState("");
