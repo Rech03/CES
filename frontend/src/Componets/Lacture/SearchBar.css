@@ -1,3 +1,5 @@
+/* SearchBar.css - Original Size with Exact Design Styling */
+
 /* General box sizing */
 * {
   box-sizing: border-box;
@@ -6,8 +8,8 @@
 /* Top navigation container */
 .topnav {
   display: flex;
-  justify-content: center; /* centers the search bar horizontally */
-  align-items: center;     /* centers vertically if height is set */
+  justify-content: center;
+  align-items: center;
   padding: 25px 0;
   width: 800px;
   position: absolute;
@@ -16,59 +18,150 @@
 
 /* Search container */
 .topnav .search-container {
-  position: relative; /* needed for positioning the icon */
-  width:  700px;   /* maximum width */
+  position: relative;
+  width: 700px;
+  height: 48px; /* Scaled up from 22px */
+}
+
+/* Background with exact shadow */
+.topnav .search-container::before {
+  content: '';
+  width: 100%;
+  height: 100%;
+  left: 0px;
+  top: 0px;
+  position: absolute;
+  background: white;
+  box-shadow: 0px 5.15717077255249px 13.752455711364746px 1.7190569639205933px #EDEDED;
+  border-radius: 7.5px; /* Scaled from 3.44px */
+  pointer-events: none;
+}
+
+/* Search icon container */
+.topnav .search-container::after {
+  content: '';
+  width: 18px; /* Scaled from 8.60px */
+  height: 18px;
+  left: 20px; /* Scaled from 9.40px */
+  top: 15px; /* Scaled from 7.57px */
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Search icon inner circle */
+.topnav .search-container .search-icon {
+  width: 15px; /* Scaled from 7.26px */
+  height: 15px;
+  left: 21px; /* Adjusted position */
+  top: 16.5px;
+  position: absolute;
+  background: #1935CA;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 3;
 }
 
 /* Search input */
 .topnav input[type=text] {
-  width: 100%;
-  padding: 12px 40px 12px 15px; /* space for icon on the left */
-  font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 25px;
-  outline: none;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-}
-
-/* Input focus effect */
-.topnav input[type=text]:focus {
-  border-color: #1565d8;
-  box-shadow: 0 4px 12px rgba(21, 101, 216, 0.3);
-}
-
-/* Search button inside container */
-.topnav .search-container button {
   position: absolute;
-  right: 5px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #1565d8;
+  left: 48px; /* Scaled from 22.46px */
+  top: 0px;
+  width: calc(100% - 48px - 20px);
+  height: 100%;
   border: none;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: background 0.3s ease;
+  outline: none;
+  background: transparent;
+  color: #696F79;
+  font-size: 14px; /* Scaled from 6.53px */
+  font-family: Poppins, sans-serif;
+  font-weight: 400;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+  line-height: 1;
 }
 
-/* Button hover effect */
-.topnav .search-container button:hover {
-  background: #0d47a1;
+/* Placeholder styling */
+.topnav input[type=text]::placeholder {
+  color: #696F79;
+  font-size: 14px;
+  font-family: Poppins, sans-serif;
+  font-weight: 400;
 }
 
-/* Font Awesome search icon inside button */
-.topnav .search-container button i {
-  font-size: 16px;
+/* Form styling */
+.topnav .search-container form {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  margin: 0;
+  padding: 0;
 }
 
-/* Optional: icon inside input instead of button */
-.topnav .search-container .fa-search {
-  position: absolute;
-  left: 15px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #888;
-  pointer-events: none;
+/* Hover effects */
+.topnav .search-container:hover::before {
+  box-shadow: 0px 6px 16px 2px #E0E0E0;
+}
+
+.topnav .search-container:hover .search-icon {
+  background: #1565D8;
+}
+
+/* Focus effects */
+.topnav input[type=text]:focus {
+  color: #1935CA;
+}
+
+.topnav .search-container:focus-within::before {
+  box-shadow: 0px 6px 16px 2px #D0D0D0;
+  border-radius: 7.5px;
+}
+
+.topnav .search-container:focus-within .search-icon {
+  background: #1565D8;
+}
+
+/* Optional search button (hidden by default to match design) */
+.topnav .search-container button {
+  display: none;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .topnav {
+    width: 90%;
+    left: 5%;
+  }
+  
+  .topnav .search-container {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .topnav {
+    width: 95%;
+    left: 2.5%;
+    padding: 20px 0;
+  }
+  
+  .topnav .search-container {
+    width: 100%;
+    height: 44px;
+  }
+  
+  .topnav input[type=text] {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .topnav .search-container .search-icon {
+    width: 13px;
+    height: 13px;
+    left: 19px;
+    top: 15.5px;
+  }
 }
