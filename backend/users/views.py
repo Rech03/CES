@@ -1,4 +1,4 @@
-# users/views.py
+# users/views.py - SINGLE USER MODEL VIEWS
 
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes, authentication_classes

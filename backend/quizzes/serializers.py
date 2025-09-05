@@ -37,13 +37,8 @@ class QuestionCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = [
-            'quiz',
-            'question_text', 
-            'question_type', 
-            'points', 
-            'order',
-            'correct_answer_text', 
-            'choices'
+            'question_text', 'question_type', 'points', 'order',
+            'correct_answer_text', 'choices'
         ]
     
     def create(self, validated_data):
