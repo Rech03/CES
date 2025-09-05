@@ -1,0 +1,107 @@
+Folder PATH listing for volume OS
+Volume serial number is E84E-5DC7
+C:.
+¦   project_tree.txt
+¦   
++---public
+¦       Amandla.png
+¦       BSCS 3rd semester notes (1).jpeg
+¦       Code like a pro for free.jpeg
+¦       favicon.ico
+¦       Hello world.jpeg
+¦       index.html
+¦       Java.jpeg
+¦       Learn How To Be A Software Engineer.jpeg
+¦       Learn to Code from Scratch ?? _ No Experience Needed _ Grab the eBook from Bio ??.jpeg
+¦       Life realities.jpeg
+¦       logo192.png
+¦       logo512.png
+¦       manifest.json
+¦       MCS logo.jpeg
+¦       robots.txt
+¦       Wallpaper Python iPhone.jpeg
+¦       Your Cpp Programming.jpeg
+¦       
++---src
+    ¦   App.css
+    ¦   App.js
+    ¦   App.test.js
+    ¦   index.css
+    ¦   index.js
+    ¦   logo.svg
+    ¦   reportWebVitals.js
+    ¦   setupTests.js
+    ¦   
+    +---api
+    ¦       auth.js
+    ¦       client.js
+    ¦       courses.js
+    ¦       quizzes.js
+    ¦       
+    +---Componets
+    ¦   +---Lacture
+    ¦   ¦       AddCourse.css
+    ¦   ¦       AddCourse.js
+    ¦   ¦       AddQuestion.js
+    ¦   ¦       AddQuiz.css
+    ¦   ¦       AddQuiz.js
+    ¦   ¦       AddStudents.css
+    ¦   ¦       AddStudents.js
+    ¦   ¦       NavBar.css
+    ¦   ¦       NavBar.js
+    ¦   ¦       SearchBar.css
+    ¦   ¦       SearchBar.js
+    ¦   ¦       SidePanell.css
+    ¦   ¦       SidePanell.js
+    ¦   ¦       
+    ¦   +---Student
+    ¦           Logout.css
+    ¦           Logout.js
+    ¦           Logout.test.js
+    ¦           NavBar.css
+    ¦           NavBar.js
+    ¦           Profile.css
+    ¦           Profile.js
+    ¦           SearchBar.css
+    ¦           SearchBar.js
+    ¦           
+    +---public
+    ¦       Amandla.png
+    ¦       BSCS 3rd semester notes (1).jpeg
+    ¦       Code like a pro for free.jpeg
+    ¦       favicon.ico
+    ¦       Hello world.jpeg
+    ¦       index.html
+    ¦       Java.jpeg
+    ¦       Learn How To Be A Software Engineer.jpeg
+    ¦       Learn to Code from Scratch ?? _ No Experience Needed _ Grab the eBook from Bio ??.jpeg
+    ¦       Life realities.jpeg
+    ¦       logo192.png
+    ¦       logo512.png
+    ¦       manifest.json
+    ¦       MCS logo.jpeg
+    ¦       robots.txt
+    ¦       Wallpaper Python iPhone.jpeg
+    ¦       Your Cpp Programming.jpeg
+    ¦       
+    +---Views
+        +---Lacture
+        ¦       AddStudents.js
+        ¦       CreateCourse.js
+        ¦       Createquiz.js
+        ¦       Dashboard.js
+        ¦       QuizHistory.js
+        ¦       StudentAnalytics.js
+        ¦       
+        +---LogIn
+        ¦       Login.css
+        ¦       Login.js
+        ¦       
+        +---Student
+                Achievements.js
+                Analytics.js
+                Dashboard.js
+                LogoutPlayground.js
+                QuizHistory.js
+                QuizPage.js
+                

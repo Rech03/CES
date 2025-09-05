@@ -1,0 +1,74 @@
+/* General box sizing */
+* {
+  box-sizing: border-box;
+}
+
+/* Top navigation container */
+.topnav {
+  display: flex;
+  justify-content: center; /* centers the search bar horizontally */
+  align-items: center;     /* centers vertically if height is set */
+  padding: 25px 0;
+  width: 800px;
+  position: absolute;
+  left: 20%;
+}
+
+/* Search container */
+.topnav .search-container {
+  position: relative; /* needed for positioning the icon */
+  width:  700px;   /* maximum width */
+}
+
+/* Search input */
+.topnav input[type=text] {
+  width: 100%;
+  padding: 12px 40px 12px 15px; /* space for icon on the left */
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 25px;
+  outline: none;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+/* Input focus effect */
+.topnav input[type=text]:focus {
+  border-color: #1565d8;
+  box-shadow: 0 4px 12px rgba(21, 101, 216, 0.3);
+}
+
+/* Search button inside container */
+.topnav .search-container button {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1565d8;
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+/* Button hover effect */
+.topnav .search-container button:hover {
+  background: #0d47a1;
+}
+
+/* Font Awesome search icon inside button */
+.topnav .search-container button i {
+  font-size: 16px;
+}
+
+/* Optional: icon inside input instead of button */
+.topnav .search-container .fa-search {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+  pointer-events: none;
+}
