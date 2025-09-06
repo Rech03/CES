@@ -1,5 +1,3 @@
-# users/serializers.py - SINGLE USER MODEL SERIALIZERS
-
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from .models import User, StudentProfile
@@ -50,13 +48,11 @@ class StudentSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'date_joined', 'full_name', 'profile', 'courses_count']
     
     def get_profile(self, obj):
-        """Get student profile if exists"""
         if hasattr(obj, 'student_profile'):
             return StudentProfileSerializer(obj.student_profile).data
         return None
     
     def get_courses_count(self, obj):
-        """Return number of courses enrolled"""
         return obj.get_enrolled_courses().count()
 
 
@@ -98,11 +94,6 @@ class LoginSerializer(serializers.Serializer):
             if user:
                 if not user.is_active:
                     raise serializers.ValidationError('User account is disabled.')
-                
-                # Check if student has course enrollment (requirement)
-                if user.user_type == 'student':
-                    if user.get_enrolled_courses().count() == 0:
-                        raise serializers.ValidationError('Student must be enrolled in at least one course to login.')
                 
                 attrs['user'] = user
                 return attrs

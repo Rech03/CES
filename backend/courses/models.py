@@ -1,15 +1,13 @@
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from users.models import User
-import uuid
 
 
 class Course(models.Model):
     """Course model"""
     id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=200)
-    code = models.CharField(max_length=20, unique=True)  # e.g., CSC3003F
+    code = models.CharField(max_length=20, unique=True)
     description = models.TextField()
     lecturer = models.ForeignKey(
         User, 
@@ -115,3 +113,37 @@ class Topic(models.Model):
     
     def __str__(self):
         return f"{self.course.code} - {self.name}"
+
+
+class Attendance(models.Model):
+    """Student attendance tracking"""
+    student = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        limit_choices_to={'user_type': 'student'},
+        related_name='attendance_records'
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='attendance_records'
+    )
+    date = models.DateField(default=timezone.now)
+    is_present = models.BooleanField(default=False)
+    verified_by_quiz = models.BooleanField(default=False)
+    quiz_attempt = models.ForeignKey(
+        'quizzes.QuizAttempt',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='attendance_record'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('student', 'course', 'date')
+        ordering = ['-date', 'student__first_name']
+    
+    def __str__(self):
+        status = "Present" if self.is_present else "Absent"
+        return f"{self.student.get_full_name()} - {self.course.code} - {self.date} ({status})"

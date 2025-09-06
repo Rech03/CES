@@ -2,16 +2,18 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.db.models import Q, Count, Avg
 from django.db import transaction
+import csv
+import io
+from django.contrib.auth.hashers import make_password
 
-from .models import Course, CourseEnrollment, Topic
+from users.models import User
+from .models import Course, CourseEnrollment, Topic, Attendance
 from .serializers import (
     CourseSerializer, CourseCreateSerializer, CourseEnrollmentSerializer,
-    EnrollStudentSerializer, TopicSerializer, CourseDashboardSerializer, 
-    StudentDashboardSerializer, EnrollWithCodeSerializer
+    TopicSerializer, CourseDashboardSerializer, StudentDashboardSerializer,
+    AttendanceSerializer
 )
 
 
@@ -22,25 +24,6 @@ class IsLecturerOrReadOnly(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return request.user.is_authenticated
         return request.user.is_authenticated and request.user.is_lecturer
-
-
-class IsEnrolledStudent(permissions.BasePermission):
-    """Permission for enrolled students"""
-    
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.is_student
-    
-    def has_object_permission(self, request, view, obj):
-        if hasattr(obj, 'course'):
-            course = obj.course
-        else:
-            course = obj
-        
-        return CourseEnrollment.objects.filter(
-            student=request.user,
-            course=course,
-            is_active=True
-        ).exists()
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -63,43 +46,13 @@ class CourseViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_lecturer:
-            # Lecturers see only their courses
             return Course.objects.filter(lecturer=user)
         elif user.is_student:
-            # Students see only enrolled courses
             return Course.objects.filter(
                 enrollments__student=user,
                 enrollments__is_active=True
             )
         return Course.objects.none()
-    
-    @action(detail=True, methods=['post'])
-    def enroll_student(self, request, pk=None):
-        """Enroll a student in the course"""
-        course = self.get_object()
-        
-        # Only lecturer of the course can enroll students
-        if course.lecturer != request.user:
-            return Response(
-                {'error': 'Only the course lecturer can enroll students'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        serializer = EnrollStudentSerializer(data=request.data)
-        if serializer.is_valid():
-            student = serializer.validated_data['student']
-            
-            enrollment = CourseEnrollment.objects.create(
-                student=student,
-                course=course
-            )
-            
-            return Response({
-                'message': f'Student {student.get_full_name()} enrolled successfully',
-                'enrollment': CourseEnrollmentSerializer(enrollment).data
-            }, status=status.HTTP_201_CREATED)
-        
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['get'])
     def students(self, request, pk=None):
@@ -174,7 +127,6 @@ class CourseViewSet(viewsets.ModelViewSet):
         """Get topics for the course"""
         course = self.get_object()
         
-        # Check permissions
         if request.user.is_lecturer and course.lecturer != request.user:
             return Response(
                 {'error': 'You can only view topics for your courses'},
@@ -220,7 +172,6 @@ class TopicViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
     
     def perform_create(self, serializer):
-        # Ensure lecturer owns the course
         course = serializer.validated_data['course']
         if course.lecturer != self.request.user:
             raise permissions.PermissionDenied(
@@ -241,121 +192,6 @@ def student_dashboard(request):
     
     serializer = StudentDashboardSerializer(request.user)
     return Response(serializer.data)
-
-
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def enroll_with_code(request):
-    """Allow students to enroll using enrollment code"""
-    if not request.user.is_student:
-        return Response(
-            {'error': 'Only students can enroll in courses'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    serializer = EnrollWithCodeSerializer(data=request.data)
-    if serializer.is_valid():
-        enrollment_code = serializer.validated_data['enrollment_code']
-        
-        try:
-            course = Course.objects.get(enrollment_code=enrollment_code, is_active=True)
-        except Course.DoesNotExist:
-            return Response(
-                {'error': 'Invalid enrollment code'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Check if already enrolled
-        if CourseEnrollment.objects.filter(
-            student=request.user,
-            course=course
-        ).exists():
-            return Response(
-                {'error': 'You are already enrolled in this course'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Create enrollment
-        enrollment = CourseEnrollment.objects.create(
-            student=request.user,
-            course=course
-        )
-        
-        return Response({
-            'message': f'Successfully enrolled in {course.name}',
-            'enrollment': CourseEnrollmentSerializer(enrollment).data
-        }, status=status.HTTP_201_CREATED)
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
-def regenerate_enrollment_code(request, course_id):
-    """Regenerate enrollment code for a course"""
-    if not request.user.is_lecturer:
-        return Response(
-            {'error': 'Only lecturers can regenerate enrollment codes'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    try:
-        course = Course.objects.get(id=course_id, lecturer=request.user)
-    except Course.DoesNotExist:
-        return Response(
-            {'error': 'Course not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    
-    # Generate new enrollment code
-    course.enrollment_code = course.generate_enrollment_code()
-    course.save()
-    
-    return Response({
-        'message': 'Enrollment code regenerated successfully',
-        'new_enrollment_code': course.enrollment_code
-    })
-
-
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def course_statistics(request, course_id):
-    """Get basic course statistics for lecturers"""
-    if not request.user.is_lecturer:
-        return Response(
-            {'error': 'Only lecturers can view course statistics'},
-            status=status.HTTP_403_FORBIDDEN
-        )
-    
-    try:
-        course = Course.objects.get(id=course_id, lecturer=request.user)
-    except Course.DoesNotExist:
-        return Response(
-            {'error': 'Course not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
-    
-    # Get basic statistics
-    enrollments = CourseEnrollment.objects.filter(course=course, is_active=True)
-    total_students = enrollments.count()
-    
-    # Topic statistics
-    topics = course.topics.filter(is_active=True)
-    total_topics = topics.count()
-    
-    statistics = {
-        'course_info': CourseSerializer(course).data,
-        'students': {
-            'total_enrolled': total_students,
-            'enrollments': CourseEnrollmentSerializer(enrollments, many=True).data
-        },
-        'topics': {
-            'total': total_topics,
-            'topics_list': TopicSerializer(topics, many=True).data
-        }
-    }
-    
-    return Response(statistics)
 
 
 @api_view(['GET'])
@@ -382,3 +218,233 @@ def my_courses(request):
         })
     
     return Response({'courses': []})
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def upload_students_csv(request, course_id):
+    """Upload CSV to create and enroll students"""
+    if not request.user.is_lecturer:
+        return Response(
+            {'error': 'Only lecturers can upload student data'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        course = Course.objects.get(id=course_id, lecturer=request.user)
+    except Course.DoesNotExist:
+        return Response(
+            {'error': 'Course not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    if 'csv_file' not in request.FILES:
+        return Response(
+            {'error': 'CSV file is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    csv_file = request.FILES['csv_file']
+    
+    if not csv_file.name.endswith('.csv'):
+        return Response(
+            {'error': 'File must be a CSV'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        decoded_file = csv_file.read().decode('utf-8')
+        csv_data = csv.DictReader(io.StringIO(decoded_file))
+        
+        required_columns = ['first_name', 'last_name', 'student_number', 'password']
+        if not all(col in csv_data.fieldnames for col in required_columns):
+            return Response(
+                {'error': f'CSV must contain columns: {", ".join(required_columns)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        created_students = []
+        updated_students = []
+        errors = []
+        
+        with transaction.atomic():
+            for row_num, row in enumerate(csv_data, start=2):
+                try:
+                    first_name = row['first_name'].strip()
+                    last_name = row['last_name'].strip()
+                    student_number = row['student_number'].strip()
+                    password = row['password'].strip()
+                    
+                    if not all([first_name, last_name, student_number, password]):
+                        errors.append(f"Row {row_num}: Missing required data")
+                        continue
+                    
+                    username = student_number.lower()
+                    email = f"{student_number}@student.uct.ac.za"
+                    
+                    try:
+                        user = User.objects.get(student_number=student_number)
+                        user.first_name = first_name
+                        user.last_name = last_name
+                        user.set_password(password)
+                        user.save()
+                        updated_students.append(user)
+                    except User.DoesNotExist:
+                        user = User.objects.create(
+                            username=username,
+                            email=email,
+                            first_name=first_name,
+                            last_name=last_name,
+                            student_number=student_number,
+                            user_type='student',
+                            password=make_password(password)
+                        )
+                        created_students.append(user)
+                    
+                    enrollment, created = CourseEnrollment.objects.get_or_create(
+                        student=user,
+                        course=course,
+                        defaults={'is_active': True}
+                    )
+                    
+                    if not created and not enrollment.is_active:
+                        enrollment.is_active = True
+                        enrollment.save()
+                    
+                except Exception as e:
+                    errors.append(f"Row {row_num}: {str(e)}")
+                    continue
+        
+        return Response({
+            'message': 'CSV processed successfully',
+            'created_students': len(created_students),
+            'updated_students': len(updated_students),
+            'errors': errors,
+            'total_enrolled': course.get_enrolled_students_count()
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Error processing CSV: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def course_attendance(request, course_id):
+    """Get attendance records for a course"""
+    if not request.user.is_lecturer:
+        return Response(
+            {'error': 'Only lecturers can view attendance'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        course = Course.objects.get(id=course_id, lecturer=request.user)
+    except Course.DoesNotExist:
+        return Response(
+            {'error': 'Course not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    date_filter = request.GET.get('date')
+    attendance_records = Attendance.objects.filter(course=course)
+    
+    if date_filter:
+        try:
+            filter_date = timezone.datetime.strptime(date_filter, '%Y-%m-%d').date()
+            attendance_records = attendance_records.filter(date=filter_date)
+        except ValueError:
+            return Response(
+                {'error': 'Invalid date format. Use YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    
+    attendance_records = attendance_records.order_by('-date', 'student__first_name')
+    serializer = AttendanceSerializer(attendance_records, many=True)
+    
+    total_students = course.get_enrolled_students_count()
+    if date_filter:
+        present_count = attendance_records.filter(is_present=True).count()
+        attendance_rate = (present_count / total_students * 100) if total_students > 0 else 0
+    else:
+        attendance_rate = None
+    
+    return Response({
+        'attendance_records': serializer.data,
+        'statistics': {
+            'total_students': total_students,
+            'present_count': present_count if date_filter else None,
+            'attendance_rate': round(attendance_rate, 2) if attendance_rate else None
+        }
+    })
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def mark_attendance(request, course_id):
+    """Manually mark attendance for students"""
+    if not request.user.is_lecturer:
+        return Response(
+            {'error': 'Only lecturers can mark attendance'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    try:
+        course = Course.objects.get(id=course_id, lecturer=request.user)
+    except Course.DoesNotExist:
+        return Response(
+            {'error': 'Course not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    student_id = request.data.get('student_id')
+    is_present = request.data.get('is_present', False)
+    date_str = request.data.get('date')
+    
+    if not student_id:
+        return Response(
+            {'error': 'Student ID is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        student = User.objects.get(id=student_id, user_type='student')
+    except User.DoesNotExist:
+        return Response(
+            {'error': 'Student not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    if not CourseEnrollment.objects.filter(
+        student=student, course=course, is_active=True
+    ).exists():
+        return Response(
+            {'error': 'Student is not enrolled in this course'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if date_str:
+        try:
+            attendance_date = timezone.datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'error': 'Invalid date format. Use YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+    else:
+        attendance_date = timezone.now().date()
+    
+    attendance, created = Attendance.objects.update_or_create(
+        student=student,
+        course=course,
+        date=attendance_date,
+        defaults={'is_present': is_present}
+    )
+    
+    action = "marked" if created else "updated"
+    return Response({
+        'message': f'Attendance {action} successfully',
+        'attendance': AttendanceSerializer(attendance).data
+    })

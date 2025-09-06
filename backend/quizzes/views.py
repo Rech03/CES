@@ -2,9 +2,8 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.db.models import Q, Count, Avg
+from django.db.models import Avg
 from django.db import transaction
 
 from .models import Quiz, Question, Choice, QuizAttempt, Answer
@@ -26,33 +25,9 @@ class IsLecturerOrReadOnly(permissions.BasePermission):
         return request.user.is_authenticated and request.user.is_lecturer
 
 
-class IsEnrolledStudent(permissions.BasePermission):
-    """Permission for enrolled students"""
-    
-    def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.is_student
-    
-    def has_object_permission(self, request, view, obj):
-        if hasattr(obj, 'course'):
-            course = obj.course
-        elif hasattr(obj, 'topic'):
-            course = obj.topic.course
-        elif hasattr(obj, 'quiz'):
-            course = obj.quiz.topic.course
-        else:
-            # For quiz objects
-            course = obj.topic.course
-        
-        return CourseEnrollment.objects.filter(
-            student=request.user,
-            course=course,
-            is_active=True
-        ).exists()
-
-
 class QuizViewSet(viewsets.ModelViewSet):
     """Quiz CRUD operations"""
-    queryset = Quiz.objects.all()  # Add this line
+    queryset = Quiz.objects.all()
     serializer_class = QuizSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated]
@@ -77,7 +52,6 @@ class QuizViewSet(viewsets.ModelViewSet):
         return [permission() for permission in permission_classes]
     
     def perform_create(self, serializer):
-        # Ensure lecturer owns the course
         topic = serializer.validated_data['topic']
         if topic.course.lecturer != self.request.user:
             raise permissions.PermissionDenied(
@@ -152,7 +126,7 @@ class QuizViewSet(viewsets.ModelViewSet):
 
 class QuestionViewSet(viewsets.ModelViewSet):
     """Question CRUD operations"""
-    queryset = Question.objects.all()  # Add this line
+    queryset = Question.objects.all()
     authentication_classes = [TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated, IsLecturerOrReadOnly]
     
@@ -168,7 +142,6 @@ class QuestionViewSet(viewsets.ModelViewSet):
         return Question.objects.none()
     
     def perform_create(self, serializer):
-        # Ensure lecturer owns the course
         quiz = serializer.validated_data['quiz']
         if quiz.topic.course.lecturer != self.request.user:
             raise permissions.PermissionDenied(
@@ -194,7 +167,7 @@ class QuestionViewSet(viewsets.ModelViewSet):
 
 class ChoiceViewSet(viewsets.ModelViewSet):
     """Choice CRUD operations"""
-    queryset = Choice.objects.all()  # Add this line
+    queryset = Choice.objects.all()
     serializer_class = ChoiceSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [permissions.IsAuthenticated, IsLecturerOrReadOnly]
@@ -227,7 +200,6 @@ def start_quiz_attempt(request):
         quiz = serializer.validated_data['quiz']
         password = serializer.validated_data.get('password', '')
         
-        # Create quiz attempt
         attempt = QuizAttempt.objects.create(
             student=request.user,
             quiz=quiz,
@@ -255,8 +227,7 @@ def submit_answer(request):
     
     attempt_id = request.data.get('attempt_id')
     if not attempt_id:
-        return Response(
-            {'error': 'Attempt ID is required'},
+        return Response({'error': 'Attempt ID is required'},
             status=status.HTTP_400_BAD_REQUEST
         )
     
@@ -276,14 +247,12 @@ def submit_answer(request):
     if serializer.is_valid():
         question = serializer.validated_data['question']
         
-        # Check if question belongs to the quiz
         if question.quiz != attempt.quiz:
             return Response(
                 {'error': 'Question does not belong to this quiz'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Create or update answer
         answer_data = {
             'quiz_attempt': attempt,
             'question': question,
@@ -294,7 +263,6 @@ def submit_answer(request):
         elif question.question_type == 'SA':
             answer_data['answer_text'] = serializer.validated_data['answer_text']
         
-        # Use get_or_create to handle duplicate submissions
         answer, created = Answer.objects.get_or_create(
             quiz_attempt=attempt,
             question=question,
@@ -302,7 +270,6 @@ def submit_answer(request):
         )
         
         if not created:
-            # Update existing answer
             for key, value in answer_data.items():
                 if key not in ['quiz_attempt', 'question']:
                     setattr(answer, key, value)
@@ -346,14 +313,26 @@ def submit_quiz_attempt(request):
         )
     
     with transaction.atomic():
-        # Submit the attempt
         attempt.submit_attempt()
+        
+        # Mark attendance for quiz participation
+        from courses.models import Attendance
+        attendance, created = Attendance.objects.update_or_create(
+            student=request.user,
+            course=attempt.quiz.topic.course,
+            date=timezone.now().date(),
+            defaults={
+                'is_present': True,
+                'verified_by_quiz': True,
+                'quiz_attempt': attempt
+            }
+        )
     
-    # Return quiz results
     serializer = QuizResultSerializer(attempt)
     return Response({
         'message': 'Quiz submitted successfully',
-        'result': serializer.data
+        'result': serializer.data,
+        'attendance_marked': True
     })
 
 
@@ -369,7 +348,6 @@ def quiz_attempt_detail(request, attempt_id):
             status=status.HTTP_404_NOT_FOUND
         )
     
-    # Check permissions
     if request.user.is_student:
         if attempt.student != request.user:
             return Response(
@@ -402,13 +380,11 @@ def available_quizzes(request):
             status=status.HTTP_403_FORBIDDEN
         )
     
-    # Get enrolled courses
     enrolled_courses = CourseEnrollment.objects.filter(
         student=request.user,
         is_active=True
     ).values_list('course_id', flat=True)
     
-    # Get quizzes not yet attempted
     attempted_quiz_ids = QuizAttempt.objects.filter(
         student=request.user
     ).values_list('quiz_id', flat=True)
@@ -418,7 +394,6 @@ def available_quizzes(request):
         is_active=True
     ).exclude(id__in=attempted_quiz_ids).order_by('-created_at')
     
-    # Separate live and regular quizzes
     live_quizzes = available_quizzes.filter(is_live=True)
     regular_quizzes = available_quizzes.filter(is_live=False)
     
@@ -468,13 +443,11 @@ def quiz_statistics(request, quiz_id):
             status=status.HTTP_404_NOT_FOUND
         )
     
-    # Get comprehensive statistics
     attempts = QuizAttempt.objects.filter(quiz=quiz)
     total_attempts = attempts.count()
     completed_attempts = attempts.filter(is_completed=True)
     completed_count = completed_attempts.count()
     
-    # Performance statistics
     if completed_count > 0:
         avg_score = completed_attempts.aggregate(
             avg_score=Avg('score_percentage')
@@ -488,7 +461,6 @@ def quiz_statistics(request, quiz_id):
         highest_score = 0
         lowest_score = 0
     
-    # Score distribution
     score_distribution = {
         '0-20': completed_attempts.filter(score_percentage__lt=20).count(),
         '20-40': completed_attempts.filter(score_percentage__gte=20, score_percentage__lt=40).count(),
@@ -497,7 +469,6 @@ def quiz_statistics(request, quiz_id):
         '80-100': completed_attempts.filter(score_percentage__gte=80).count(),
     }
     
-    # Recent attempts
     recent_attempts = attempts.order_by('-started_at')[:10]
     
     statistics = {

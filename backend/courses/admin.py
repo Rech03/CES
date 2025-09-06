@@ -1,8 +1,5 @@
 from django.contrib import admin
-from django.utils.html import format_html
-from django.urls import reverse
-from django.utils.safestring import mark_safe
-from .models import Course, CourseEnrollment, Topic
+from .models import Course, CourseEnrollment, Topic, Attendance
 
 
 class CourseEnrollmentInline(admin.TabularInline):
@@ -87,36 +84,6 @@ class CourseEnrollmentAdmin(admin.ModelAdmin):
     )
     readonly_fields = ('enrolled_at',)
     ordering = ('-enrolled_at',)
-    
-    fieldsets = (
-        (None, {
-            'fields': ('student', 'course', 'is_active')
-        }),
-        ('Timestamps', {
-            'fields': ('enrolled_at',),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    actions = ['activate_enrollments', 'deactivate_enrollments']
-    
-    def activate_enrollments(self, request, queryset):
-        """Activate selected enrollments"""
-        updated = queryset.update(is_active=True)
-        self.message_user(
-            request,
-            f'Successfully activated {updated} enrollments.'
-        )
-    activate_enrollments.short_description = 'Activate selected enrollments'
-    
-    def deactivate_enrollments(self, request, queryset):
-        """Deactivate selected enrollments"""
-        updated = queryset.update(is_active=False)
-        self.message_user(
-            request,
-            f'Successfully deactivated {updated} enrollments.'
-        )
-    deactivate_enrollments.short_description = 'Deactivate selected enrollments'
 
 
 @admin.register(Topic)
@@ -128,43 +95,24 @@ class TopicAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
     ordering = ('-created_at',)
     
-    fieldsets = (
-        (None, {
-            'fields': ('course', 'name', 'description', 'is_active')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
     def get_quizzes_count(self, obj):
-        # Will show quiz count when quizzes app is implemented
-        return 0
+        return obj.get_quizzes_count()
     get_quizzes_count.short_description = 'Quizzes'
-    
-    actions = ['activate_topics', 'deactivate_topics']
-    
-    def activate_topics(self, request, queryset):
-        """Activate selected topics"""
-        updated = queryset.update(is_active=True)
-        self.message_user(
-            request,
-            f'Successfully activated {updated} topics.'
-        )
-    activate_topics.short_description = 'Activate selected topics'
-    
-    def deactivate_topics(self, request, queryset):
-        """Deactivate selected topics"""
-        updated = queryset.update(is_active=False)
-        self.message_user(
-            request,
-            f'Successfully deactivated {updated} topics.'
-        )
-    deactivate_topics.short_description = 'Deactivate selected topics'
 
 
-# Custom admin site modifications
+@admin.register(Attendance)
+class AttendanceAdmin(admin.ModelAdmin):
+    """Attendance admin"""
+    list_display = ('student', 'course', 'date', 'is_present', 'verified_by_quiz', 'created_at')
+    list_filter = ('is_present', 'verified_by_quiz', 'date', 'course')
+    search_fields = (
+        'student__username', 'student__first_name', 'student__last_name',
+        'student__student_number', 'course__code', 'course__name'
+    )
+    readonly_fields = ('created_at',)
+    ordering = ('-date', 'course', 'student__first_name')
+
+
 admin.site.site_header = 'Amandla Course Management'
 admin.site.site_title = 'Amandla Admin'
 admin.site.index_title = 'Course Engagement System Administration'
