@@ -1,0 +1,159 @@
+/* QuizTile.css - 250px x 250px */
+
+.quiz-tile-container {
+  width: 250px;
+  height: 250px;
+  position: relative;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  background-image: url('../../../public/Java.jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.quiz-tile-container:hover {
+  transform: scale(1.05);
+}
+
+/* Black background */
+.quiz-tile-background {
+  width: 250px;
+  height: 250px;
+  left: 0px;
+  top: 0px;
+  position: absolute;
+  background: black;
+  border-radius: 8px;
+}
+
+/* Background Image */
+.quiz-tile-image {
+  width: 250px;
+  height: 335px;
+  left: 0px;
+  top: -50px;
+  position: absolute;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+
+
+/* Duration Badge */
+.quiz-duration-badge {
+  width: 50px;
+  height: 22px;
+  left: 15px;
+  top: 15px;
+  position: absolute;
+  background: #00FF26;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quiz-duration-text {
+  text-align: center;
+  color: black;
+  font-size: 10px;
+  font-family: Poppins, sans-serif;
+  font-weight: 600;
+  word-wrap: break-word;
+}
+
+/* Title Container */
+.quiz-title-container {
+  width: 220px;
+  height: 50px;
+  left: 15px;
+  top: 185px;
+  position: absolute;
+  background: rgba(148, 37, 57, 0.30);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+.quiz-title-text {
+  color: white;
+  font-size: 12px;
+  font-family: Poppins, sans-serif;
+  font-weight: 500;
+  word-wrap: break-word;
+  text-align: left;
+  line-height: 1.3;
+  width: 100%;
+}
+
+/* Hover effects */
+.quiz-tile-container:hover .quiz-duration-badge {
+  background: #00CC1F;
+  transform: scale(1.05);
+  transition: all 0.3s ease;
+}
+
+.quiz-tile-container:hover .quiz-title-container {
+  background: rgba(148, 37, 57, 0.50);
+  transition: background 0.3s ease;
+}
+
+.quiz-tile-container:hover .quiz-tile-overlay {
+  opacity: 0.60;
+  transition: opacity 0.3s ease;
+}
+
+/* Active/Click state */
+.quiz-tile-container:active {
+  transform: scale(0.98);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .quiz-tile-container {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .quiz-tile-background {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .quiz-tile-image {
+    width: 200px;
+    height: 270px;
+    top: -40px;
+  }
+  
+  .quiz-tile-overlay {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .quiz-duration-badge {
+    width: 40px;
+    height: 18px;
+    left: 12px;
+    top: 12px;
+  }
+  
+  .quiz-duration-text {
+    font-size: 8px;
+  }
+  
+  .quiz-title-container {
+    width: 176px;
+    height: 40px;
+    left: 12px;
+    top: 148px;
+    padding: 0 10px;
+  }
+  
+  .quiz-title-text {
+    font-size: 10px;
+  }
+}

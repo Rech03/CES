@@ -19,3 +19,36 @@
     margin-top: 7%;
 
 }
+.Boi{
+    position:absolute;
+    margin-left: 82%;
+    margin-top: 20px;
+}
+.Boigraphy{
+
+}
+.Title{
+    position:absolute;
+    margin-left: 22%;
+    margin-top:280px;
+    color: #1935CA;
+  font-size: 16px;
+  font-family: Poppins, sans-serif;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.More{
+     position:absolute;
+    margin-left: 74%;
+    margin-top:280px;
+    color: #1935CA;
+  font-size: 16px;
+  font-family: Poppins, sans-serif;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.QuizList{
+    position:absolute;
+    margin-left: 22%;
+    margin-top:330px;
+}
