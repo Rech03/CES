@@ -1,66 +1,138 @@
-.course-form_container {
-  width: 800px;
-  top: 100px;
-  padding: 25px;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.1);
-  position: absolute;
-  left: 20%;
+/* Minimalistic AddCourse styling */
 
+.course-form_container {
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  position: relative;
+  left: auto;
+  top: auto;
 }
 
-.course-form-container h2 {
-  text-align: center;
-  margin-bottom: 20px;
-  color: #2c3e50;
+.course-form_container h2 {
+  text-align: left;
+  margin-bottom: 40px;
+  color: #333;
+  font-size: 24px;
+  font-family: Poppins, sans-serif;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .course-form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px 40px;
+  margin-bottom: 40px;
+}
+
+/* Full width elements */
+.Course_Description,
+.submit-btn-container {
+  grid-column: 1 / -1;
 }
 
 .course-form label {
-  display: flex;
-  flex-direction: column;
+  display: block;
   font-weight: 500;
-  color: #34495e;
+  color: #333;
+  font-family: Poppins, sans-serif;
+  font-size: 14px;
+  margin-bottom: 8px;
 }
 
 .course-form input,
-.course-form textarea,
-.course-form select {
-  margin-top: 5px;
-  padding: 10px;
-  border: 1px solid #dcdcdc;
-  border-radius: 8px;
+.course-form textarea {
+  width: 100%;
+  padding: 12px 0;
+  border: none;
+  border-bottom: 1px solid #E0E0E0;
   font-size: 14px;
+  font-family: Poppins, sans-serif;
+  background: transparent;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.course-form input:focus,
+.course-form textarea:focus {
+  border-bottom-color: #333;
+  outline: none;
 }
 
 .course-form textarea {
   resize: vertical;
   min-height: 80px;
+  font-family: Poppins, sans-serif;
 }
 
-.course-form input:focus,
-.course-form textarea:focus {
-  border-color: #3498db;
-  outline: none;
+.course-form input::placeholder,
+.course-form textarea::placeholder {
+  color: #999;
+  font-family: Poppins, sans-serif;
+}
+
+.submit-btn-container {
+  margin-top: 20px;
 }
 
 .submit-btn {
-  padding: 12px;
-  background: #3498db;
+  width: 100%;
+  padding: 16px 24px;
+  background: #1565D8;
   color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 16px;
+  font-size: 14px;
+  font-family: Poppins, sans-serif;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s ease-in-out;
+  transition: background 0.2s ease;
 }
 
 .submit-btn:hover {
-  background: #2980b9;
+  background: #15d81f;
+}
+
+.submit-btn:disabled {
+  background: #CCC;
+  cursor: not-allowed;
+}
+
+/* Error message styling */
+.error {
+  background: #F5F5F5;
+  color: #333;
+  padding: 12px 0;
+  border-bottom: 1px solid #E0E0E0;
+  margin-bottom: 30px;
+  font-family: Poppins, sans-serif;
+  font-size: 14px;
+}
+
+/* Form field containers */
+.Course_Name,
+.Course_Code,
+.Course_Capacity,
+.Course_Start,
+.Course_End,
+.Course_Room,
+.Course_Description {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .course-form {
+    grid-template-columns: 1fr;
+    gap: 25px;
+  }
+  
+  .course-form_container h2 {
+    font-size: 20px;
+    text-align: center;
+  }
 }

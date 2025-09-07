@@ -29,7 +29,7 @@ export default function CreateQuiz() {
   }, []);
 
   const handleAddQuestion = () => {
-    if (!currentType) return;
+    if (!currentType || !currentQuestion.text) return;
     setQuestions([...questions, { type: currentType, ...currentQuestion }]);
     setCurrentType("");
     setCurrentQuestion({});
@@ -109,28 +109,31 @@ export default function CreateQuiz() {
       case "mcq":
         return (
           <div className="form-section">
-            <label>Question</label>
+            <label>Question *</label>
             <input
               type="text"
               value={currentQuestion.text || ""}
               onChange={(e) => setCurrentQuestion({ ...currentQuestion, text: e.target.value })}
+              placeholder="Enter your multiple choice question"
             />
-            <label>Options (comma separated)</label>
+            <label>Options *</label>
             <input
               type="text"
-              value={(currentQuestion.options || []).join(",")}
+              value={(currentQuestion.options || []).join(", ")}
               onChange={(e) =>
                 setCurrentQuestion({
                   ...currentQuestion,
-                  options: e.target.value.split(",").map((s) => s.trim()),
+                  options: e.target.value.split(",").map((s) => s.trim()).filter(s => s),
                 })
               }
+              placeholder="Option 1, Option 2, Option 3, Option 4"
             />
-            <label>Correct Answer</label>
+            <label>Correct Answer *</label>
             <input
               type="text"
               value={currentQuestion.answer || ""}
               onChange={(e) => setCurrentQuestion({ ...currentQuestion, answer: e.target.value })}
+              placeholder="Enter the exact correct option"
             />
           </div>
         );
@@ -138,19 +141,21 @@ export default function CreateQuiz() {
       case "oneword":
         return (
           <div className="form-section">
-            <label>Question</label>
+            <label>Question *</label>
             <input
               type="text"
               value={currentQuestion.text || ""}
               onChange={(e) => setCurrentQuestion({ ...currentQuestion, text: e.target.value })}
+              placeholder={`Enter your ${currentType === 'oneword' ? 'one word' : 'open-ended'} question`}
             />
             {currentType === "oneword" && (
               <>
-                <label>Answer (one word)</label>
+                <label>Expected Answer</label>
                 <input
                   type="text"
                   value={currentQuestion.answer || ""}
                   onChange={(e) => setCurrentQuestion({ ...currentQuestion, answer: e.target.value })}
+                  placeholder="Enter the expected one-word answer"
                 />
               </>
             )}
@@ -159,18 +164,19 @@ export default function CreateQuiz() {
       case "truefalse":
         return (
           <div className="form-section">
-            <label>Question</label>
+            <label>Question *</label>
             <input
               type="text"
               value={currentQuestion.text || ""}
               onChange={(e) => setCurrentQuestion({ ...currentQuestion, text: e.target.value })}
+              placeholder="Enter your true/false statement"
             />
-            <label>Correct Answer</label>
+            <label>Correct Answer *</label>
             <select
               value={currentQuestion.answer || ""}
               onChange={(e) => setCurrentQuestion({ ...currentQuestion, answer: e.target.value })}
             >
-              <option value="">Select</option>
+              <option value="">Select correct answer</option>
               <option value="true">True</option>
               <option value="false">False</option>
             </select>
@@ -183,14 +189,14 @@ export default function CreateQuiz() {
 
   return (
     <div className="quiz-container">
-      <h2>Create a Quiz</h2>
+      <h2>Create Quiz</h2>
 
-      {error && <p className="error">{error}</p>}
+      {error && <div className="error">{error}</div>}
 
       <form onSubmit={handleSubmitQuiz}>
-        <label>Topic</label>
+        <label>Topic *</label>
         <select value={topicId} onChange={(e) => setTopicId(e.target.value)} required>
-          <option value="">Select Topic</option>
+          <option value="">Select a topic</option>
           {topics.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -198,17 +204,24 @@ export default function CreateQuiz() {
           ))}
         </select>
 
-        <label>Quiz Title</label>
-        <input type="text" value={quizTitle} onChange={(e) => setQuizTitle(e.target.value)} required />
+        <label>Quiz Title *</label>
+        <input 
+          type="text" 
+          value={quizTitle} 
+          onChange={(e) => setQuizTitle(e.target.value)} 
+          placeholder="Enter quiz title"
+          required 
+        />
 
         <h3>Add Questions</h3>
-        <label>Select Question Type</label>
+        
+        <label>Question Type</label>
         <select value={currentType} onChange={(e) => setCurrentType(e.target.value)}>
-          <option value="">Select Type</option>
-          <option value="mcq">Multiple Choice (MCQ)</option>
-          <option value="open">Open Ended</option>
+          <option value="">Select question type</option>
+          <option value="mcq">Multiple Choice</option>
+          <option value="truefalse">True or False</option>
           <option value="oneword">One Word Answer</option>
-          <option value="truefalse">True / False</option>
+          <option value="open">Open Ended</option>
         </select>
 
         {renderQuestionForm()}
@@ -219,19 +232,23 @@ export default function CreateQuiz() {
           </button>
         )}
 
-        <h3>Questions Added</h3>
-        <ul>
-          {questions.map((q, index) => (
-            <li key={index}>
-              <strong>{q.type.toUpperCase()}:</strong> {q.text}{" "}
-              {q.options ? `(Options: ${q.options.join(", ")})` : ""}{" "}
-              {q.answer ? `Answer: ${q.answer}` : ""}
-            </li>
-          ))}
-        </ul>
+        {questions.length > 0 && (
+          <>
+            <h3>Questions Added ({questions.length})</h3>
+            <ul>
+              {questions.map((q, index) => (
+                <li key={index}>
+                  <strong>{q.type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</strong> {q.text}
+                  {q.options && <span> (Options: {q.options.join(", ")})</span>}
+                  {q.answer && <span> • Answer: {q.answer}</span>}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
 
-        <button type="submit" className="submit-btn" disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save Quiz"}
+        <button type="submit" className="submit-btn" disabled={isSaving || questions.length === 0}>
+          {isSaving ? "Creating Quiz..." : "Create Quiz"}
         </button>
       </form>
     </div>

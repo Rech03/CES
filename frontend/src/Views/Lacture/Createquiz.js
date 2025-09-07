@@ -1,6 +1,7 @@
 import AddQuiz from "../../Componets/Lacture/AddQuiz";
+import Bio from "../../Componets/Lacture/bio";
 import NavBar from "../../Componets/Lacture/NavBar";
-import SearchBar from "../../Componets/Lacture/SearchBar";
+import "./Createquiz.css";
 
 
 function Createquiz() {
@@ -9,12 +10,15 @@ function Createquiz() {
       <div class="NavBar">
         <NavBar></NavBar>
       </div>
-      <div class="SeachBar">
-         <SearchBar></SearchBar>
+      
+       
+      <div className="Side"></div>
+      <div className="Boi">
+        <Bio></Bio>
       </div>
-      <div>
+       <div className="Container">
         <AddQuiz></AddQuiz>
-
+       
       </div>
  
     </div> 

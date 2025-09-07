@@ -5,7 +5,7 @@ import "./AddCourse.css";
 export default function CreateCourseForm() {
   const [courseData, setCourseData] = useState({
     name: "",
-    code: "",            // added for API
+    code: "",
     capacity: "",
     startDate: "",
     endDate: "",
@@ -28,7 +28,7 @@ export default function CreateCourseForm() {
     try {
       const payload = {
         name: courseData.name,
-        code: courseData.code,                      // required by API
+        code: courseData.code,
         description: courseData.description || "",
         max_students: Number(courseData.capacity || 0),
       };
@@ -58,32 +58,30 @@ export default function CreateCourseForm() {
     <div className="course-form_container">
       <h2>Create New Course</h2>
 
-      {error && <p className="error">{error}</p>}
+      {error && <div className="error">{error}</div>}
 
       <form className="course-form" onSubmit={handleSubmit}>
         {/* Course Name */}
         <div className="Course_Name">
-          <label className="course-form label">Course Name</label>
+          <label>Course Name *</label>
           <input
             type="text"
             name="name"
             value={courseData.name}
             onChange={handleChange}
-            className="course-form input"
             placeholder="Enter course name"
             required
           />
         </div>
 
-        {/* Course Code (added) */}
+        {/* Course Code */}
         <div className="Course_Code">
-          <label className="course-form label">Course Code</label>
+          <label>Course Code *</label>
           <input
             type="text"
             name="code"
             value={courseData.code}
             onChange={handleChange}
-            className="course-form input"
             placeholder="e.g., CSC3003F"
             required
           />
@@ -91,67 +89,74 @@ export default function CreateCourseForm() {
 
         {/* Capacity */}
         <div className="Course_Capacity">
-          <label className="course-form label">Capacity</label>
+          <label>Student Capacity *</label>
           <input
             type="number"
             name="capacity"
             value={courseData.capacity}
             onChange={handleChange}
-            className="course-form input"
-            placeholder="Enter number of students"
+            placeholder="Maximum number of students"
+            min="1"
             required
           />
         </div>
 
-        {/* (Optional UI-only fields retained) */}
+        {/* Start Date */}
         <div className="Course_Start">
-          <label className="course-form label">Start Date</label>
+          <label>Start Date</label>
           <input
             type="date"
             name="startDate"
             value={courseData.startDate}
             onChange={handleChange}
-            className="course-form select"
           />
         </div>
 
+        {/* End Date */}
         <div className="Course_End">
-          <label className="course-form label">End Date</label>
+          <label>End Date</label>
           <input
             type="date"
             name="endDate"
             value={courseData.endDate}
             onChange={handleChange}
-            className="course-form select"
           />
         </div>
 
+        {/* Lecture Room */}
         <div className="Course_Room">
-          <label className="course-form label">Lecture Room</label>
+          <label>Lecture Room</label>
           <input
             type="text"
             name="lectureRoom"
             value={courseData.lectureRoom}
             onChange={handleChange}
-            className="course-form input"
-            placeholder="Enter lecture room"
+            placeholder="e.g., RW 2.17"
           />
         </div>
 
+        {/* Description - Full width */}
         <div className="Course_Description">
-          <label className="course-form label">Description</label>
+          <label>Course Description</label>
           <textarea
             name="description"
             value={courseData.description}
             onChange={handleChange}
-            className="Dcourse-form textarea"
-            placeholder="Short course description"
+            placeholder="Provide a brief description of the course content and objectives..."
+            rows="4"
           />
         </div>
 
-        <button type="submit" className="submit-btn" disabled={isLoading}>
-          {isLoading ? "Creating..." : "Create Course"}
-        </button>
+        {/* Submit Button - Full width */}
+        <div className="submit-btn-container">
+          <button 
+            type="submit" 
+            className={`submit-btn ${isLoading ? 'loading' : ''}`}
+            disabled={isLoading}
+          >
+            {isLoading ? "Creating Course..." : "Create Course"}
+          </button>
+        </div>
       </form>
     </div>
   );
