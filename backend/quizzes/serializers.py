@@ -45,7 +45,6 @@ class QuestionCreateSerializer(serializers.ModelSerializer):
         choices_data = validated_data.pop('choices', [])
         question = Question.objects.create(**validated_data)
         
-        # Create choices if provided
         for choice_data in choices_data:
             Choice.objects.create(question=question, **choice_data)
         
@@ -137,7 +136,6 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
     student_number = serializers.CharField(source='student.student_number', read_only=True)
     quiz_title = serializers.CharField(source='quiz.title', read_only=True)
     course_code = serializers.CharField(source='quiz.topic.course.code', read_only=True)
-    answers = AnswerSerializer(many=True, read_only=True)
     duration_display = serializers.SerializerMethodField()
     
     class Meta:
@@ -146,8 +144,7 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
             'id', 'student', 'quiz', 'student_name', 'student_number',
             'quiz_title', 'course_code', 'started_at', 'completed_at',
             'is_completed', 'is_submitted', 'score_points',
-            'score_percentage', 'password_used', 'answers',
-            'duration_display'
+            'score_percentage', 'password_used', 'duration_display'
         ]
         read_only_fields = [
             'id', 'started_at', 'completed_at', 'is_completed',

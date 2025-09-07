@@ -1,5 +1,4 @@
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from users.models import User
 from courses.models import Topic
@@ -17,7 +16,7 @@ class Quiz(models.Model):
     description = models.TextField(blank=True)
     
     # Quiz settings
-    time_limit = models.DurationField(null=True, blank=True)  # in minutes
+    time_limit = models.DurationField(null=True, blank=True)
     total_points = models.PositiveIntegerField(default=0)
     is_graded = models.BooleanField(default=True)
     show_results_immediately = models.BooleanField(default=True)
@@ -38,7 +37,6 @@ class Quiz(models.Model):
     
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # Auto-calculate total points
         self.update_total_points()
     
     def update_total_points(self):
@@ -113,7 +111,6 @@ class Question(models.Model):
     
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # Update quiz total points
         self.quiz.update_total_points()
     
     def __str__(self):
@@ -178,7 +175,7 @@ class QuizAttempt(models.Model):
     
     class Meta:
         ordering = ['-started_at']
-        unique_together = ('student', 'quiz')  # One attempt per student per quiz
+        unique_together = ('student', 'quiz')
     
     def calculate_score(self):
         """Calculate the score for this attempt"""
@@ -205,8 +202,6 @@ class QuizAttempt(models.Model):
         self.is_submitted = True
         self.completed_at = timezone.now()
         self.calculate_score()
-        
-        # Update student profile statistics
         self.update_student_stats()
     
     def update_student_stats(self):
@@ -217,7 +212,7 @@ class QuizAttempt(models.Model):
             profile.total_correct_answers += self.score_points
             
             # Update streak
-            if self.score_percentage >= 70:  # Consider 70%+ as success
+            if self.score_percentage >= 70:
                 profile.current_streak += 1
                 if profile.current_streak > profile.longest_streak:
                     profile.longest_streak = profile.current_streak
@@ -278,7 +273,6 @@ class Answer(models.Model):
         ordering = ['question__order']
     
     def save(self, *args, **kwargs):
-        # Auto-grade the answer
         self.grade_answer()
         super().save(*args, **kwargs)
     
@@ -292,7 +286,6 @@ class Answer(models.Model):
                 self.is_correct = False
                 self.points_earned = 0
         elif self.question.question_type == 'SA':
-            # Simple text comparison for short answers
             if (self.answer_text.strip().lower() == 
                 self.question.correct_answer_text.strip().lower()):
                 self.is_correct = True
