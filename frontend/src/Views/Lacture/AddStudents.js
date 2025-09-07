@@ -1,6 +1,8 @@
+import EnrollStudents from "../../Componets/Lacture/AddStudents";
 import Bio from "../../Componets/Lacture/bio";
+import CoursesList from "../../Componets/Lacture/CoursesList";
 import NavBar from "../../Componets/Lacture/NavBar";
-import SearchBar from "../../Componets/Lacture/SearchBar";
+import StarRating from "../../Componets/Lacture/StarRating";
 import "./AddStudents.css";
 
 function AddStudents() {
@@ -9,16 +11,27 @@ function AddStudents() {
       <div class="NavBar">
         <NavBar></NavBar>
       </div>
-      <div class="SeachBar">
-         <SearchBar></SearchBar>
-      </div>
-        <div className="Container">
+      
+        <div className="ContainerAS">
+           <div className="StudentsAdd">
+        <EnrollStudents></EnrollStudents>
 
       </div>
-      <div className="Side"></div>
-      <div className="Boi">
+
+      </div>
+      <div className="SideAS">
+        <div className="Rating">
+          <StarRating></StarRating>
+
+        </div>
+        <div className="List">
+        <CoursesList></CoursesList>
+        </div>
+      </div>
+      <div className="BoiAS">
               <Bio></Bio>
             </div>
+     
  
     </div> 
   

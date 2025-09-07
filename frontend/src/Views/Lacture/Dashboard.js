@@ -1,8 +1,10 @@
 import Bio from "../../Componets/Lacture/bio";
 import Biography from "../../Componets/Lacture/Biography";
+import CoursesList from "../../Componets/Lacture/CoursesList";
 import NavBar from "../../Componets/Lacture/NavBar";
 import QuizTile from "../../Componets/Lacture/QuizTile";
 import SearchBar from "../../Componets/Lacture/SearchBar";
+import StarRating from "../../Componets/Lacture/StarRating";
 import "./Dashboard.css";
 
 function Dashboard() {
@@ -41,8 +43,16 @@ function Dashboard() {
       </div>
 
       {/* Side panel remains outside */}
-      <div className="Side"></div>
-      <div className="Boi">
+      <div className="SideD">
+        <div className="Rating">
+          <StarRating></StarRating>
+
+        </div>
+        <div className="List">
+        <CoursesList></CoursesList>
+        </div>
+      </div>
+      <div className="BoiD">
         <Bio />
       </div>
     </div>

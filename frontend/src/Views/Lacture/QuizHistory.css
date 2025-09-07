@@ -1,6 +1,5 @@
 .ContainerH {
     width: 64%; 
-    min-height: 100%; /* Changed from fixed height to min-height */
     background: white; 
     box-shadow: 0px 5.15717077255249px 13.752455711364746px #EDEDED; 
     border-radius: 3.44px;
@@ -10,18 +9,18 @@
     padding: 10px; /* Added padding for content spacing */
     box-sizing: border-box; /* Include padding in width calculation */
     overflow: hidden; /* Contain content within bounds */
-    padding-bottom: 30px;
+    
 }
 
-.Side {
-    width: 17%; 
-    height: 85%; 
+.SideH {
+      width: 13%; 
     background: white; 
     box-shadow: 0px 2.4090728759765625px 6.4241943359375px #EDEDED; 
     border-radius: 1.61px;
     position: absolute;
-    margin-left: 82%;
+    margin-left: 86% ;
     margin-top: 7%;
+    padding-bottom: 30px;
 }
 
 .TitleH {
@@ -41,4 +40,19 @@
     gap: 0px; /* Space between quiz tiles */
     width: 100%;
     /* Removed absolute positioning */
+
+}
+.BoiH {
+    position: absolute;
+    margin-left: 85%;
+    margin-top: 20px;
+}
+.Rating{
+    width: 80%;
+    margin-left: 5%;
+    margin-top: 5%;
+}
+.List{
+    width: 100%;
+    margin-top: 20%;
 }

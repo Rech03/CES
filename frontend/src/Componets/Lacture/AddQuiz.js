@@ -194,35 +194,44 @@ export default function CreateQuiz() {
       {error && <div className="error">{error}</div>}
 
       <form onSubmit={handleSubmitQuiz}>
-        <label>Topic *</label>
-        <select value={topicId} onChange={(e) => setTopicId(e.target.value)} required>
-          <option value="">Select a topic</option>
-          {topics.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+        {/* Side by side layout for Topic and Quiz Title */}
+        <div className="quiz-basic-info">
+          <div className="quiz-field">
+            <label>Topic *</label>
+            <select value={topicId} onChange={(e) => setTopicId(e.target.value)} required>
+              <option value="">Select a topic</option>
+              {topics.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <label>Quiz Title *</label>
-        <input 
-          type="text" 
-          value={quizTitle} 
-          onChange={(e) => setQuizTitle(e.target.value)} 
-          placeholder="Enter quiz title"
-          required 
-        />
+          <div className="quiz-field">
+            <label>Quiz Title *</label>
+            <input 
+              type="text" 
+              value={quizTitle} 
+              onChange={(e) => setQuizTitle(e.target.value)} 
+              placeholder="Enter quiz title"
+              required 
+            />
+          </div>
+        </div>
 
         <h3>Add Questions</h3>
         
-        <label>Question Type</label>
-        <select value={currentType} onChange={(e) => setCurrentType(e.target.value)}>
-          <option value="">Select question type</option>
-          <option value="mcq">Multiple Choice</option>
-          <option value="truefalse">True or False</option>
-          <option value="oneword">One Word Answer</option>
-          <option value="open">Open Ended</option>
-        </select>
+        <div className="quiz-type-selector">
+          <label>Question Type</label>
+          <select value={currentType} onChange={(e) => setCurrentType(e.target.value)}>
+            <option value="">Select question type</option>
+            <option value="mcq">Multiple Choice</option>
+            <option value="truefalse">True or False</option>
+            <option value="oneword">One Word Answer</option>
+            <option value="open">Open Ended</option>
+          </select>
+        </div>
 
         {renderQuestionForm()}
 

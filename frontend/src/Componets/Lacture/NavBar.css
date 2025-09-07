@@ -1,7 +1,7 @@
 /* NavBar.css - Clean Navigation Design */
 
 .Navigation_Bar {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   width: 280px;

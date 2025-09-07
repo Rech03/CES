@@ -17,6 +17,11 @@ function NavBar() {
           </NavLink>
         </li>
         <li>
+          <NavLink to="/AddStudents" className={({ isActive }) => isActive ? "active" : ""}>
+            Enroll Students
+          </NavLink>
+        </li>
+        <li>
           <NavLink to="/Createquiz" className={({ isActive }) => isActive ? "active" : ""}>
             Create New Quiz
           </NavLink>
