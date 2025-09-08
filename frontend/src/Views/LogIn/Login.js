@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { useNavigate } from "react-router-dom";
+<<<<<<< HEAD
 
+=======
+>>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
 // import { login } from '../../api/auth'; // adjust path if needed - COMMENTED OUT
 import './Login.css';
 
@@ -33,7 +36,11 @@ function Login() {
       // await login(username, password, remember, /* remember_me for backend */ remember);
       
       // For testing purposes, navigate to dashboard after delay
+<<<<<<< HEAD
       nav("/Student/dashboard");
+=======
+      nav("/dashboard");
+>>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
     } catch (err) {
       // COMMENTED OUT: Server error handling
       // const msg =

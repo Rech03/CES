@@ -12,12 +12,20 @@
   z-index: 1000;
   overflow-y: auto;
   padding: 20px;
+<<<<<<< HEAD
   padding-bottom: 30px;
+=======
+  padding-bottom: 10px;
+>>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
 }
 
 .Navigation_Bar .Logo {
   width: 180px;
+<<<<<<< HEAD
   margin: 10px auto 30px auto;
+=======
+  margin: 10px auto 10px auto;
+>>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
   
   display: block;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));

@@ -1,0 +1,99 @@
+/* MetricCard Component - Colorful Design */
+
+.metric-card {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease;
+  font-family: Poppins, sans-serif;
+  border-left: 4px solid #1935CA;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Metric-specific colors */
+.metric-card.support {
+  border-left-color: #E74C3C;
+  background: linear-gradient(135deg, #FDF2F2 0%, #FFFFFF 100%);
+}
+
+.metric-card.improving {
+  border-left-color: #27AE60;
+  background: linear-gradient(135deg, #E8F5E8 0%, #FFFFFF 100%);
+}
+
+.metric-card.participation {
+  border-left-color: #3498DB;
+  background: linear-gradient(135deg, #EBF5FF 0%, #FFFFFF 100%);
+}
+
+.metric-card.requests {
+  border-left-color: #F39C12;
+  background: linear-gradient(135deg, #FEF9E7 0%, #FFFFFF 100%);
+}
+
+.metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.metric-title {
+  color: #666;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-trend {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 12px;
+}
+
+.metric-trend.positive {
+  color: #27AE60;
+  background: rgba(39, 174, 96, 0.1);
+}
+
+.metric-trend.negative {
+  color: #E74C3C;
+  background: rgba(231, 76, 60, 0.1);
+}
+
+.metric-value {
+  color: #333;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+/* Value colors based on metric type */
+.metric-card.support .metric-value {
+  color: #E74C3C;
+}
+
+.metric-card.improving .metric-value {
+  color: #27AE60;
+}
+
+.metric-card.participation .metric-value {
+  color: #3498DB;
+}
+
+.metric-card.requests .metric-value {
+  color: #F39C12;
+}
+
+.metric-subtitle {
+  color: #999;
+  font-size: 11px;
+  font-weight: 400;
+}

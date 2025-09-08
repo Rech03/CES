@@ -25,7 +25,11 @@
 }
 .BoiC {
     position: absolute;
+<<<<<<< HEAD
     margin-left: 85%;
+=======
+    margin-left: 86%;
+>>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
     margin-top: 20px;
 }
 .Rating{

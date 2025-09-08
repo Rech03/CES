@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import Bio from "../../Componets/Lacture/bio";
 import CoursesList from "../../Componets/Lacture/CoursesList";
 import StudentNavBar from "../../Componets/Student/NavBar";
@@ -75,3 +76,10 @@ function StudentAchievements() {
 }
 
 export default StudentAchievements;
+=======
+function Achievements() {
+  return <h1>This is the Achievements Site... Coming soon!</h1>;
+}
+
+export default Achievements;
+>>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b

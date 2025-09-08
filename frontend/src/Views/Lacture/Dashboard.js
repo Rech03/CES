@@ -18,7 +18,11 @@ function Dashboard() {
       </div>
       
       {/* Main Container - everything inside will be contained */}
+<<<<<<< HEAD
       <div className="ContainerH">
+=======
+      <div className="ContainerD">
+>>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
         {/* Biography Section */}
         <div className="Boigraphy">
           <Biography />
