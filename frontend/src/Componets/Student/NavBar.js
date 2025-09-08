@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { NavLink } from "react-router-dom";
 import "./NavBar.css";
 
@@ -53,24 +52,3 @@ function StudentNavBar() {
 }
 
 export default StudentNavBar;
-=======
-import "./NavBar.css";
-
-function NavBar(){
-    return (
-        <div class="Navigation_Bar">
-            <img src="/Amandla.png" alt="Example" class="Logo"/>
-        <ul>
-        <li><a class="active" href="#home">Dashboard</a></li>
-        <li><a href="#contact">Achievements</a></li>
-        <li><a href="#about">Analytics</a></li>
-        <li><a href="#about">Quiz History</a></li>
-
-        </ul>
-        </div>
-
-    )
-}
-
-export default NavBar;
->>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
