@@ -1,0 +1,265 @@
+import { useEffect, useState } from "react";
+import { listTopics } from "../../api/courses"; // adjust path if needed
+import { addChoiceToQuestion, createQuestion, createQuiz } from "../../api/quizzes";
+import "./AddQuiz.css";
+
+export default function CreateQuiz() {
+  const [topics, setTopics] = useState([]);
+  const [topicId, setTopicId] = useState("");
+  const [quizTitle, setQuizTitle] = useState("");
+  const [questions, setQuestions] = useState([]);
+  const [currentType, setCurrentType] = useState("");
+  const [currentQuestion, setCurrentQuestion] = useState({});
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load topics safely
+  useEffect(() => {
+    listTopics()
+      .then(({ data }) => {
+        console.log("listTopics data:", data); // debug
+        if (Array.isArray(data)) setTopics(data);
+        else if (Array.isArray(data?.topics)) setTopics(data.topics);
+        else setTopics([]);
+      })
+      .catch((err) => {
+        console.error("Error fetching topics:", err);
+        setTopics([]);
+      });
+  }, []);
+
+  const handleAddQuestion = () => {
+    if (!currentType || !currentQuestion.text) return;
+    setQuestions([...questions, { type: currentType, ...currentQuestion }]);
+    setCurrentType("");
+    setCurrentQuestion({});
+  };
+
+  const mapType = (t) => {
+    if (t === "mcq") return "MCQ";
+    if (t === "truefalse") return "TF";
+    return "SA"; // open or oneword
+  };
+
+  const handleSubmitQuiz = async (e) => {
+    e.preventDefault();
+    setError("");
+    setIsSaving(true);
+
+    try {
+      // 1) Create the quiz
+      const { data: quiz } = await createQuiz({
+        topic: Number(topicId),
+        title: quizTitle,
+        description: "",
+        is_graded: true,
+      });
+
+      // 2) Create questions (+ choices when MCQ/TF)
+      for (const q of questions) {
+        const type = mapType(q.type);
+        const { data: created } = await createQuestion({
+          quiz: quiz.id,
+          question_text: q.text,
+          question_type: type,
+          points: 1,
+          order: 1,
+        });
+
+        if (type === "MCQ") {
+          let order = 1;
+          for (const opt of q.options || []) {
+            if (!opt) continue;
+            await addChoiceToQuestion(created.id, {
+              choice_text: opt,
+              is_correct: String(q.answer).trim() === String(opt).trim(),
+              order: order++,
+            });
+          }
+        }
+
+        if (type === "TF") {
+          await addChoiceToQuestion(created.id, {
+            choice_text: "True",
+            is_correct: String(q.answer).toLowerCase() === "true",
+            order: 1,
+          });
+          await addChoiceToQuestion(created.id, {
+            choice_text: "False",
+            is_correct: String(q.answer).toLowerCase() === "false",
+            order: 2,
+          });
+        }
+      }
+
+      alert("Quiz Created and Questions Saved!");
+      setTopicId("");
+      setQuizTitle("");
+      setQuestions([]);
+    } catch (err) {
+      const msg = err.response?.data?.detail || "Failed to save quiz";
+      setError(msg);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const renderQuestionForm = () => {
+    switch (currentType) {
+      case "mcq":
+        return (
+          <div className="form-section">
+            <label>Question *</label>
+            <input
+              type="text"
+              value={currentQuestion.text || ""}
+              onChange={(e) => setCurrentQuestion({ ...currentQuestion, text: e.target.value })}
+              placeholder="Enter your multiple choice question"
+            />
+            <label>Options *</label>
+            <input
+              type="text"
+              value={(currentQuestion.options || []).join(", ")}
+              onChange={(e) =>
+                setCurrentQuestion({
+                  ...currentQuestion,
+                  options: e.target.value.split(",").map((s) => s.trim()).filter(s => s),
+                })
+              }
+              placeholder="Option 1, Option 2, Option 3, Option 4"
+            />
+            <label>Correct Answer *</label>
+            <input
+              type="text"
+              value={currentQuestion.answer || ""}
+              onChange={(e) => setCurrentQuestion({ ...currentQuestion, answer: e.target.value })}
+              placeholder="Enter the exact correct option"
+            />
+          </div>
+        );
+      case "open":
+      case "oneword":
+        return (
+          <div className="form-section">
+            <label>Question *</label>
+            <input
+              type="text"
+              value={currentQuestion.text || ""}
+              onChange={(e) => setCurrentQuestion({ ...currentQuestion, text: e.target.value })}
+              placeholder={`Enter your ${currentType === 'oneword' ? 'one word' : 'open-ended'} question`}
+            />
+            {currentType === "oneword" && (
+              <>
+                <label>Expected Answer</label>
+                <input
+                  type="text"
+                  value={currentQuestion.answer || ""}
+                  onChange={(e) => setCurrentQuestion({ ...currentQuestion, answer: e.target.value })}
+                  placeholder="Enter the expected one-word answer"
+                />
+              </>
+            )}
+          </div>
+        );
+      case "truefalse":
+        return (
+          <div className="form-section">
+            <label>Question *</label>
+            <input
+              type="text"
+              value={currentQuestion.text || ""}
+              onChange={(e) => setCurrentQuestion({ ...currentQuestion, text: e.target.value })}
+              placeholder="Enter your true/false statement"
+            />
+            <label>Correct Answer *</label>
+            <select
+              value={currentQuestion.answer || ""}
+              onChange={(e) => setCurrentQuestion({ ...currentQuestion, answer: e.target.value })}
+            >
+              <option value="">Select correct answer</option>
+              <option value="true">True</option>
+              <option value="false">False</option>
+            </select>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="quiz-container">
+      <h2>Create Quiz</h2>
+
+      {error && <div className="error">{error}</div>}
+
+      <form onSubmit={handleSubmitQuiz}>
+        {/* Side by side layout for Topic and Quiz Title */}
+        <div className="quiz-basic-info">
+          <div className="quiz-field">
+            <label>Topic *</label>
+            <select value={topicId} onChange={(e) => setTopicId(e.target.value)} required>
+              <option value="">Select a topic</option>
+              {topics.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="quiz-field">
+            <label>Quiz Title *</label>
+            <input 
+              type="text" 
+              value={quizTitle} 
+              onChange={(e) => setQuizTitle(e.target.value)} 
+              placeholder="Enter quiz title"
+              required 
+            />
+          </div>
+        </div>
+
+        <h3>Add Questions</h3>
+        
+        <div className="quiz-type-selector">
+          <label>Question Type</label>
+          <select value={currentType} onChange={(e) => setCurrentType(e.target.value)}>
+            <option value="">Select question type</option>
+            <option value="mcq">Multiple Choice</option>
+            <option value="truefalse">True or False</option>
+            <option value="oneword">One Word Answer</option>
+            <option value="open">Open Ended</option>
+          </select>
+        </div>
+
+        {renderQuestionForm()}
+
+        {currentType && (
+          <button type="button" onClick={handleAddQuestion}>
+            Add Question
+          </button>
+        )}
+
+        {questions.length > 0 && (
+          <>
+            <h3>Questions Added ({questions.length})</h3>
+            <ul>
+              {questions.map((q, index) => (
+                <li key={index}>
+                  <strong>{q.type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</strong> {q.text}
+                  {q.options && <span> (Options: {q.options.join(", ")})</span>}
+                  {q.answer && <span> • Answer: {q.answer}</span>}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        <button type="submit" className="submit-btn" disabled={isSaving || questions.length === 0}>
+          {isSaving ? "Creating Quiz..." : "Create Quiz"}
+        </button>
+      </form>
+    </div>
+  );
+}
