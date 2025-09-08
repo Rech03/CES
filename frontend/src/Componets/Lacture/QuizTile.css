@@ -1,14 +1,9 @@
-<<<<<<< HEAD
 /* QuizTile.css - 250px x 250px */
-=======
-/* Enhanced QuizTile.css for Lecturer Dashboard */
->>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
 
 .quiz-tile-container {
   width: 250px;
   height: 250px;
   position: relative;
-<<<<<<< HEAD
   border-radius: 8px;
   cursor: pointer;
   transition: transform 0.3s ease;
@@ -45,82 +40,11 @@
 }
 
 
-=======
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background-image: url('../../../public//BSCS\ 3rd\ semester\ notes\ \(1\).jpeg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  overflow: hidden;
-  
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.quiz-tile-container:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-}
-
-/* Enhanced overlay */
-.quiz-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.8) 100%);
-  border-radius: 12px;
-}
-
-/* Course-specific colors */
-.quiz-tile-container.csc3002f {
-  border-color: #3498DB;
-}
-
-.quiz-tile-container.csc3001f {
-  border-color: #27AE60;
-}
-
-.quiz-tile-container.csc3003s {
-  border-color: #E74C3C;
-}
-
-.quiz-tile-container.csc2001f {
-  border-color: #F39C12;
-}
-
-/* Status Badge */
-.quiz-status-badge {
-  width: 60px;
-  height: 24px;
-  left: 15px;
-  top: 15px;
-  position: absolute;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 3;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-}
-
-.quiz-status-text {
-  color: white;
-  font-size: 10px;
-  font-family: Poppins, sans-serif;
-  font-weight: 700;
-  text-transform: uppercase;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
->>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
 
 /* Duration Badge */
 .quiz-duration-badge {
   width: 50px;
   height: 22px;
-<<<<<<< HEAD
   left: 15px;
   top: 15px;
   position: absolute;
@@ -153,75 +77,10 @@
   align-items: center;
   padding: 0 12px;
   box-sizing: border-box;
-=======
-  right: 15px;
-  top: 15px;
-  position: absolute;
-  background: linear-gradient(135deg, #FF6B6B 0%, #FF5252 100%);
-  border-radius: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 3;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-}
-
-.quiz-duration-text {
-  color: white;
-  font-size: 9px;
-  font-family: Poppins, sans-serif;
-  font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-/* Quiz Info Section */
-.quiz-info-section {
-  position: absolute;
-  left: 15px;
-  top: 55px;
-  right: 15px;
-  z-index: 3;
-}
-
-.quiz-creation-date {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 10px;
-  font-family: Poppins, sans-serif;
-  font-weight: 400;
-  margin-bottom: 8px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-.quiz-stats-mini {
-  display: flex;
-  gap: 12px;
-}
-
-.quiz-questions,
-.quiz-students {
-  background: rgba(82, 150, 86, 0.2);
-  padding: 4px 20px;
-  border-radius: 8px;
-  color: white;
-  font-size: 9px;
-  font-family: Poppins, sans-serif;
-  font-weight: 500;
-  
-}
-
-/* Title Container */
-.quiz-title-containerNew {
-  position: absolute;
-  left: 15px;
-  right: 15px;
-  top: 130px;
-  z-index: 3;
->>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
 }
 
 .quiz-title-text {
   color: white;
-<<<<<<< HEAD
   font-size: 12px;
   font-family: Poppins, sans-serif;
   font-weight: 500;
@@ -246,102 +105,16 @@
 .quiz-tile-container:hover .quiz-tile-overlay {
   opacity: 0.60;
   transition: opacity 0.3s ease;
-=======
-  font-size: 14px;
-  font-family: Poppins, sans-serif;
-  font-weight: 600;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-  line-height: 1.3;
-}
-
-/* Action Buttons */
-.quiz-actions {
-  position: absolute;
-  bottom: 15px;
-  left: 15px;
-  right: 15px;
-  display: flex;
-  gap: 8px;
-  z-index: 3;
-}
-
-.action-btn {
-  flex: 1;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  font-family: Poppins, sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-}
-
-.publish-btn {
-  background: linear-gradient(135deg, #27AE60 0%, #2ECC71 100%);
-  color: white;
-}
-
-.publish-btn:hover {
-  background: linear-gradient(135deg, #229954 0%, #27AE60 100%);
-  transform: translateY(-1px);
-}
-
-.results-btn {
-  background: linear-gradient(135deg, #3498DB 0%, #5DADE2 100%);
-  color: white;
-}
-
-.results-btn:hover {
-  background: linear-gradient(135deg, #2980B9 0%, #3498DB 100%);
-  transform: translateY(-1px);
-}
-
-.edit-btn {
-  background: rgba(255, 255, 255, 0.9);
-  color: #fceb06;
-}
-
-.edit-btn:hover {
-  background: rgba(255, 255, 255, 1);
-  transform: translateY(-1px);
-}
-
-.close-btn {
-  background: linear-gradient(135deg, #E74C3C 0%, #EC7063 100%);
-  color: white;
-}
-
-.close-btn:hover {
-  background: linear-gradient(135deg, #C0392B 0%, #E74C3C 100%);
-  transform: translateY(-1px);
-}
-
-/* Enhanced hover effects */
-.quiz-tile-container:hover .quiz-overlay {
-  background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.9) 100%);
-}
-
-.quiz-tile-container:hover .quiz-duration-badge {
-  transform: scale(1.05);
->>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
 }
 
 /* Active/Click state */
 .quiz-tile-container:active {
-<<<<<<< HEAD
   transform: scale(0.98);
-=======
-  transform: translateY(-2px);
->>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
 }
 
 /* Responsive design */
 @media (max-width: 768px) {
   .quiz-tile-container {
-<<<<<<< HEAD
     width: 200px;
     height: 200px;
   }
@@ -385,28 +158,3 @@
     font-size: 10px;
   }
 }
-=======
-    width: 220px;
-    height: 220px;
-  }
-  
-  .quiz-title-text {
-    font-size: 12px;
-  }
-  
-  .action-btn {
-    padding: 6px 8px;
-    font-size: 9px;
-  }
-  
-  .quiz-creation-date {
-    font-size: 9px;
-  }
-  
-  .quiz-questions,
-  .quiz-students {
-    font-size: 8px;
-    padding: 3px 6px;
-  }
-}
->>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import Bio from "../../Componets/Lacture/bio";
 import CoursesList from "../../Componets/Lacture/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
@@ -44,10 +43,3 @@ function StudentQuizHistory() {
 }
 
 export default StudentQuizHistory;
-=======
-function QuizHistory() {
-  return <h1>Quiz History Page</h1>;
-}
-
-export default QuizHistory;
->>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b

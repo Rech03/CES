@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import Bio from "../../Componets/Lacture/bio";
 import CoursesList from "../../Componets/Lacture/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
@@ -51,10 +50,3 @@ function StudentDashboard() {
 }
 
 export default StudentDashboard;
-=======
-function Dashboard() {
-  return( <h1>Student Dashboard Page</h1>)
-}
-
-export default Dashboard;
->>>>>>> c1fa26119bd1f3c9749e0cacdd5b0e743963735b
