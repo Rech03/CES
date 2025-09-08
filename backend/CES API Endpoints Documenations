@@ -1,0 +1,290 @@
+# CES (Course Engagement System) API Endpoints
+
+## Base URL: http://127.0.0.1:8000
+
+
+## AUTHENTICATION & USERS APP
+**Base Path:** `/api/auth/`
+
+### POST Endpoints
+- **POST** `/api/auth/login/`
+  - **Purpose:** User login (lecturer/student)
+  - **Body:** `{"username": "user", "password": "pass", "remember_me": false}`
+  - **Returns:** Token and user data
+  - **Auth:** None required
+
+- **POST** `/api/auth/logout/`
+  - **Purpose:** User logout
+  - **Body:** `{}` (empty)
+  - **Auth:** Token required
+
+- **POST** `/api/auth/change-password/`
+  - **Purpose:** Change user password
+  - **Body:** `{"old_password": "old", "new_password": "new", "confirm_password": "new"}`
+  - **Auth:** Token required
+
+### GET Endpoints
+- **GET** `/api/auth/profile/`
+  - **Purpose:** Get current user profile
+  - **Auth:** Token required
+
+- **GET** `/api/auth/dashboard/`
+  - **Purpose:** Get user dashboard data
+  - **Auth:** Token required
+
+- **GET** `/api/auth/check-enrollment/?student_number=STUDENT123`
+  - **Purpose:** Check if student is enrolled in courses
+  - **Auth:** None required
+
+### PUT Endpoints
+- **PUT** `/api/auth/profile/`
+  - **Purpose:** Update user profile
+  - **Body:** `{"first_name": "John", "last_name": "Doe", "email": "john@example.com"}`
+  - **Auth:** Token required
+
+---
+
+##  COURSES APP
+**Base Path:** `/api/courses/`
+
+### POST Endpoints
+- **POST** `/api/courses/courses/`
+  - **Purpose:** Create new course (Lecturer only)
+  - **Body:** `{"name": "Course Name", "code": "CSC101", "description": "Description", "max_students": 50}`
+  - **Auth:** Token required (Lecturer)
+
+- **POST** `/api/courses/courses/{course_id}/enroll_student/`
+  - **Purpose:** Enroll student in course (Lecturer only)
+  - **Body:** `{"student_number": "STUDENT123", "enrollment_code": "ABC12345"}`
+  - **Auth:** Token required (Lecturer)
+
+- **POST** `/api/courses/courses/{course_id}/remove_student/`
+  - **Purpose:** Remove student from course (Lecturer only)
+  - **Body:** `{"student_id": 2}`
+  - **Auth:** Token required (Lecturer)
+
+- **POST** `/api/courses/topics/`
+  - **Purpose:** Create new topic (Lecturer only)
+  - **Body:** `{"course": 1, "name": "Topic Name", "description": "Description"}`
+  - **Auth:** Token required (Lecturer)
+
+- **POST** `/api/courses/student/enroll/`
+  - **Purpose:** Student self-enrollment
+  - **Body:** `{"enrollment_code": "ABC12345"}`
+  - **Auth:** Token required (Student)
+
+- **POST** `/api/courses/course/{course_id}/regenerate-code/`
+  - **Purpose:** Regenerate enrollment code (Lecturer only)
+  - **Body:** `{}` (empty)
+  - **Auth:** Token required (Lecturer)
+
+### GET Endpoints
+- **GET** `/api/courses/courses/`
+  - **Purpose:** List all courses (user's courses)
+  - **Auth:** Token required
+
+- **GET** `/api/courses/courses/{course_id}/`
+  - **Purpose:** Get course details
+  - **Auth:** Token required
+
+- **GET** `/api/courses/courses/{course_id}/students/`
+  - **Purpose:** Get enrolled students (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+- **GET** `/api/courses/courses/{course_id}/dashboard/`
+  - **Purpose:** Get course dashboard data (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+- **GET** `/api/courses/courses/{course_id}/topics/`
+  - **Purpose:** Get topics for course
+  - **Auth:** Token required
+
+- **GET** `/api/courses/topics/`
+  - **Purpose:** List all topics (user's topics)
+  - **Auth:** Token required
+
+- **GET** `/api/courses/topics/{topic_id}/`
+  - **Purpose:** Get topic details
+  - **Auth:** Token required
+
+- **GET** `/api/courses/student/dashboard/`
+  - **Purpose:** Get student dashboard data
+  - **Auth:** Token required (Student)
+
+- **GET** `/api/courses/my-courses/`
+  - **Purpose:** Get user's courses
+  - **Auth:** Token required
+
+- **GET** `/api/courses/course/{course_id}/statistics/`
+  - **Purpose:** Get course statistics (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+### PUT/PATCH Endpoints
+- **PUT** `/api/courses/courses/{course_id}/`
+  - **Purpose:** Update course (Lecturer only)
+  - **Body:** `{"name": "Updated Name", "description": "Updated Description"}`
+  - **Auth:** Token required (Lecturer)
+
+- **PUT** `/api/courses/topics/{topic_id}/`
+  - **Purpose:** Update topic (Lecturer only)
+  - **Body:** `{"name": "Updated Topic", "description": "Updated Description"}`
+  - **Auth:** Token required (Lecturer)
+
+### DELETE Endpoints
+- **DELETE** `/api/courses/courses/{course_id}/`
+  - **Purpose:** Delete course (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+- **DELETE** `/api/courses/topics/{topic_id}/`
+  - **Purpose:** Delete topic (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+---
+
+##  QUIZZES APP
+**Base Path:** `/api/quizzes/`
+
+### POST Endpoints
+- **POST** `/api/quizzes/quizzes/`
+  - **Purpose:** Create new quiz (Lecturer only)
+  - **Body:** `{"topic": 1, "title": "Quiz Title", "description": "Description", "time_limit": "00:30:00", "is_graded": true}`
+  - **Auth:** Token required (Lecturer)
+
+- **POST** `/api/quizzes/quizzes/{quiz_id}/start_live/`
+  - **Purpose:** Start live quiz session (Lecturer only)
+  - **Body:** `{"action": "start", "password": "QUIZ123"}`
+  - **Auth:** Token required (Lecturer)
+
+- **POST** `/api/quizzes/quizzes/{quiz_id}/stop_live/`
+  - **Purpose:** Stop live quiz session (Lecturer only)
+  - **Body:** `{"action": "stop"}`
+  - **Auth:** Token required (Lecturer)
+
+- **POST** `/api/quizzes/questions/`
+  - **Purpose:** Create new question (Lecturer only)
+  - **Body:** `{"quiz": 1, "question_text": "What is 2+2?", "question_type": "MCQ", "points": 1, "order": 1, "choices": [{"choice_text": "4", "is_correct": true, "order": 1}]}`
+  - **Auth:** Token required (Lecturer)
+
+- **POST** `/api/quizzes/questions/{question_id}/add_choice/`
+  - **Purpose:** Add choice to question (Lecturer only)
+  - **Body:** `{"choice_text": "Option text", "is_correct": false, "order": 2}`
+  - **Auth:** Token required (Lecturer)
+
+- **POST** `/api/quizzes/choices/`
+  - **Purpose:** Create new choice (Lecturer only)
+  - **Body:** `{"question": 1, "choice_text": "Choice text", "is_correct": false, "order": 1}`
+  - **Auth:** Token required (Lecturer)
+
+- **POST** `/api/quizzes/quiz/start/`
+  - **Purpose:** Start quiz attempt (Student only)
+  - **Body:** `{"quiz_id": 1, "password": "QUIZ123"}`
+  - **Auth:** Token required (Student)
+
+- **POST** `/api/quizzes/quiz/submit-answer/`
+  - **Purpose:** Submit answer to question (Student only)
+  - **Body:** `{"attempt_id": 1, "question_id": 1, "selected_choice_id": 2}` OR `{"attempt_id": 1, "question_id": 1, "answer_text": "Paris"}`
+  - **Auth:** Token required (Student)
+
+- **POST** `/api/quizzes/quiz/submit/`
+  - **Purpose:** Submit and finalize quiz attempt (Student only)
+  - **Body:** `{"attempt_id": 1}`
+  - **Auth:** Token required (Student)
+
+### GET Endpoints
+- **GET** `/api/quizzes/quizzes/`
+  - **Purpose:** List all quizzes (user's quizzes)
+  - **Auth:** Token required
+
+- **GET** `/api/quizzes/quizzes/{quiz_id}/`
+  - **Purpose:** Get quiz details
+  - **Auth:** Token required
+
+- **GET** `/api/quizzes/quizzes/{quiz_id}/questions/`
+  - **Purpose:** Get quiz questions
+  - **Auth:** Token required
+
+- **GET** `/api/quizzes/quizzes/{quiz_id}/attempts/`
+  - **Purpose:** Get quiz attempts (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+- **GET** `/api/quizzes/questions/`
+  - **Purpose:** List all questions (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+- **GET** `/api/quizzes/questions/{question_id}/`
+  - **Purpose:** Get question details (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+- **GET** `/api/quizzes/choices/`
+  - **Purpose:** List all choices (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+- **GET** `/api/quizzes/choices/{choice_id}/`
+  - **Purpose:** Get choice details (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+- **GET** `/api/quizzes/student/available-quizzes/`
+  - **Purpose:** Get available quizzes for student
+  - **Returns:** `{"live_quizzes": [...], "regular_quizzes": [...]}`
+  - **Auth:** Token required (Student)
+
+- **GET** `/api/quizzes/student/my-attempts/`
+  - **Purpose:** Get student's quiz attempts
+  - **Auth:** Token required (Student)
+
+- **GET** `/api/quizzes/quiz/attempt/{attempt_id}/`
+  - **Purpose:** Get detailed quiz attempt results
+  - **Auth:** Token required
+
+- **GET** `/api/quizzes/quiz/{quiz_id}/statistics/`
+  - **Purpose:** Get detailed quiz statistics (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+### PUT/PATCH Endpoints
+- **PUT** `/api/quizzes/quizzes/{quiz_id}/`
+  - **Purpose:** Update quiz (Lecturer only)
+  - **Body:** `{"title": "Updated Title", "description": "Updated Description"}`
+  - **Auth:** Token required (Lecturer)
+
+- **PUT** `/api/quizzes/questions/{question_id}/`
+  - **Purpose:** Update question (Lecturer only)
+  - **Body:** `{"question_text": "Updated question?", "points": 2}`
+  - **Auth:** Token required (Lecturer)
+
+- **PUT** `/api/quizzes/choices/{choice_id}/`
+  - **Purpose:** Update choice (Lecturer only)
+  - **Body:** `{"choice_text": "Updated choice", "is_correct": true}`
+  - **Auth:** Token required (Lecturer)
+
+### DELETE Endpoints
+- **DELETE** `/api/quizzes/quizzes/{quiz_id}/`
+  - **Purpose:** Delete quiz (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+- **DELETE** `/api/quizzes/questions/{question_id}/`
+  - **Purpose:** Delete question (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+- **DELETE** `/api/quizzes/choices/{choice_id}/`
+  - **Purpose:** Delete choice (Lecturer only)
+  - **Auth:** Token required (Lecturer)
+
+---
+
+## AUTHENTICATION NOTES
+
+### Token Usage
+All authenticated endpoints require the following header:
+```
+Authorization: Token your_token_here
+```
+
+### User Types
+- **Lecturer:** Can create/manage courses, topics, quizzes, questions
+- **Student:** Can enroll in courses, take quizzes, view results
+- **Superuser:** Can create lecturers via Django admin
+
+### Getting a Token
+1. **POST** `/api/auth/login/` with username/password
+2. Use returned token in Authorization header
+3. **POST** `/api/auth/logout/` to invalidate token

@@ -1,0 +1,142 @@
+/* Courses List Component - Minimalistic Design */
+
+.courses-list-container {
+  width: 100%;
+  min-height: 128px;
+  position: relative;
+  font-family: Poppins, sans-serif;
+}
+
+.courses-header {
+  margin-bottom: 12px;
+}
+
+.courses-title {
+  color: #1935CA;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.courses-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.course-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  position: relative;
+  padding: 4px 0;
+  margin-left: 10px;
+}
+
+.course-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.course-code {
+  color: #181B1A;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.course-last-quiz {
+  color: #B3B6B6;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.course-icon-container {
+  flex-shrink: 0;
+}
+
+.course-icon {
+  width: 40px;
+  height: 30px;
+  background: #1935CA;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.course-icon:hover {
+  background: #1565D8;
+}
+
+.icon-svg {
+  width: 12px;
+  height: 12px;
+  color: white;
+}
+
+.course-divider {
+  width: 100%;
+  height: 1px;
+  background: #F1F1EF;
+  margin: 8px 0;
+}
+
+/* Interactive states */
+.course-item:hover .course-code {
+  color: #1935CA;
+  transition: color 0.2s ease;
+}
+
+.course-item:hover .course-icon {
+  transform: scale(1.05);
+}
+
+/* Active/Inactive states */
+.course-item.inactive .course-code {
+  color: #B3B6B6;
+}
+
+.course-item.inactive .course-icon {
+  background: #E0E0E0;
+}
+
+.course-item.inactive .icon-svg {
+  color: #999;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .courses-list-container {
+    width: 100%;
+    max-width: 140px;
+  }
+  
+  .courses-title {
+    font-size: 11px;
+  }
+  
+  .course-code {
+    font-size: 10px;
+  }
+  
+  .course-last-quiz {
+    font-size: 8px;
+  }
+  
+  .course-icon {
+    width: 20px;
+    height: 16px;
+  }
+  
+  .icon-svg {
+    width: 10px;
+    height: 10px;
+  }
+}
