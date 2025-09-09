@@ -1,4 +1,5 @@
 import './PastQuizTile.css';
+import { NavLink } from "react-router-dom";
 
 function PastQuizTile({ 
   title = "CSC3002F - Parallel Programming",
@@ -25,7 +26,12 @@ function PastQuizTile({
   };
 
   return (
+    <div>
+      <NavLink to="/QuizAnalytics" className={({ isActive }) => isActive ? "active" : ""}>
     <div className={`quiz-tile-container ${courseCode}`} onClick={onClick}>
+      
+                
+              
       <div className="quiz-overlay"></div>
       
       {/* Status Badge */}
@@ -78,6 +84,8 @@ function PastQuizTile({
           </div>
         </div>
       </div>
+    </div>
+    </NavLink>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import './QuizTile.css';
+import { NavLink } from "react-router-dom";
 
 function QuizTile({ 
   title = "CSC3002F - Parallel Programming",
@@ -31,6 +32,7 @@ function QuizTile({
   const statusInfo = getStatusInfo(status);
 
   return (
+    <div><NavLink to="/QuizAnalytics" className={({ isActive }) => isActive ? "active" : ""}>
     <div className={`quiz-tile-container ${courseCode}`} onClick={onClick}>
       <div className="quiz-overlay"></div>
       
@@ -106,6 +108,9 @@ function QuizTile({
           </button>
         )}
       </div>
+    </div>
+        </NavLink>
+    
     </div>
   );
 }
