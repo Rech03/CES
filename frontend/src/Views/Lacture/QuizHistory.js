@@ -2,7 +2,6 @@ import Bio from "../../Componets/Lacture/bio";
 import CoursesList from "../../Componets/Lacture/CoursesList";
 import NavBar from "../../Componets/Lacture/NavBar";
 import PastQuizTile from "../../Componets/Lacture/PastQuizTile";
-import SearchBar from "../../Componets/Lacture/SearchBar";
 import StarRating from "../../Componets/Lacture/StarRating";
 import "./QuizHistory.css";
 
@@ -12,9 +11,6 @@ function QuizHistory() {
       <div class="NavBar">
         <NavBar></NavBar>
       </div>
-      <div className="SeachBar">
-              <SearchBar />
-            </div>
     
       
       <div className="SideH">

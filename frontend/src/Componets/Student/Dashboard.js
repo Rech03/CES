@@ -1,9 +1,8 @@
 import Bio from "../../Componets/Lacture/bio";
 import CoursesList from "../../Componets/Lacture/CoursesList";
-import NavBar from "../../Componets/Student/NavBar";
+import NavBar from "../../Componets/Lacture/NavBar";
 import QuizTile from "../../Componets/Lacture/QuizTile";
 import StarRating from "../../Componets/Lacture/StarRating";
-import SearchBar from "../../Componets/Lacture/SearchBar";
 import "./Dashboard.css";
 
 function StudentDashboard() {
@@ -12,14 +11,9 @@ function StudentDashboard() {
       <div className="NavBar">
         <NavBar />
       </div>
-      <div className="SeachBar">
-        <SearchBar />
-      </div>
-    
-     
 
       <div className="ContainerH">
-        <h2 className="Title">Welcome Michael😊</h2>
+        <h2 className="Title">Welcome Student</h2>
 
         <div className="quiz-header">
           <div className="Title">Available Quizzes</div>
