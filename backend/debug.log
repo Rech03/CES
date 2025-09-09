@@ -2018,3 +2018,234 @@ Watching for file changes with StatReloader
 "GET /admin/ HTTP/1.1" 302 0
 "GET /admin/login/?next=/admin/ HTTP/1.1" 200 4168
 Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 101
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 3979
+"GET /admin/ HTTP/1.1" 302 0
+"GET /admin/login/?next=/admin/ HTTP/1.1" 200 4168
+"GET /api HTTP/1.1" 301 0
+"GET /api/ HTTP/1.1" 200 383
+Not Found: /api/analytics/
+"GET /api/analytics/ HTTP/1.1" 404 5635
+"GET /admin/ HTTP/1.1" 302 0
+"GET /admin/login/?next=/admin/ HTTP/1.1" 200 4168
+"POST /admin/login/?next=/admin/ HTTP/1.1" 302 0
+"GET /admin/ HTTP/1.1" 200 17549
+"POST /admin/logout/ HTTP/1.1" 200 3563
+"GET /admin/ HTTP/1.1" 302 0
+"GET /admin/login/?next=/admin/ HTTP/1.1" 200 4168
+"GET /static/admin/css/dark_mode.css HTTP/1.1" 200 2808
+"GET /static/admin/css/nav_sidebar.css HTTP/1.1" 200 2810
+"GET /static/admin/js/theme.js HTTP/1.1" 200 1653
+"GET /static/admin/css/base.css HTTP/1.1" 200 22120
+"GET /static/admin/css/login.css HTTP/1.1" 200 951
+"GET /static/admin/css/responsive.css HTTP/1.1" 200 16565
+"GET /static/admin/js/nav_sidebar.js HTTP/1.1" 200 3063
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 3979
+"POST /admin/login/?next=/admin/ HTTP/1.1" 302 0
+"GET /admin/ HTTP/1.1" 200 17549
+"GET /static/admin/css/dashboard.css HTTP/1.1" 200 441
+"GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+"GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+"GET /static/admin/img/icon-deletelink.svg HTTP/1.1" 200 392
+"POST /admin/logout/ HTTP/1.1" 200 3563
+Watching for file changes with StatReloader
+"POST /admin/logout/ HTTP/1.1" 302 0
+"GET /admin/ HTTP/1.1" 302 0
+"GET /admin/login/?next=/admin/ HTTP/1.1" 200 4168
+"POST /admin/login/?next=/admin/ HTTP/1.1" 302 0
+"GET /admin/ HTTP/1.1" 200 19454
+"GET /admin/analytics/studentengagementmetrics/ HTTP/1.1" 200 18717
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /static/admin/css/changelists.css HTTP/1.1" 200 6878
+"GET /static/admin/js/jquery.init.js HTTP/1.1" 200 347
+"GET /static/admin/js/core.js HTTP/1.1" 200 6208
+"GET /static/admin/js/prepopulate.js HTTP/1.1" 200 1531
+"GET /static/admin/js/urlify.js HTTP/1.1" 200 7887
+"GET /static/admin/img/search.svg HTTP/1.1" 200 458
+"GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 200 285314
+"GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 200 9777
+"GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 200 325171
+"GET /static/admin/js/filters.js HTTP/1.1" 200 978
+"GET /static/admin/js/actions.js HTTP/1.1" 200 8076
+"GET /static/admin/img/tooltag-add.svg HTTP/1.1" 200 331
+"GET /static/admin/img/icon-viewlink.svg HTTP/1.1" 200 581
+"GET /admin/analytics/dailyengagement/ HTTP/1.1" 200 17448
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/dailyengagement/add/ HTTP/1.1" 200 19010
+"GET /static/admin/css/forms.css HTTP/1.1" 200 8525
+"GET /static/admin/img/icon-no.svg HTTP/1.1" 200 560
+"GET /static/admin/js/prepopulate_init.js HTTP/1.1" 200 586
+"GET /static/admin/js/calendar.js HTTP/1.1" 200 9141
+"GET /static/admin/js/admin/DateTimeShortcuts.js HTTP/1.1" 200 19319
+"GET /static/admin/css/widgets.css HTTP/1.1" 200 11991
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /static/admin/js/change_form.js HTTP/1.1" 200 606
+"GET /static/admin/img/icon-calendar.svg HTTP/1.1" 200 1086
+"GET /admin/analytics/ HTTP/1.1" 200 6314
+"GET /admin/ HTTP/1.1" 200 19454
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 101
+"GET /admin/ HTTP/1.1" 200 22224
+"GET /admin/ HTTP/1.1" 200 22224
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 101
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 3979
+"GET /api/ HTTP/1.1" 200 383
+Unauthorized: /api/courses/
+"GET /api/courses/ HTTP/1.1" 401 58
+"GET /admin HTTP/1.1" 301 0
+"GET /admin/ HTTP/1.1" 200 22224
+"GET /static/admin/css/dark_mode.css HTTP/1.1" 200 2808
+"GET /static/admin/css/nav_sidebar.css HTTP/1.1" 200 2810
+"GET /static/admin/js/theme.js HTTP/1.1" 200 1653
+"GET /static/admin/css/base.css HTTP/1.1" 200 22120
+"GET /static/admin/css/dashboard.css HTTP/1.1" 200 441
+"GET /static/admin/css/responsive.css HTTP/1.1" 200 16565
+"GET /static/admin/js/nav_sidebar.js HTTP/1.1" 200 3063
+"GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+"GET /static/admin/img/icon-deletelink.svg HTTP/1.1" 200 392
+"GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+"GET /admin/ HTTP/1.1" 200 22224
+"GET /api/courses HTTP/1.1" 301 0
+Unauthorized: /api/courses/
+"GET /api/courses/ HTTP/1.1" 401 58
+"GET /admin/ HTTP/1.1" 200 22224
+Not Found: /aoi/courses
+"GET /aoi/courses HTTP/1.1" 404 3979
+Unauthorized: /api/courses/
+"GET /api/courses/ HTTP/1.1" 401 58
+"GET /admin/ HTTP/1.1" 200 22224
+"GET /admin/quizzes/quizattempt/ HTTP/1.1" 200 19970
+"GET /static/admin/css/changelists.css HTTP/1.1" 200 6878
+"GET /static/admin/js/jquery.init.js HTTP/1.1" 200 347
+"GET /static/admin/js/core.js HTTP/1.1" 200 6208
+"GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 200 9777
+"GET /static/admin/js/actions.js HTTP/1.1" 200 8076
+"GET /static/admin/js/urlify.js HTTP/1.1" 200 7887
+"GET /static/admin/js/prepopulate.js HTTP/1.1" 200 1531
+"GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 200 285314
+"GET /static/admin/img/search.svg HTTP/1.1" 200 458
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /static/admin/js/filters.js HTTP/1.1" 200 978
+"GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 200 325171
+"GET /static/admin/img/icon-viewlink.svg HTTP/1.1" 200 581
+"GET /static/admin/img/tooltag-add.svg HTTP/1.1" 200 331
+"GET /admin/quizzes/quiz/ HTTP/1.1" 200 23514
+"GET /static/admin/img/icon-yes.svg HTTP/1.1" 200 436
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/quizzes/quiz/9/change/ HTTP/1.1" 200 36014
+"GET /static/admin/css/forms.css HTTP/1.1" 200 8525
+"GET /static/admin/js/prepopulate_init.js HTTP/1.1" 200 586
+"GET /static/admin/js/inlines.js HTTP/1.1" 200 15628
+"GET /static/admin/css/widgets.css HTTP/1.1" 200 11991
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /static/admin/js/change_form.js HTTP/1.1" 200 606
+"GET /admin/quizzes/answer/ HTTP/1.1" 200 19759
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/quizzes/choice/ HTTP/1.1" 200 22977
+"GET /static/admin/img/icon-no.svg HTTP/1.1" 200 560
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /static/admin/img/sorting-icons.svg HTTP/1.1" 200 1097
+"GET /admin/analytics/lectureslide/ HTTP/1.1" 200 19358
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/lectureslide/add/ HTTP/1.1" 200 25318
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentadaptiveprogress/ HTTP/1.1" 200 20264
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentadaptiveprogress/add/ HTTP/1.1" 200 25922
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentengagementmetrics/ HTTP/1.1" 200 20695
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+Watching for file changes with StatReloader
+"GET /admin/analytics/studentengagementmetrics/ HTTP/1.1" 200 20695
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentadaptiveprogress/ HTTP/1.1" 200 20264
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentengagementmetrics/ HTTP/1.1" 200 20695
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentadaptiveprogress/ HTTP/1.1" 200 20264
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/lectureslide/ HTTP/1.1" 200 19358
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentengagementmetrics/ HTTP/1.1" 200 20695
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 101
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 3979
+"GET /admin/ HTTP/1.1" 200 22224
+"GET /admin/courses/course/ HTTP/1.1" 200 22623
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/courses/course/add/ HTTP/1.1" 200 31354
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 101
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 3979
+"GET /admin/ HTTP/1.1" 302 0
+"GET /admin/login/?next=/admin/ HTTP/1.1" 200 4168
+"GET /static/admin/css/base.css HTTP/1.1" 304 0
+"GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+"GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+"GET /static/admin/css/login.css HTTP/1.1" 304 0
+"GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+"GET /static/admin/js/theme.js HTTP/1.1" 304 0
+"GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+"POST /admin/login/?next=/admin/ HTTP/1.1" 302 0
+"GET /admin/ HTTP/1.1" 200 22224
+"GET /admin/analytics/lectureslide/ HTTP/1.1" 200 19358
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/lectureslide/add/ HTTP/1.1" 200 25318
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"POST /admin/analytics/lectureslide/add/ HTTP/1.1" 302 0
+"GET /admin/analytics/lectureslide/ HTTP/1.1" 200 22567
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 101
+"GET /admin/ HTTP/1.1" 200 22273
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 19723
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/add/ HTTP/1.1" 200 23964
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"POST /admin/analytics/adaptivequiz/add/ HTTP/1.1" 200 24149
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/dailyengagement/ HTTP/1.1" 200 19426
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/lectureslide/ HTTP/1.1" 200 22333
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentadaptiveprogress/ HTTP/1.1" 200 20264
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentengagementmetrics/ HTTP/1.1" 200 20695
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/dailyengagement/ HTTP/1.1" 200 19426
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 19723
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequizattempt/ HTTP/1.1" 200 19819
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 19723
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/add/ HTTP/1.1" 200 23964
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"POST /admin/analytics/adaptivequiz/add/ HTTP/1.1" 200 24145
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"POST /admin/analytics/adaptivequiz/add/ HTTP/1.1" 200 24800
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"POST /admin/analytics/adaptivequiz/add/ HTTP/1.1" 200 24799
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/dailyengagement/ HTTP/1.1" 200 19426
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/lectureslide/ HTTP/1.1" 200 22333
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/lectureslide/1/change/ HTTP/1.1" 200 44686
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/authtoken/tokenproxy/ HTTP/1.1" 200 18805
+Forbidden: /api/analytics/lecturer/dashboard/
+Forbidden: /api/analytics/lecturer/chart/
+Forbidden: /api/analytics/lecturer/course-options/
+Forbidden: /api/analytics/student/dashboard/
+Forbidden: /api/analytics/student/engagement-heatmap/

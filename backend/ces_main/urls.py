@@ -46,7 +46,8 @@ urlpatterns = [
     path('api/auth/', include('users.urls')),
     path('api/courses/', include('courses.urls')),
     path('api/quizzes/', include('quizzes.urls')),
-    #path('api/analytics/', include('analytics.urls')),
+    path('api/analytics/', include('analytics.urls')),
+    
     
     # Django REST framework browsable API (for development)
     path('api-auth/', include('rest_framework.urls')),
