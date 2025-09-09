@@ -2249,3 +2249,66 @@ Forbidden: /api/analytics/lecturer/chart/
 Forbidden: /api/analytics/lecturer/course-options/
 Forbidden: /api/analytics/student/dashboard/
 Forbidden: /api/analytics/student/engagement-heatmap/
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 101
+"GET /admin/ HTTP/1.1" 200 22273
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 22538
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/1/change/ HTTP/1.1" 200 24947
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/lectureslide/ HTTP/1.1" 200 22333
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/dailyengagement/ HTTP/1.1" 200 19426
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 22538
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequizattempt/ HTTP/1.1" 200 19819
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 22538
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/1/change/ HTTP/1.1" 200 24947
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 101
+"GET /admin/ HTTP/1.1" 200 22273
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 22538
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/1/change/ HTTP/1.1" 200 24947
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 101
+"GET /admin/ HTTP/1.1" 200 22273
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 24161
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/3/change/ HTTP/1.1" 200 29045
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 24161
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/3/change/ HTTP/1.1" 200 29045
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 24161
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/1/change/ HTTP/1.1" 200 27446
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 24161
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/2/change/ HTTP/1.1" 200 27991
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 101
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 3979
+"GET /admin/ HTTP/1.1" 200 22273
+"GET /admin/analytics/lectureslide/ HTTP/1.1" 200 22329
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequizattempt/ HTTP/1.1" 200 19819
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 24161
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/dailyengagement/ HTTP/1.1" 200 19426
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentadaptiveprogress/ HTTP/1.1" 200 20264
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentengagementmetrics/ HTTP/1.1" 200 20695
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
