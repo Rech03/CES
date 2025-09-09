@@ -327,6 +327,17 @@ def submit_quiz_attempt(request):
                 'quiz_attempt': attempt
             }
         )
+        # Track daily engagement for analytics
+        from analytics.models import DailyEngagement
+        DailyEngagement.mark_engagement(request.user)
+        
+        # Update student metrics
+        from analytics.models import StudentEngagementMetrics
+        metrics, created = StudentEngagementMetrics.objects.get_or_create(
+            student=request.user,
+            course=attempt.quiz.topic.course
+        )
+        metrics.calculate_metrics()
     
     serializer = QuizResultSerializer(attempt)
     return Response({
