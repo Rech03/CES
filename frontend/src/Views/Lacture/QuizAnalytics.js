@@ -15,10 +15,7 @@ function QuizAnalytics() {
       <div className="NavBar">
         <NavBar></NavBar>
       </div>
-      <div className="SeachBar">
-        <SearchBar />
-      </div>
-    
+  
       <div className="SideH">
         <div className="Rating">
           <StarRating></StarRating>

@@ -8,7 +8,8 @@ import Createquiz from "./Views/Lacture/Createquiz";
 import Dashboard from "./Views/Lacture/Dashboard";
 import LecturerQuizHistory from "./Views/Lacture/QuizHistory";
 import LecturerAnalytics from "./Views/Lacture/StudentAnalytics";
-
+import AIQuizzes from "./Views/Lacture/AIQuizzes";
+import QuizzAnalytics from "./Views/Lacture/QuizAnalytics"
 
 
 // Common
@@ -30,6 +31,8 @@ function App() {
           <Route path="/quizhistory" element={<LecturerQuizHistory />} />
           <Route path="/studentanalytics" element={<LecturerAnalytics />} />
           <Route path="/createcourse" element={<CreateCourse />} />
+          <Route path="/AIQuizzes" element={<AIQuizzes />} />
+          <Route path="/QuizzAnalytics" element={<QuizzAnalytics />} />
 
           
         </Routes>

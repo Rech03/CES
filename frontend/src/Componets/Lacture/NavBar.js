@@ -27,6 +27,11 @@ function NavBar() {
           </NavLink>
         </li>
         <li>
+          <NavLink to="/AIQuizzes" className={({ isActive }) => isActive ? "active" : ""}>
+            Create AQ Quizzes
+          </NavLink>
+        </li>
+        <li>
           <NavLink to="/StudentAnalytics" className={({ isActive }) => isActive ? "active" : ""}>
             Student Analysis
           </NavLink>

@@ -87,54 +87,6 @@ export default function CreateCourseForm() {
           />
         </div>
 
-        {/* Capacity */}
-        <div className="Course_Capacity">
-          <label>Student Capacity *</label>
-          <input
-            type="number"
-            name="capacity"
-            value={courseData.capacity}
-            onChange={handleChange}
-            placeholder="Maximum number of students"
-            min="1"
-            required
-          />
-        </div>
-
-        {/* Start Date */}
-        <div className="Course_Start">
-          <label>Start Date</label>
-          <input
-            type="date"
-            name="startDate"
-            value={courseData.startDate}
-            onChange={handleChange}
-          />
-        </div>
-
-        {/* End Date */}
-        <div className="Course_End">
-          <label>End Date</label>
-          <input
-            type="date"
-            name="endDate"
-            value={courseData.endDate}
-            onChange={handleChange}
-          />
-        </div>
-
-        {/* Lecture Room */}
-        <div className="Course_Room">
-          <label>Lecture Room</label>
-          <input
-            type="text"
-            name="lectureRoom"
-            value={courseData.lectureRoom}
-            onChange={handleChange}
-            placeholder="e.g., RW 2.17"
-          />
-        </div>
-
         {/* Description - Full width */}
         <div className="Course_Description">
           <label>Course Description</label>

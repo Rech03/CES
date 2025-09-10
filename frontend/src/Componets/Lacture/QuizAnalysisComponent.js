@@ -12,7 +12,7 @@ const QuizAnalysisComponent = ({ quizId }) => {
     // Simulate API call
     const sampleQuizData = {
       id: quizId || 1,
-      title: "Introduction to Variables - AI Generated Quiz",
+      title: "Introduction to Variables",
       course: "CSC3002F - Parallel Programming",
       totalStudents: 45,
       averageScore: 72.4,
