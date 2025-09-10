@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+
+# load environment variables
+from dotenv import load_dotenv
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,7 +29,7 @@ SECRET_KEY = 'django-insecure-6sqz#-v^fhkvhf#w10gq-@m_o#l(%%0%n#53aj7*)9p!c8bzdv
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-#ALLOWED_HOSTS = ['localhost', '127.0.0.1', '196.42.70.236']
+#ALLOWED_HOSTS = ['localhost', '127.0.0.1', '196.42.64.171']
 ALLOWED_HOSTS = ["*",]
 SECURE_SSL_REDIRECT = False
 
@@ -205,3 +209,6 @@ AUTH_USER_MODEL = "users.User"
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
+
+# Claude API Configuration
+CLAUDE_API_KEY = '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'

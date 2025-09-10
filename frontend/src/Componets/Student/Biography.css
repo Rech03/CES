@@ -1,0 +1,369 @@
+/* Biography.css - Student Version with 3 Metrics */
+.biography-container {
+  width: 700px;
+  height: 200px;
+  position: relative;
+  background: transparent;
+  margin-top: 5px;
+  box-sizing: border-box;
+}
+
+/* Profile Image */
+.biography-avatar {
+  width: 200px;
+  height: 150px;
+  left: 10px;
+  top: 10px;
+  position: absolute;
+  background: white;
+  box-shadow: 0px 8px 20px 3px #EDEDED;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+/* Name */
+.biography-name {
+  left: 230px;
+  top: 20px;
+  position: absolute;
+  color: #1935CA;
+  font-size: 25px;
+  font-family: Poppins, sans-serif;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* Title/Position */
+.biography-title {
+  left: 230px;
+  top: 60px;
+  position: absolute;
+  color: #696F79;
+  font-size: 15px;
+  font-family: Poppins, sans-serif;
+  font-weight: 400;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+}
+
+/* Quizzes Completed Section */
+.quiz-section {
+  position: absolute;
+  left: 230px;
+  top: 100px;
+  width: 100%;
+  padding-right:20px ;
+}
+
+.quiz-section .quiz-icon-container {
+  width: 50px;
+  height: 50px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  background: white;
+  box-shadow: 0px 6px 15px 2px #EDEDED;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quiz-section .quiz-icon {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #27AE60 0%, #2ECC71 100%);
+  border-radius: 50%;
+  position: relative;
+}
+
+.quiz-section .quiz-icon::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.quiz-section .quiz-count {
+  position: absolute;
+  left: 80px;
+  top: 0px;
+  color: #27AE60;
+  font-size: 25px;
+  font-family: Poppins, sans-serif;
+  font-weight: 700;
+}
+
+.quiz-section .quiz-label {
+  position: absolute;
+  left: 60px;
+  top: 30px;
+  color: #696F79;
+  font-size: 16px;
+  font-family: Poppins, sans-serif;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* Correct Answers Section */
+.students-section {
+  position: absolute;
+  left: 470px;
+  top: 100px;
+  
+}
+
+.students-section .students-icon-container {
+  width: 50px;
+  height: 50px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  background: white;
+  box-shadow: 0px 6px 15px 2px #EDEDED;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.students-section .students-icon {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #3498DB 0%, #5DADE2 100%);
+  border-radius: 6px;
+  position: relative;
+}
+
+.students-section .students-icon::after {
+  content: '💡';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-30%, -30%);
+  font-size: 14px;
+}
+
+.students-section .students-count {
+  position: absolute;
+  left: 80px;
+  top: 0px;
+  color: #3498DB;
+  font-size: 25px;
+  font-family: Poppins, sans-serif;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.students-section .students-label {
+  position: absolute;
+  left: 60px;
+  top: 30px;
+  color: #696F79;
+  font-size: 16px;
+  font-family: Poppins, sans-serif;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* Streak Section */
+.streak-section {
+  position: absolute;
+  left: 670px;
+  top: 100px;
+}
+
+.streak-section .streak-icon-container {
+  width: 50px;
+  height: 50px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  background: white;
+  box-shadow: 0px 6px 15px 2px #EDEDED;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.streak-section .streak-icon {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
+  border-radius: 50%;
+  position: relative;
+  animation: pulseStreak 2s infinite;
+}
+
+@keyframes pulseStreak {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 107, 107, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 107, 0);
+  }
+}
+
+.streak-section .streak-icon::after {
+  content: '🔥';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 16px;
+}
+
+.streak-section .streak-count {
+  position: absolute;
+  left: 80px;
+  top: 0px;
+  color: #FF6B6B;
+  font-size: 25px;
+  font-family: Poppins, sans-serif;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.streak-section .streak-label {
+  position: absolute;
+  left: 60px;
+  top: 30px;
+  color: #696F79;
+  font-size: 16px;
+  font-family: Poppins, sans-serif;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* Hover Effects */
+.biography-container:hover .biography-avatar {
+  box-shadow: 0px 12px 25px 4px #E0E0E0;
+  transform: scale(1.02);
+  transition: all 0.3s ease;
+}
+
+.biography-container:hover .biography-name {
+  color: #1565D8;
+  transition: color 0.3s ease;
+}
+
+.biography-container:hover .quiz-icon {
+  background: linear-gradient(135deg, #219A52 0%, #27AE60 100%);
+  transform: scale(1.1);
+  transition: all 0.3s ease;
+}
+
+.biography-container:hover .students-icon {
+  background: linear-gradient(135deg, #2980B9 0%, #3498DB 100%);
+  transform: scale(1.1);
+  transition: all 0.3s ease;
+}
+
+.biography-container:hover .streak-icon {
+  background: linear-gradient(135deg, #E74C3C 0%, #FF6B6B 100%);
+  transform: scale(1.1);
+  transition: all 0.3s ease;
+}
+
+.biography-container:hover .quiz-icon-container,
+.biography-container:hover .students-icon-container,
+.biography-container:hover .streak-icon-container {
+  transform: translateY(-2px);
+  box-shadow: 0px 8px 20px 3px #E0E0E0;
+  transition: all 0.3s ease;
+}
+
+/* Color animations for counts */
+.quiz-count {
+  animation: fadeInGreen 0.8s ease-out;
+}
+
+.students-count {
+  animation: fadeInBlue 0.8s ease-out 0.2s both;
+}
+
+.streak-count {
+  animation: fadeInOrange 0.8s ease-out 0.4s both;
+}
+
+@keyframes fadeInGreen {
+  from { opacity: 0; color: #ccc; }
+  to { opacity: 1; color: #27AE60; }
+}
+
+@keyframes fadeInBlue {
+  from { opacity: 0; color: #ccc; }
+  to { opacity: 1; color: #3498DB; }
+}
+
+@keyframes fadeInOrange {
+  from { opacity: 0; color: #ccc; }
+  to { opacity: 1; color: #FF6B6B; }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .biography-container {
+    width: 100%;
+    height: auto;
+    max-width: 600px;
+    margin: 10px auto;
+    padding: 20px;
+  }
+  
+  .biography-avatar {
+    width: 120px;
+    height: 140px;
+    left: 20px;
+    top: 20px;
+  }
+  
+  .biography-name {
+    left: 160px;
+    top: 30px;
+    font-size: 20px;
+  }
+  
+  .biography-title {
+    left: 160px;
+    top: 55px;
+    font-size: 14px;
+    width: 280px;
+  }
+  
+  .quiz-section {
+    left: 20px;
+    top: 180px;
+  }
+  
+  .students-section {
+    left: 20px;
+    top: 260px;
+  }
+
+  .streak-section {
+    left: 20px;
+    top: 340px;
+  }
+
+  .quiz-section .quiz-count,
+  .students-section .students-count,
+  .streak-section .streak-count {
+    font-size: 20px;
+  }
+
+  .quiz-section .quiz-label,
+  .students-section .students-label,
+  .streak-section .streak-label {
+    font-size: 14px;
+  }
+}
