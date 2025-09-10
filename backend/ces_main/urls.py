@@ -69,6 +69,6 @@ if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
 # Admin site customization
-admin.site.site_header = "Course Engagement System"
-admin.site.site_title = "CES Admin"
-admin.site.index_title = "CES Administration"
+admin.site.site_header = "Amandla CES"
+admin.site.site_title = "Amandla CES Admin"
+admin.site.index_title = "Amandla CES Administration"

@@ -2312,3 +2312,42 @@ Not Found: /favicon.ico
 "GET /admin/jsi18n/ HTTP/1.1" 200 3342
 "GET /admin/analytics/studentengagementmetrics/ HTTP/1.1" 200 20695
 "GET /admin/jsi18n/ HTTP/1.1" 200 3342
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 101
+"GET /admin/ HTTP/1.1" 200 22273
+"GET /admin/analytics/adaptivequiz/ HTTP/1.1" 200 24161
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/adaptivequiz/1/change/ HTTP/1.1" 200 27528
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentadaptiveprogress/ HTTP/1.1" 200 20264
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/studentengagementmetrics/ HTTP/1.1" 200 20695
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/analytics/dailyengagement/ HTTP/1.1" 200 19426
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"GET /admin/courses/courseenrollment/ HTTP/1.1" 200 21591
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+"POST /admin/logout/ HTTP/1.1" 200 3563
+"GET / HTTP/1.1" 200 101
+"GET /admin/ HTTP/1.1" 302 0
+"GET /admin/login/?next=/admin/ HTTP/1.1" 200 4168
+C:\Users\rechs\OneDrive\Desktop\ces-backend\backend\ces_main\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rechs\OneDrive\Desktop\ces-backend\backend\ces_main\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rechs\OneDrive\Desktop\ces-backend\backend\ces_main\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rechs\OneDrive\Desktop\ces-backend\backend\ces_main\urls.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /admin/login/?next=/admin/ HTTP/1.1" 200 4176
+C:\Users\rechs\OneDrive\Desktop\ces-backend\backend\ces_main\urls.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /admin/login/?next=/admin/ HTTP/1.1" 200 4155
+"POST /admin/login/?next=/admin/ HTTP/1.1" 302 0
+"GET /admin/ HTTP/1.1" 200 22260
+C:\Users\rechs\OneDrive\Desktop\ces-backend\backend\ces_main\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rechs\OneDrive\Desktop\ces-backend\backend\ces_main\urls.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /admin/ HTTP/1.1" 200 22284
+"POST /admin/logout/ HTTP/1.1" 200 3558
