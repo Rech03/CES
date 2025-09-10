@@ -11,7 +11,7 @@ function Createquiz() {
       <div className="NavBar">
         <NavBar />
       </div>
-      <div className="BoiH">
+      <div className="BoiCQ">
         <Bio />
       </div>
       {/* Main Container - AddQuiz form will be contained inside */}
@@ -22,7 +22,7 @@ function Createquiz() {
       </div>
 
       {/* Side panel remains outside */}
-      <div className="SideH">
+      <div className="SideCQ">
         <div className="Rating">
           <StarRating></StarRating>
 

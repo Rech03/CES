@@ -1,7 +1,7 @@
 /* Bio.css */
 
 .bio-container {
-  width: 100.58px;
+  width: 100%;
   height: 27.63px;
   position: relative;
   border-radius: 13.92px;
@@ -23,7 +23,7 @@
 .bio-name {
   width: 66.98px;
   height: 13.39px;
-  left: 33.60px;
+  left: 30.60px;
   top: 5.65px;
   position: absolute;
   justify-content: center;

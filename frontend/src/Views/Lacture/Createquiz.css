@@ -12,19 +12,19 @@
 }
 
 .SideCQ {
-    width: 13%; 
-    padding-bottom: 30px;
+     width: 13%; 
     background: white; 
     box-shadow: 0px 2.4090728759765625px 6.4241943359375px #EDEDED; 
     border-radius: 1.61px;
     position: absolute;
-    left: 86%; /* Use left instead of margin-left */
-    top: 7%; /* Use top instead of margin-top */
+    margin-left: 86% ;
+    margin-top: 7%;
+    padding-bottom: 30px;
 }
 
 .BoiCQ {
     position: absolute;
-    left: 86%;
+    left: 84%;
     top: 20px;
 }
 
