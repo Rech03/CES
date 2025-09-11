@@ -27,7 +27,7 @@ function PastQuizTile({
 
   return (
     <div>
-      <NavLink to="/QuizAnalytics" className={({ isActive }) => isActive ? "active" : ""}>
+      <NavLink to="/QuizAnalyticsPage" className={({ isActive }) => isActive ? "active" : ""}>
     <div className={`quiz-tile-container ${courseCode}`} onClick={onClick}>
       
                 

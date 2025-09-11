@@ -26,14 +26,14 @@
 }
 .BoiD {
     position: absolute;
-    margin-left: 86%;
+    margin-left: 84%;
     margin-top: 20px;
+    max-width: 70px;
 }
 
-.BoigraphyST {
+.Boigraphy {
     /* Remove absolute positioning to keep it in document flow */
-    margin-bottom: 0%;
-    
+    margin-bottom: 40px; /* Space before next section */
 }
 
 .Title {
@@ -65,11 +65,12 @@
 }
 
 /* Header section for title and "view all" */
-.quiz-headerST{
+.quiz-header1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
 
+    margin-top: 0px;
 }
 .Rating{
     width: 80%;

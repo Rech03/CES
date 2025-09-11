@@ -1,10 +1,11 @@
 /* Biography.css - Student Version with 3 Metrics */
+
 .biography-container {
   width: 700px;
-  height: 200px;
+  height: 150px;
   position: relative;
   background: transparent;
-  margin-top: 5px;
+  margin: 5px;
   box-sizing: border-box;
 }
 
@@ -53,12 +54,12 @@
   left: 230px;
   top: 100px;
   width: 100%;
-  padding-right:20px ;
+
 }
 
 .quiz-section .quiz-icon-container {
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
   position: absolute;
   left: 0px;
   top: 0px;
@@ -85,13 +86,13 @@
   left: 50%;
   transform: translate(-50%, -50%);
   color: white;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: bold;
 }
 
 .quiz-section .quiz-count {
   position: absolute;
-  left: 80px;
+  left: 70px;
   top: 0px;
   color: #27AE60;
   font-size: 25px;
@@ -101,10 +102,10 @@
 
 .quiz-section .quiz-label {
   position: absolute;
-  left: 60px;
+  left: 70px;
   top: 30px;
   color: #696F79;
-  font-size: 16px;
+  font-size: 14px;
   font-family: Poppins, sans-serif;
   font-weight: 400;
   white-space: nowrap;
@@ -113,14 +114,13 @@
 /* Correct Answers Section */
 .students-section {
   position: absolute;
-  left: 470px;
+  left: 450px;
   top: 100px;
-  
 }
 
 .students-section .students-icon-container {
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
   position: absolute;
   left: 0px;
   top: 0px;
@@ -145,13 +145,13 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-30%, -30%);
+  transform: translate(-50%, -50%);
   font-size: 14px;
 }
 
 .students-section .students-count {
   position: absolute;
-  left: 80px;
+  left: 70px;
   top: 0px;
   color: #3498DB;
   font-size: 25px;
@@ -162,10 +162,10 @@
 
 .students-section .students-label {
   position: absolute;
-  left: 60px;
+  left: 70px;
   top: 30px;
   color: #696F79;
-  font-size: 16px;
+  font-size: 14px;
   font-family: Poppins, sans-serif;
   font-weight: 400;
   white-space: nowrap;
@@ -174,13 +174,13 @@
 /* Streak Section */
 .streak-section {
   position: absolute;
-  left: 670px;
+  left: 650px;
   top: 100px;
 }
 
 .streak-section .streak-icon-container {
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
   position: absolute;
   left: 0px;
   top: 0px;
@@ -224,7 +224,7 @@
 
 .streak-section .streak-count {
   position: absolute;
-  left: 80px;
+  left: 70px;
   top: 0px;
   color: #FF6B6B;
   font-size: 25px;
@@ -235,52 +235,15 @@
 
 .streak-section .streak-label {
   position: absolute;
-  left: 60px;
+  left: 70px;
   top: 30px;
   color: #696F79;
-  font-size: 16px;
+  font-size: 14px;
   font-family: Poppins, sans-serif;
   font-weight: 400;
   white-space: nowrap;
 }
 
-/* Hover Effects */
-.biography-container:hover .biography-avatar {
-  box-shadow: 0px 12px 25px 4px #E0E0E0;
-  transform: scale(1.02);
-  transition: all 0.3s ease;
-}
-
-.biography-container:hover .biography-name {
-  color: #1565D8;
-  transition: color 0.3s ease;
-}
-
-.biography-container:hover .quiz-icon {
-  background: linear-gradient(135deg, #219A52 0%, #27AE60 100%);
-  transform: scale(1.1);
-  transition: all 0.3s ease;
-}
-
-.biography-container:hover .students-icon {
-  background: linear-gradient(135deg, #2980B9 0%, #3498DB 100%);
-  transform: scale(1.1);
-  transition: all 0.3s ease;
-}
-
-.biography-container:hover .streak-icon {
-  background: linear-gradient(135deg, #E74C3C 0%, #FF6B6B 100%);
-  transform: scale(1.1);
-  transition: all 0.3s ease;
-}
-
-.biography-container:hover .quiz-icon-container,
-.biography-container:hover .students-icon-container,
-.biography-container:hover .streak-icon-container {
-  transform: translateY(-2px);
-  box-shadow: 0px 8px 20px 3px #E0E0E0;
-  transition: all 0.3s ease;
-}
 
 /* Color animations for counts */
 .quiz-count {

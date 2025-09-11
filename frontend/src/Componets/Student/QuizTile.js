@@ -45,6 +45,7 @@ function QuizTile({
 
   return (
     <div>
+       <NavLink to="/QuizCountdownPage">
       <div className={`quiz-tile-container ${courseCode}`} onClick={onClick}>
         <div className="quiz-overlay"></div>
         
@@ -85,11 +86,13 @@ function QuizTile({
                 onStartQuiz && onStartQuiz();
               }}
             >
-              <NavLink to="/QuizCountdown" className={({ isActive }) => isActive ? "active" : ""}>
-                          
-                   Start Quiz     
+             
+                   <div className='Start'>
+                    Start Quiz  
+                    </div>     
+                
               
-              </NavLink>
+      
               
             </button>
           )}
@@ -138,6 +141,7 @@ function QuizTile({
           )}
         </div>
       </div>
+      </NavLink>
     </div>
   );
 }

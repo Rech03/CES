@@ -1,19 +1,40 @@
+import { NavLink } from "react-router-dom";
 import "./NavBar.css";
 
-function NavBar(){
-    return (
-        <div class="Navigation_Bar">
-            <img src="/Amandla.png" alt="Example" class="Logo"/>
-        <ul>
-        <li><a class="active" href="#home">Dashboard</a></li>
-        <li><a href="#contact">Achievements</a></li>
-        <li><a href="#about">Analytics</a></li>
-        <li><a href="#about">Quiz History</a></li>
+function NavBar() {
+  return (
+    <div className="Navigation_Bar">
+      <img src="/Amandla.png" alt="Logo" className="Logo" />
+      <ul>
+        <li>
+          <NavLink to="/Dashboard" className={({ isActive }) => isActive ? "active" : ""}>
+            Dashboard
+          </NavLink>
+        </li>
+        <li>
+          <NavLink to="/AIQuizzes" className={({ isActive }) => isActive ? "active" : ""}>
+            AI Quizzes
+          </NavLink>
+        </li>
+        <li>
+          <NavLink to="/Analytics" className={({ isActive }) => isActive ? "active" : ""}>
+            Analytics
+          </NavLink>
+        </li>
+        <li>
+          <NavLink to="/Achievements" className={({ isActive }) => isActive ? "active" : ""}>
+            Achievements
+          </NavLink>
+        </li>
 
-        </ul>
-        </div>
-
-    )
+        <li>
+          <NavLink to="/QuizHistory" className={({ isActive }) => isActive ? "active" : ""}>
+            Quiz History
+          </NavLink>
+        </li>
+      </ul>
+    </div>
+  );
 }
 
 export default NavBar;
