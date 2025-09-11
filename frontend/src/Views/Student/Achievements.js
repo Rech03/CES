@@ -1,12 +1,9 @@
 import Bio from "../../Componets/Student/bio";
-import Biography from "../../Componets/Student/Biography";
 import CoursesList from "../../Componets/Student/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
-import QuizTile from "../../Componets/Student/QuizTile";
-import SearchBar from "../../Componets/Student/SearchBar";
 import StarRating from "../../Componets/Student/StarRating";
-import "./AIQuizzes.css";
-
+import StudentAchievements from "../../Componets/Student/StudentAchievements";
+import "./Achievements.css";
 
 function Achievements() {
   return (
@@ -16,21 +13,21 @@ function Achievements() {
       </div>
       
       {/* Main Container - everything inside will be contained */}
-      <div className="ContainerAI">
-     
+      <div className="ContainerA">
+        <StudentAchievements studentId={1} />
       </div>
 
       {/* Side panel remains outside */}
-      <div className="SideAI">
+      <div className="SideA">
         <div className="Rating">
-          <StarRating></StarRating>
-
+          <StarRating />
         </div>
         <div className="List">
-        <CoursesList></CoursesList>
+          <CoursesList />
         </div>
       </div>
-      <div className="BoiAI">
+      
+      <div className="BoiA">
         <Bio />
       </div>
     </div>
