@@ -1,12 +1,9 @@
 import Bio from "../../Componets/Student/bio";
-import Biography from "../../Componets/Student/Biography";
 import CoursesList from "../../Componets/Student/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
-import QuizTile from "../../Componets/Student/QuizTile";
-import SearchBar from "../../Componets/Student/SearchBar";
 import StarRating from "../../Componets/Student/StarRating";
+import AIQuizzesDisplay from "../../Componets/Student/AIQuizzesDiaplay";
 import "./AIQuizzes.css";
-
 
 function AIQuizzes() {
   return (
@@ -15,24 +12,22 @@ function AIQuizzes() {
         <NavBar />
       </div>
       
-      {/* Main Container - everything inside will be contained */}
+      {/* Main Container - AI Quizzes Display */}
       <div className="ContainerAI">
-     
+        <AIQuizzesDisplay />
       </div>
 
-      {/* Side panel remains outside */}
+      {/* Side panel */}
       <div className="SideAI">
         <div className="Rating">
-          <StarRating></StarRating>
-
+          <StarRating />
         </div>
         <div className="List">
-        <CoursesList></CoursesList>
+          <CoursesList />
         </div>
       </div>
-      <div className="BoiAI">
-        <Bio />
-      </div>
+      
+   
     </div>
   );
 }
