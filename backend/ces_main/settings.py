@@ -168,6 +168,7 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only in development
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # React development server
     "http://127.0.0.1:3000",
+    "http://196.42.68.110:3000",
 ]
 
 CORS_ALLOW_CREDENTIALS = False

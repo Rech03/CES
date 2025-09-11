@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import { login } from '../../api/auth';
 import './Login.css';
@@ -10,6 +10,15 @@ function Login() {
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
 
+  // Debug logging for environment variables
+  useEffect(() => {
+    console.log('=== LOGIN COMPONENT DEBUG ===');
+    console.log('Environment variables check:');
+    console.log('- REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+    console.log('- NODE_ENV:', process.env.NODE_ENV);
+    console.log('- All REACT_APP vars:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_')));
+  }, []);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -19,66 +28,99 @@ function Login() {
     const username = String(f.get("username") || "").trim();
     const password = String(f.get("password") || "");
 
+    console.log('=== FORM SUBMISSION DEBUG ===');
+    console.log('Form data extracted:', { username, password: password ? '***' : 'empty' });
+    console.log('Remember me checked:', remember);
+
     try {
       // Validate inputs
       if (!username || !password) {
-        setError("Please enter both email and password.");
+        console.log('Validation failed: missing username or password');
+        setError("Please enter both username and password.");
         return;
       }
 
+      console.log('Validation passed, calling login function...');
+      
       // Call the actual API
       const response = await login(username, password, remember, remember);
       
-      // The API response should include user info and role
-      const userData = response.user || response;
+      console.log('=== LOGIN RESPONSE PROCESSING ===');
+      console.log('Login function returned:', response);
       
-      // Create user session
+      // Extract user data from response
+      const userData = response.user || response;
+      console.log('User data extracted:', userData);
+      
+      // Create user session - map Django fields to frontend expectations
       const userSession = {
-        email: username,
-        name: userData.name || userData.first_name + ' ' + userData.last_name || username,
-        role: userData.role || userData.user_type || 'student', // Adjust based on your API response
-        studentId: userData.student_id || userData.student_number || null,
-        employeeId: userData.employee_id || userData.staff_id || null,
+        username: username,
+        name: userData.full_name || `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.username,
+        role: userData.user_type || 'student', // Django uses user_type
+        studentId: userData.student_number || null,
+        employeeId: userData.employee_id || null,
         department: userData.department || null,
-        userId: userData.id || userData.user_id,
+        userId: userData.id,
+        email: userData.email,
         loginTime: new Date().toISOString(),
         rememberMe: remember
       };
       
+      console.log('User session created:', userSession);
+      
       // Store session
       localStorage.setItem('userSession', JSON.stringify(userSession));
+      console.log('Session stored in localStorage');
       
       // Role-based routing
       if (userSession.role === 'student') {
         console.log(`Student login successful: ${userSession.name}`);
+        console.log('Navigating to /StudentDashboard');
         nav("/StudentDashboard");
       } else if (userSession.role === 'lecturer' || userSession.role === 'teacher' || userSession.role === 'instructor') {
         console.log(`Lecturer login successful: ${userSession.name}`);
+        console.log('Navigating to /LecturerDashboard');
         nav("/LecturerDashboard");
       } else {
         console.log(`Unknown role: ${userSession.role}, defaulting to student`);
+        console.log('Navigating to /StudentDashboard');
         nav("/StudentDashboard");
       }
       
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('=== LOGIN CATCH BLOCK ===');
+      console.error('Login error caught:', err);
       
       // Handle API error responses
-      const errorMessage = 
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        (typeof err.response?.data === "string" ? err.response.data : null) ||
-        err.message ||
-        "Login failed. Please check your credentials and try again.";
+      let errorMessage = "Login failed. Please check your credentials and try again.";
       
+      if (err.response?.data) {
+        // Django REST Framework error format
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        } else if (err.response.data.detail) {
+          errorMessage = err.response.data.detail;
+        } else if (err.response.data.non_field_errors) {
+          errorMessage = err.response.data.non_field_errors[0];
+        } else if (err.response.data.error) {
+          errorMessage = err.response.data.error;
+        } else if (err.response.data.message) {
+          errorMessage = err.response.data.message;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      console.error('Error message to display:', errorMessage);
       setError(errorMessage);
     } finally {
+      console.log('Login attempt finished, setting loading to false');
       setIsLoading(false);
     }
   };
 
   const handleForgotPassword = () => {
+    console.log('Forgot password clicked');
     alert(`Password Reset
 
 To reset your password, please contact:
@@ -119,7 +161,7 @@ Or visit the UCT password reset portal.`);
           {/* Form header */}
           <div className="uct-form-header">
             <h2 className="uct-form-title">Login to your Account</h2>
-            <p className="uct-form-subtitle">with your registered UCT Email Address</p>
+            <p className="uct-form-subtitle">with your registered UCT Username</p>
           </div>
 
           {/* Error message */}
@@ -142,15 +184,15 @@ Or visit the UCT password reset portal.`);
           <form className="uct-form-fields" onSubmit={handleLogin}>
             <div className="uct-input-group">
               <label className="uct-input-label">
-                Email address*
+                Username*
               </label>
               <input
-                type="email"
+                type="text"
                 name="username"
-                placeholder="Enter your UCT email address"
+                placeholder="Enter your UCT username"
                 className="uct-input"
                 required
-                autoComplete="email"
+                autoComplete="username"
               />
             </div>
 

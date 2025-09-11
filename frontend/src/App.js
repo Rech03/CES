@@ -35,11 +35,26 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
   useEffect(() => {
     const checkAuth = () => {
       try {
-        const userSession = localStorage.getItem('userSession');
+        // Check for user session in both localStorage and sessionStorage
+        const userSession = localStorage.getItem('userSession') || sessionStorage.getItem('userSession');
+        
         if (userSession) {
           const parsedUser = JSON.parse(userSession);
           
-          // Check if session is valid (not expired if remember me is false)
+          // Check if tokens exist (from auth.js)
+          const access = localStorage.getItem('access') || sessionStorage.getItem('access');
+          const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+          
+          if (!access && !token) {
+            // No valid token found
+            localStorage.removeItem('userSession');
+            sessionStorage.removeItem('userSession');
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+          
+          // Check session expiry (only if not remembered)
           if (!parsedUser.rememberMe) {
             const loginTime = new Date(parsedUser.loginTime);
             const now = new Date();
@@ -48,6 +63,12 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
             // Session expires after 8 hours if not remembered
             if (hoursDiff > 8) {
               localStorage.removeItem('userSession');
+              sessionStorage.removeItem('userSession');
+              // Clear tokens as well
+              ['access', 'refresh', 'token'].forEach((k) => {
+                localStorage.removeItem(k);
+                sessionStorage.removeItem(k);
+              });
               setUser(null);
               setLoading(false);
               return;
@@ -55,10 +76,18 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
           }
           
           setUser(parsedUser);
+        } else {
+          setUser(null);
         }
       } catch (error) {
         console.error('Error parsing user session:', error);
+        // Clear all authentication data on error
         localStorage.removeItem('userSession');
+        sessionStorage.removeItem('userSession');
+        ['access', 'refresh', 'token'].forEach((k) => {
+          localStorage.removeItem(k);
+          sessionStorage.removeItem(k);
+        });
         setUser(null);
       }
       setLoading(false);
@@ -111,7 +140,6 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
 
   return children;
 }
-
 // Role-based Dashboard Redirect Component
 function DashboardRedirect() {
   const [user, setUser] = useState(null);
