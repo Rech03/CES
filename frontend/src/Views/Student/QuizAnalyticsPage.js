@@ -3,11 +3,11 @@ import Bio from "../../Componets/Student/bio";
 import CoursesList from "../../Componets/Student/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
 import StarRating from "../../Componets/Student/StarRating";
-import QuizAnalysic from '../../Componets/Student/QuizAnalysic';
-import "./QuizAnalytics.css";
+import QuizResultsDisplay from '../../Componets/Student/QuizResultsDisplay';
+import "./QuizAnalyticsPage.css";
 
 function QuizAnalyticsPage() {
-  const [selectedQuizId, setSelectedQuizId] = useState(1); // Default quiz ID
+  const [selectedStudentId, setSelectedStudentId] = useState(1); // Default student ID
   
   return(
     <div>
@@ -15,7 +15,7 @@ function QuizAnalyticsPage() {
         <NavBar></NavBar>
       </div>
   
-      <div className="SideH">
+      <div className="SideHA">
         <div className="Rating">
           <StarRating></StarRating>
         </div>
@@ -24,13 +24,13 @@ function QuizAnalyticsPage() {
         </div>
       </div>
       
-      <div className="BoiH">
+      <div className="BoiHA">
         <Bio></Bio>
       </div>
       
-      <div className="ContainerH">
-        <div className="QuizAnliysis">
-          <QuizAnalysic quizId={selectedQuizId} />
+      <div className="ContainerHA">
+        <div className="QuizResultsWrapper">
+          <QuizResultsDisplay quizId={selectedStudentId} />
         </div>
       </div>
     </div> 

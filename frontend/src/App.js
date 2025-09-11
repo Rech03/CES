@@ -17,12 +17,11 @@ import STAchievements from './Views/Student/Achievements';
 import STAIQuizzes from './Views/Student/AIQuizzes';
 import STAnalytics from './Views/Student/Analytics';
 import STDashboard  from './Views/Student/Dashboard';
-import STLogoutPlayground from './Views/Student/LogoutPlayground';
 import STQuizCountdownPage from './Views/Student/QuizCountdownPage';
 import STQuizInterface from './Views/Student/QuizInterface';
-import STQuizPage from './Views/Student/QuizPage';
 import STQuizResultsPage from './Views/Student/QuizResultsPage';
-import STQuizHistory from "./Views/Student/QuizHistory"
+import STQuizHistory from "./Views/Student/QuizHistory";
+import QuizAnalyticsPage from './Views/Student/QuizAnalyticsPage';
 
 
 // Common
@@ -54,8 +53,8 @@ function App() {
           <Route path="/QuizCountdownPage" element={<STQuizCountdownPage />} />
           <Route path="/QuizHistory" element={<STQuizHistory />} />
           <Route path="/QuizInterface" element={<STQuizInterface />} />
-          <Route path="/QuizPage" element={<STQuizPage />} />
           <Route path="/QuizResultsPage" element={<STQuizResultsPage />} />
+           <Route path="/QuizAnalyticsPage" element={<QuizAnalyticsPage />} />
         </Routes>
       </BrowserRouter>
     </div>
