@@ -56,7 +56,7 @@ function Login() {
       const userSession = {
         username: username,
         name: userData.full_name || `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.username,
-        role: userData.user_type || 'student', // Django uses user_type
+        role: response.user_type || 'student', // Django uses user_type
         studentId: userData.student_number || null,
         employeeId: userData.employee_id || null,
         department: userData.department || null,

@@ -2422,3 +2422,69 @@ Not Found: /favicon.ico
 Watching for file changes with StatReloader
 "OPTIONS /api/auth/login/ HTTP/1.1" 200 0
 "POST /api/auth/login/ HTTP/1.1" 200 518
+Watching for file changes with StatReloader
+"OPTIONS /api/auth/login/ HTTP/1.1" 200 0
+Bad Request: /api/auth/login/
+"POST /api/auth/login/ HTTP/1.1" 400 68
+Bad Request: /api/auth/login/
+"POST /api/auth/login/ HTTP/1.1" 400 68
+Bad Request: /api/auth/login/
+"POST /api/auth/login/ HTTP/1.1" 400 68
+Bad Request: /api/auth/login/
+"POST /api/auth/login/ HTTP/1.1" 400 68
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"POST /api/auth/login/ HTTP/1.1" 200 518
+- Broken pipe from ('196.47.243.65', 49759)
+- Broken pipe from ('196.47.243.65', 58465)
+"OPTIONS /api/auth/login/ HTTP/1.1" 200 0
+"POST /api/auth/login/ HTTP/1.1" 200 354
+- Broken pipe from ('196.47.243.65', 59946)
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"POST /api/auth/login/ HTTP/1.1" 200 518
+"POST /api/auth/login/ HTTP/1.1" 200 354
+- Broken pipe from ('196.47.243.65', 53877)
+- Broken pipe from ('196.47.243.65', 60259)
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"OPTIONS /api/auth/login/ HTTP/1.1" 200 0
+"POST /api/auth/login/ HTTP/1.1" 200 354
+- Broken pipe from ('196.47.243.65', 49669)
+"POST /api/auth/login/ HTTP/1.1" 200 354
+- Broken pipe from ('196.47.243.65', 49676)
+"OPTIONS /api/auth/dashboard/ HTTP/1.1" 200 0
+"OPTIONS /api/auth/dashboard/ HTTP/1.1" 200 0
+"GET /api/auth/dashboard/ HTTP/1.1" 200 285
+"GET /api/auth/dashboard/ HTTP/1.1" 200 285
+"GET /api/auth/dashboard/ HTTP/1.1" 200 285
+"GET /api/auth/dashboard/ HTTP/1.1" 200 285
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"GET /api/auth/dashboard/ HTTP/1.1" 200 285
+"GET /api/auth/dashboard/ HTTP/1.1" 200 285
+"GET /api/auth/dashboard/ HTTP/1.1" 200 285
+"GET /api/auth/dashboard/ HTTP/1.1" 200 285
+"GET /api/auth/dashboard/ HTTP/1.1" 200 285
+"GET /api/auth/dashboard/ HTTP/1.1" 200 285
+"GET /api/auth/dashboard/ HTTP/1.1" 200 285
+"GET /api/auth/dashboard/ HTTP/1.1" 200 285
+- Broken pipe from ('196.47.243.65', 51463)
+- Broken pipe from ('196.47.243.65', 57100)
+- Broken pipe from ('196.47.243.65', 64095)
+- Broken pipe from ('196.47.243.65', 64498)
+"OPTIONS /api/auth/login/ HTTP/1.1" 200 0
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"OPTIONS /api/auth/login/ HTTP/1.1" 200 0
+"POST /api/auth/login/ HTTP/1.1" 200 518
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"POST /api/auth/login/ HTTP/1.1" 200 354
+"OPTIONS /api/courses/topics/ HTTP/1.1" 200 0
+"OPTIONS /api/courses/topics/ HTTP/1.1" 200 0
+"GET /api/courses/topics/ HTTP/1.1" 200 319
+"GET /api/courses/topics/ HTTP/1.1" 200 319
+"GET /api/courses/topics/ HTTP/1.1" 200 319
+"GET /api/courses/topics/ HTTP/1.1" 200 319
