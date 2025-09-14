@@ -3,11 +3,11 @@ from django.db import models
 
 
 class User(AbstractUser):
-    """Single User model - no inheritance issues"""
-    
+
     USER_TYPE_CHOICES = [
         ('student', 'Student'),
         ('lecturer', 'Lecturer'),
+        ('admin', 'Admin'),
     ]
     
     # Basic fields
@@ -28,12 +28,30 @@ class User(AbstractUser):
     employee_id = models.CharField(max_length=20, unique=True, null=True, blank=True)
     department = models.CharField(max_length=100, null=True, blank=True)
     
+    # Admin fields (only used when user_type='admin')
+    admin_level = models.CharField(
+        max_length=20, 
+        choices=[
+            ('system', 'System Administrator'),
+            ('academic', 'Academic Administrator'),
+            ('support', 'Support Administrator'),
+        ],
+        null=True, 
+        blank=True,
+        help_text="Admin specialization level"
+    )
+    
     def save(self, *args, **kwargs):
-        # Auto-set staff status for lecturers
-        if self.user_type == 'lecturer':
+        # Auto-set permissions based on user type
+        if self.user_type == 'admin':
             self.is_staff = True
-        else:
+            self.is_superuser = True
+        elif self.user_type == 'lecturer':
+            self.is_staff = True
+            self.is_superuser = False
+        else:  # student
             self.is_staff = False
+            self.is_superuser = False
         super().save(*args, **kwargs)
     
     @property
@@ -43,6 +61,10 @@ class User(AbstractUser):
     @property
     def is_lecturer(self):
         return self.user_type == 'lecturer'
+    
+    @property
+    def is_admin(self):
+        return self.user_type == 'admin'
     
     def get_enrolled_courses(self):
         """For students - return enrolled courses"""
@@ -59,6 +81,8 @@ class User(AbstractUser):
             return f"Student: {self.get_full_name()} ({self.student_number})"
         elif self.user_type == 'lecturer':
             return f"Lecturer: {self.get_full_name()} ({self.employee_id})"
+        elif self.user_type == 'admin':
+            return f"Administrator: {self.get_full_name()}"
         return f"{self.get_full_name()} ({self.username})"
 
 

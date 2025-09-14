@@ -1,5 +1,3 @@
-# users/views.py - SINGLE USER MODEL VIEWS
-
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.response import Response
@@ -11,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from .models import User, StudentProfile
 from .serializers import (
-    LoginSerializer, UserSerializer, StudentSerializer, LecturerSerializer,
+    LoginSerializer, UserSerializer, StudentSerializer, LecturerSerializer, AdminSerializer,
     UserProfileUpdateSerializer, ChangePasswordSerializer
 )
 
@@ -43,6 +41,8 @@ class LoginView(APIView):
                 user_data = StudentSerializer(user).data
             elif user.user_type == 'lecturer':
                 user_data = LecturerSerializer(user).data
+            elif user.user_type == 'admin':
+                user_data = AdminSerializer(user).data
             else:
                 user_data = UserSerializer(user).data
             
@@ -81,11 +81,13 @@ class ProfileView(APIView):
         user = request.user
         
         if user.user_type == 'student':
-            serializer = StudentSerializer(user)
+            serializer = StudentSerializer(user, context={'request': request})
         elif user.user_type == 'lecturer':
-            serializer = LecturerSerializer(user)
+            serializer = LecturerSerializer(user, context={'request': request})
+        elif user.user_type == 'admin':
+            serializer = AdminSerializer(user, context={'request': request})
         else:
-            serializer = UserSerializer(user)
+            serializer = UserSerializer(user, context={'request': request})
         
         return Response(serializer.data)
     
@@ -108,6 +110,8 @@ class ProfileView(APIView):
                 return Response(StudentSerializer(user).data)
             elif user.user_type == 'lecturer':
                 return Response(LecturerSerializer(user).data)
+            elif user.user_type == 'admin':
+                return Response(AdminSerializer(user).data)
             return Response(UserSerializer(user).data)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -165,6 +169,18 @@ def dashboard_data(request):
             'user': LecturerSerializer(user).data,
             'stats': {
                 # Will implement when course models are ready
+            },
+        }
+    elif user.user_type == 'admin':
+        dashboard_data = {
+            'user_type': 'admin',
+            'user': AdminSerializer(user).data,
+            'stats': {
+                'total_users': User.objects.count(),
+                'total_students': User.objects.filter(user_type='student').count(),
+                'total_lecturers': User.objects.filter(user_type='lecturer').count(),
+                'total_admins': User.objects.filter(user_type='admin').count(),
+                'active_users': User.objects.filter(is_active=True).count(),
             },
         }
     else:
