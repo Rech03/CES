@@ -22,11 +22,11 @@ class CourseAdmin(admin.ModelAdmin):
     """Course admin"""
     list_display = (
         'code', 'name', 'lecturer', 'get_enrolled_count', 
-        'get_topics_count',  'is_active', 'created_at'
+        'get_topics_count', 'enrollment_code', 'is_active', 'created_at'
     )
     list_filter = ('is_active', 'created_at', 'lecturer')
     search_fields = ('code', 'name', 'lecturer__username', 'lecturer__first_name', 'lecturer__last_name')
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('enrollment_code', 'created_at', 'updated_at')
     ordering = ('-created_at',)
     
     fieldsets = (
@@ -35,6 +35,10 @@ class CourseAdmin(admin.ModelAdmin):
         }),
         ('Settings', {
             'fields': ('max_students', 'is_active')
+        }),
+        ('Enrollment', {
+            'fields': ('enrollment_code',),
+            'classes': ('collapse',)
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -51,7 +55,22 @@ class CourseAdmin(admin.ModelAdmin):
     def get_topics_count(self, obj):
         return obj.get_topics_count()
     get_topics_count.short_description = 'Topics'
-
+    
+    actions = ['regenerate_enrollment_codes']
+    
+    def regenerate_enrollment_codes(self, request, queryset):
+        """Regenerate enrollment codes for selected courses"""
+        updated = 0
+        for course in queryset:
+            course.enrollment_code = course.generate_enrollment_code()
+            course.save()
+            updated += 1
+        
+        self.message_user(
+            request,
+            f'Successfully regenerated enrollment codes for {updated} courses.'
+        )
+    regenerate_enrollment_codes.short_description = 'Regenerate enrollment codes'
 
 
 @admin.register(CourseEnrollment)

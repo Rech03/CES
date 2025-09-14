@@ -19,9 +19,26 @@ class Course(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
     
+    # Enrollment management
+    enrollment_code = models.CharField(max_length=20, unique=True, blank=True)
+    max_students = models.PositiveIntegerField(default=300)
     
     class Meta:
-        ordering = ['name']
+        ordering = ['code', 'name']
+    
+    def save(self, *args, **kwargs):
+        if not self.enrollment_code:
+            self.enrollment_code = self.generate_enrollment_code()
+        super().save(*args, **kwargs)
+    
+    def generate_enrollment_code(self):
+        """Generate unique enrollment code"""
+        import random
+        import string
+        while True:
+            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+            if not Course.objects.filter(enrollment_code=code).exists():
+                return code
     
     def get_enrolled_students_count(self):
         """Get count of enrolled students"""

@@ -15,11 +15,11 @@ class CourseSerializer(serializers.ModelSerializer):
         model = Course
         fields = [
             'id', 'name', 'code', 'description', 'lecturer', 'lecturer_name',
-            'created_at', 'updated_at', 'is_active',
+            'created_at', 'updated_at', 'is_active', 'enrollment_code',
             'max_students', 'enrolled_students_count', 'topics_count',
             'total_quizzes_count'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', ] # removed enrollment code
+        read_only_fields = ['id', 'created_at', 'updated_at', 'enrollment_code']
     
     def get_enrolled_students_count(self, obj):
         return obj.get_enrolled_students_count()
