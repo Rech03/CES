@@ -118,19 +118,4 @@ class Migration(migrations.Migration):
             name='name',
             field=models.CharField(max_length=200),
         ),
-        migrations.DeleteModel(
-            name='CSVUploadLog',
-        ),
-        migrations.RemoveField(
-            model_name='courseenrollment',
-            name='csv_upload_batch',
-        ),
-        migrations.RemoveField(
-            model_name='courseenrollment',
-            name='enrolled_by',
-        ),
-        migrations.RemoveField(
-            model_name='topic',
-            name='order',
-        ),
     ]

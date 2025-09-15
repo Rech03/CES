@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'quizzes',
     'analytics',
     'ai_quiz',
+    #'achievements',
 ]
 
 MIDDLEWARE = [
