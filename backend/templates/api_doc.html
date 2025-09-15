@@ -15,7 +15,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
             line-height: 1.6;
             color: #1a1a1a;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f8f9fa;
             min-height: 100vh;
         }
 
@@ -44,19 +44,12 @@
             gap: 0.75rem;
             font-size: 1.5rem;
             font-weight: 700;
-            color: #4f46e5;
+            color: #1a1a1a;
         }
 
         .logo-icon {
-            width: 40px;
             height: 40px;
-            background: linear-gradient(135deg, #4f46e5, #7c3aed);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
+            width: auto;
         }
 
         .nav-links {
@@ -73,7 +66,7 @@
         }
 
         .nav-links a:hover {
-            color: #4f46e5;
+            color: #2563eb;
         }
 
         .container {
@@ -85,22 +78,20 @@
         .hero {
             text-align: center;
             padding: 4rem 0;
-            color: white;
+            background: white;
+            color: #1a1a1a;
         }
 
         .hero h1 {
             font-size: 3.5rem;
             font-weight: 800;
             margin-bottom: 1rem;
-            background: linear-gradient(135deg, #ffffff, #e2e8f0);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #1a1a1a;
         }
 
         .hero p {
             font-size: 1.25rem;
-            opacity: 0.9;
+            color: #64748b;
             margin-bottom: 2rem;
         }
 
@@ -176,7 +167,7 @@
 
         .sidebar a:hover {
             background: #f3f4f6;
-            color: #4f46e5;
+            color: #2563eb;
         }
 
         .main-content {
@@ -366,13 +357,13 @@
     <nav class="navbar">
         <div class="nav-container">
             <div class="logo">
-                <div class="logo-icon">A</div>
-                Course Engagement System
+                <img src="/static/images/Amandla.png" alt="Amandla Logo" class="logo-icon">
             </div>
             <ul class="nav-links">
-                <li><a href="#overview">Overview</a></li>
-                <li><a href="#authentication">Auth</a></li>
-                <li><a href="#endpoints">Endpoints</a></li>
+                <li><a href="#users">Users</a></li>
+                <li><a href="#courses">Courses</a></li>
+                <li><a href="#quizzes">Quizzes</a></li>
+                <li><a href="#achievements">Achievements</a></li>
                 <li><a href="/admin/">Admin</a></li>
             </ul>
         </div>
@@ -417,6 +408,7 @@
                     <li><a href="#quizzes">Traditional Quizzes</a></li>
                     <li><a href="#ai-quiz">AI Adaptive Quizzes</a></li>
                     <li><a href="#analytics">Analytics & Reports</a></li>
+                    <li><a href="#achievements">Achievements & Gamification</a></li>
                 </ul>
             </div>
 
@@ -602,6 +594,51 @@
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/analytics/trends/engagement/</span>
                             <span class="endpoint-description">Engagement trends over time</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Achievements Section -->
+                <div class="api-section" id="achievements">
+                    <div class="section-header">
+                        <h2>Student Achievements & Gamification</h2>
+                        <p>Badge system, XP tracking, streaks, and student achievement management</p>
+                    </div>
+                    <div class="endpoints">
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/dashboard/</span>
+                            <span class="endpoint-description">Student achievement dashboard with XP, level, and recent badges</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/badges/</span>
+                            <span class="endpoint-description">Student's badge collection with filter options (all, earned, gold, legendary)</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/badges/available/</span>
+                            <span class="endpoint-description">All available badges and their requirements</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/history/</span>
+                            <span class="endpoint-description">Student's achievement history and daily activities</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/stats/</span>
+                            <span class="endpoint-description">Detailed achievement statistics and badge breakdowns</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/achievements/check/</span>
+                            <span class="endpoint-description">Manually trigger achievement checking for student</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/leaderboard/</span>
+                            <span class="endpoint-description">Achievement leaderboard by XP, badges, or streak</span>
                         </div>
                     </div>
                 </div>

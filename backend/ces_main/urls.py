@@ -37,8 +37,9 @@ urlpatterns = [
     path('api/quizzes/', include('quizzes.urls')),
     path('api/analytics/', include('analytics.urls')),
     path('api/ai-quiz/', include('ai_quiz.urls')),
+    path('api/achievements/', include('achievements.urls')),
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
