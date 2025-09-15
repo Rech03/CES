@@ -1,4 +1,4 @@
-from django.urls import path, include
+from django.urls import path
 from . import views
 
 urlpatterns = [
@@ -34,11 +34,4 @@ urlpatterns = [
     path('compare/quizzes/', views.compare_quizzes, name='compare_quizzes'),
     path('compare/topics/', views.compare_topics, name='compare_topics'),
     path('compare/courses/', views.compare_courses, name='compare_courses'),
-    
-    # ADAPTIVE LEARNING ANALYTICS
-    path('adaptive/slide/<int:slide_id>/stats/', views.adaptive_slide_statistics, name='adaptive_slide_statistics'),
-    path('adaptive/progress/', views.get_progress_analytics, name='get_progress_analytics'),
-    
-    # Adaptive learning endpoints (existing from adaptive_urls.py)
-    path('adaptive/', include('analytics.adaptive_urls')),
 ]

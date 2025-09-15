@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CES Backend API Documentation</title>
+    <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .logo-icon {
+            height: 40px;
+            width: auto;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #64748b;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: #2563eb;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 4rem 0;
+            background: white;
+            color: #1a1a1a;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            color: #1a1a1a;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: #64748b;
+            margin-bottom: 2rem;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+            position: sticky;
+            top: 120px;
+        }
+
+        .sidebar h3 {
+            color: #1f2937;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .sidebar ul {
+            list-style: none;
+        }
+
+        .sidebar li {
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar a {
+            color: #6b7280;
+            text-decoration: none;
+            padding: 0.5rem;
+            border-radius: 8px;
+            display: block;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .sidebar a:hover {
+            background: #f3f4f6;
+            color: #2563eb;
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .api-section {
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .api-section:last-child {
+            border-bottom: none;
+        }
+
+        .section-header {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            padding: 2rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .section-header h2 {
+            color: #1e293b;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .section-header p {
+            color: #64748b;
+            font-size: 1rem;
+        }
+
+        .endpoints {
+            padding: 0;
+        }
+
+        .endpoint {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: background-color 0.2s;
+        }
+
+        .endpoint:hover {
+            background: #f8fafc;
+        }
+
+        .endpoint:last-child {
+            border-bottom: none;
+        }
+
+        .method {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.75rem;
+            min-width: 60px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .method.get { background: linear-gradient(135deg, #10b981, #059669); }
+        .method.post { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .method.put { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .method.delete { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+        .endpoint-url {
+            font-family: 'JetBrains Mono', 'Monaco', 'Consolas', monospace;
+            background: #f1f5f9;
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            min-width: 320px;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .endpoint-description {
+            flex: 1;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .auth-card {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 1px solid #f59e0b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .auth-card h3 {
+            color: #92400e;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .auth-code {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            margin: 0.5rem 0;
+            font-size: 0.875rem;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2563eb;
+        }
+
+        .stat-label {
+            color: #64748b;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #64748b;
+            margin-top: 3rem;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                position: static;
+            }
+            
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .endpoint {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            
+            .endpoint-url {
+                min-width: auto;
+                width: 100%;
+            }
+        }
+
+        .icon {
+            width: 16px;
+            height: 16px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <img src="/static/images/Amandla.png" alt="Amandla Logo" class="logo-icon">
+            </div>
+            <ul class="nav-links">
+                <li><a href="#users">Users</a></li>
+                <li><a href="#courses">Courses</a></li>
+                <li><a href="#quizzes">Quizzes</a></li>
+                <li><a href="#achievements">Achievements</a></li>
+                <li><a href="/admin/">Admin</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="hero">
+        <div class="container">
+            <h1>API Documentation</h1>
+            <p>Complete backend API reference for the Course Engagement System</p>
+
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">50+</div>
+                <div class="stat-label">API Endpoints</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">5</div>
+                <div class="stat-label">Core Modules</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">REST</div>
+                <div class="stat-label">API Standard</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">JSON</div>
+                <div class="stat-label">Response Format</div>
+            </div>
+        </div>
+
+
+
+        <div class="content-grid">
+            <div class="sidebar">
+                <h3>Quick Navigation</h3>
+                <ul>
+                    <li><a href="#users">User Management</a></li>
+                    <li><a href="#courses">Course System</a></li>
+                    <li><a href="#quizzes">Traditional Quizzes</a></li>
+                    <li><a href="#ai-quiz">AI Adaptive Quizzes</a></li>
+                    <li><a href="#analytics">Analytics & Reports</a></li>
+                    <li><a href="#achievements">Achievements & Gamification</a></li>
+                </ul>
+            </div>
+
+            <div class="main-content">
+                <!-- Users Management Section -->
+                <div class="api-section" id="users">
+                    <div class="section-header">
+                        <h2>User Management</h2>
+                        <p>Authentication, user profiles, and role management (students, lecturers, admins)</p>
+                    </div>
+                    <div class="endpoints">
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/users/login/</span>
+                            <span class="endpoint-description">User login with username/email and password</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/users/logout/</span>
+                            <span class="endpoint-description">User logout and token cleanup</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/users/profile/</span>
+                            <span class="endpoint-description">Get current user profile data</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method put">PUT</span>
+                            <span class="endpoint-url">/api/users/profile/</span>
+                            <span class="endpoint-description">Update user profile information</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/users/change-password/</span>
+                            <span class="endpoint-description">Change user password</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/users/dashboard/</span>
+                            <span class="endpoint-description">Get user dashboard data by type</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Courses Management Section -->
+                <div class="api-section" id="courses">
+                    <div class="section-header">
+                        <h2>Course Management</h2>
+                        <p>Course creation, enrollment, topics, and attendance management</p>
+                    </div>
+                    <div class="endpoints">
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/courses/courses/</span>
+                            <span class="endpoint-description">List courses for current user</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/courses/courses/</span>
+                            <span class="endpoint-description">Create new course (lecturers only)</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/courses/courses/{id}/students/</span>
+                            <span class="endpoint-description">Get enrolled students (lecturers only)</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/courses/course/{id}/upload-students/</span>
+                            <span class="endpoint-description">Upload CSV to create and enroll students</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/courses/my-courses/</span>
+                            <span class="endpoint-description">Get user's courses</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quiz System Section -->
+                <div class="api-section" id="quizzes">
+                    <div class="section-header">
+                        <h2>Traditional Quiz System</h2>
+                        <p>Quiz creation, management, live quizzes, and submission</p>
+                    </div>
+                    <div class="endpoints">
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/quizzes/quizzes/</span>
+                            <span class="endpoint-description">List quizzes for current user</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/quizzes/quizzes/</span>
+                            <span class="endpoint-description">Create new quiz (lecturers only)</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/quizzes/quiz/start/</span>
+                            <span class="endpoint-description">Start quiz attempt (students only)</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/quizzes/quiz/submit/</span>
+                            <span class="endpoint-description">Submit and finalize quiz attempt</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/quizzes/student/available-quizzes/</span>
+                            <span class="endpoint-description">Get available quizzes for student</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Quiz System Section -->
+                <div class="api-section" id="ai-quiz">
+                    <div class="section-header">
+                        <h2>AI-Powered Adaptive Quizzes</h2>
+                        <p>Claude AI-generated adaptive learning quizzes from lecture slides</p>
+                    </div>
+                    <div class="endpoints">
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/ai-quiz/lecturer/upload-slide/</span>
+                            <span class="endpoint-description">Upload PDF lecture slides</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/ai-quiz/lecturer/generate-questions/</span>
+                            <span class="endpoint-description">Generate AI questions from slides using Claude API</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/ai-quiz/student/available-slides/</span>
+                            <span class="endpoint-description">Get available slides with quiz access info</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/ai-quiz/student/quiz/{id}/</span>
+                            <span class="endpoint-description">Get adaptive quiz questions (progressive difficulty)</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/ai-quiz/student/submit-quiz/</span>
+                            <span class="endpoint-description">Submit adaptive quiz attempt</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Section -->
+                <div class="api-section" id="analytics">
+                    <div class="section-header">
+                        <h2>Analytics & Engagement</h2>
+                        <p>Student engagement tracking, performance analytics, and comprehensive reporting</p>
+                    </div>
+                    <div class="endpoints">
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/lecturer/dashboard/</span>
+                            <span class="endpoint-description">Main lecturer analytics dashboard</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/analytics/lecturer/chart/</span>
+                            <span class="endpoint-description">Generate specific analytics charts</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/student/dashboard/</span>
+                            <span class="endpoint-description">Student personal analytics dashboard</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/quiz/{id}/stats/</span>
+                            <span class="endpoint-description">Detailed quiz statistics and question analysis</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/export/</span>
+                            <span class="endpoint-description">Export analytics data (CSV/JSON)</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/trends/engagement/</span>
+                            <span class="endpoint-description">Engagement trends over time</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Achievements Section -->
+                <div class="api-section" id="achievements">
+                    <div class="section-header">
+                        <h2>Student Achievements & Gamification</h2>
+                        <p>Badge system, XP tracking, streaks, and student achievement management</p>
+                    </div>
+                    <div class="endpoints">
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/dashboard/</span>
+                            <span class="endpoint-description">Student achievement dashboard with XP, level, and recent badges</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/badges/</span>
+                            <span class="endpoint-description">Student's badge collection with filter options (all, earned, gold, legendary)</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/badges/available/</span>
+                            <span class="endpoint-description">All available badges and their requirements</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/history/</span>
+                            <span class="endpoint-description">Student's achievement history and daily activities</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/stats/</span>
+                            <span class="endpoint-description">Detailed achievement statistics and badge breakdowns</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/achievements/check/</span>
+                            <span class="endpoint-description">Manually trigger achievement checking for student</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/leaderboard/</span>
+                            <span class="endpoint-description">Achievement leaderboard by XP, badges, or streak</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>CES Backend API Documentation</p>
+        <p>Built with Django REST Framework • Powered by Claude AI</p>
+    </div>
+</body>
+</html>

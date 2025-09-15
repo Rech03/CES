@@ -3,7 +3,6 @@ from django.utils import timezone
 from .models import Quiz, Question, Choice, QuizAttempt, Answer
 from courses.models import CourseEnrollment
 
-
 class ChoiceSerializer(serializers.ModelSerializer):
     """Choice serializer"""
     

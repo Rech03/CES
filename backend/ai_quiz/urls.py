@@ -1,0 +1,21 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    # Lecturer endpoints - slide management
+    path('lecturer/upload-slide/', views.upload_lecture_slide, name='upload_lecture_slide'),
+    path('lecturer/generate-questions/', views.generate_adaptive_questions, name='generate_adaptive_questions'),
+    path('lecturer/slides/', views.lecturer_lecture_slides, name='lecturer_lecture_slides'),
+    path('lecturer/slide/<int:slide_id>/delete/', views.delete_lecture_slide, name='delete_lecture_slide'),
+    path('lecturer/slide/<int:slide_id>/regenerate/', views.regenerate_questions, name='regenerate_questions'),
+    
+    # Student endpoints - quiz taking
+    path('student/available-slides/', views.student_available_slides, name='student_available_slides'),
+    path('student/quiz/<int:quiz_id>/', views.get_adaptive_quiz, name='get_adaptive_quiz'),
+    path('student/submit-quiz/', views.submit_adaptive_quiz, name='submit_adaptive_quiz'),
+    path('student/progress/', views.student_adaptive_progress, name='student_adaptive_progress'),
+    
+    # Analytics for AI Quiz (separate from main analytics)
+    path('slide/<int:slide_id>/stats/', views.adaptive_slide_statistics, name='adaptive_slide_statistics'),
+    path('progress-analytics/', views.get_progress_analytics, name='get_progress_analytics'),
+]

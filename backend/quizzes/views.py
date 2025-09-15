@@ -328,7 +328,7 @@ def submit_quiz_attempt(request):
             }
         )
         # Track daily engagement for analytics
-        from analytics.models import DailyEngagement
+        """from analytics.models import DailyEngagement
         DailyEngagement.mark_engagement(request.user)
         
         # Update student metrics
@@ -337,7 +337,7 @@ def submit_quiz_attempt(request):
             student=request.user,
             course=attempt.quiz.topic.course
         )
-        metrics.calculate_metrics()
+        metrics.calculate_metrics()"""
     
     serializer = QuizResultSerializer(attempt)
     return Response({

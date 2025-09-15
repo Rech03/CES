@@ -8,10 +8,7 @@ from datetime import datetime, timedelta
 import calendar
 import csv
 
-from .models import (
-    StudentEngagementMetrics, DailyEngagement, LectureSlide, 
-    AdaptiveQuiz, StudentAdaptiveProgress, AdaptiveQuizAttempt
-)
+from .models import StudentEngagementMetrics, DailyEngagement
 from .serializers import (
     StudentEngagementSerializer, StudentPerformanceDistributionSerializer,
     QuizAnalyticsSerializer, TopicAnalyticsSerializer, CourseAnalyticsSerializer,
@@ -400,6 +397,9 @@ def student_engagement_heatmap(request):
     })
 
 
+# Continue with rest of views but remove AI quiz related functions...
+# I'll provide the remaining views in the next part to keep this manageable
+
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated, IsLecturerPermission])
 def lecturer_course_options(request):
@@ -527,30 +527,13 @@ def topic_statistics(request, topic_id):
                     'completion_rate': (quiz_attempts.count() / topic.course.enrollments.filter(is_active=True).count() * 100) if topic.course.enrollments.filter(is_active=True).exists() else 0
                 })
         
-        # Adaptive learning stats
-        adaptive_slides = LectureSlide.objects.filter(topic=topic, questions_generated=True)
-        adaptive_stats = []
-        
-        for slide in adaptive_slides:
-            slide_quizzes = AdaptiveQuiz.objects.filter(lecture_slide=slide, is_active=True)
-            total_progress = StudentAdaptiveProgress.objects.filter(adaptive_quiz__in=slide_quizzes)
-            completed_progress = total_progress.filter(completed=True)
-            
-            adaptive_stats.append({
-                'slide_title': slide.title,
-                'total_students_attempted': total_progress.values('student').distinct().count(),
-                'completion_rate': (completed_progress.count() / total_progress.count() * 100) if total_progress.exists() else 0,
-                'average_score': completed_progress.aggregate(avg=Avg('best_score'))['avg'] or 0
-            })
-        
         overall_stats = {
             'topic_id': topic.id,
             'topic_name': topic.name,
             'total_quizzes': quizzes.count(),
             'total_attempts': all_attempts.count(),
             'overall_average': all_attempts.aggregate(avg=Avg('score_percentage'))['avg'] or 0,
-            'quiz_breakdown': quiz_stats,
-            'adaptive_learning': adaptive_stats
+            'quiz_breakdown': quiz_stats
         }
         
         return Response(overall_stats)
@@ -599,18 +582,6 @@ def course_statistics(request, course_id):
             'students_needing_attention': metrics.filter(consecutive_missed_quizzes__gte=3).count()
         }
         
-        # Adaptive learning statistics
-        adaptive_slides = LectureSlide.objects.filter(topic__in=topics, questions_generated=True)
-        adaptive_quizzes = AdaptiveQuiz.objects.filter(lecture_slide__in=adaptive_slides, is_active=True)
-        adaptive_progress = StudentAdaptiveProgress.objects.filter(adaptive_quiz__in=adaptive_quizzes)
-        
-        adaptive_stats = {
-            'total_slides': adaptive_slides.count(),
-            'total_adaptive_quizzes': adaptive_quizzes.count(),
-            'students_using_adaptive': adaptive_progress.values('student').distinct().count(),
-            'adaptive_completion_rate': (adaptive_progress.filter(completed=True).count() / adaptive_progress.count() * 100) if adaptive_progress.exists() else 0
-        }
-        
         course_stats = {
             'course_id': course.id,
             'course_code': course.code,
@@ -620,7 +591,6 @@ def course_statistics(request, course_id):
             'overall_average': all_attempts.aggregate(avg=Avg('score_percentage'))['avg'] or 0,
             'topic_breakdown': topic_breakdown,
             'student_engagement': engagement_stats,
-            'adaptive_learning': adaptive_stats,
             'last_updated': timezone.now()
         }
         
@@ -661,12 +631,6 @@ def student_engagement_detail(request, student_id):
                     started_at__gte=timezone.now() - timedelta(days=30)
                 ).order_by('-started_at')
                 
-                # Get adaptive learning progress
-                adaptive_progress = StudentAdaptiveProgress.objects.filter(
-                    student=student,
-                    adaptive_quiz__lecture_slide__topic__course=course
-                )
-                
                 course_engagement = {
                     'course_code': course.code,
                     'course_name': course.name,
@@ -675,9 +639,7 @@ def student_engagement_detail(request, student_id):
                     'performance_category': metrics.performance_category,
                     'consecutive_missed': metrics.consecutive_missed_quizzes,
                     'last_quiz_date': metrics.last_quiz_date,
-                    'recent_activity_count': recent_attempts.count(),
-                    'adaptive_quizzes_completed': adaptive_progress.filter(completed=True).count(),
-                    'adaptive_total_attempts': adaptive_progress.aggregate(total=Sum('attempts_count'))['total'] or 0
+                    'recent_activity_count': recent_attempts.count()
                 }
                 
                 engagement_data.append(course_engagement)
@@ -691,9 +653,7 @@ def student_engagement_detail(request, student_id):
                     'performance_category': 'good',
                     'consecutive_missed': 0,
                     'last_quiz_date': None,
-                    'recent_activity_count': 0,
-                    'adaptive_quizzes_completed': 0,
-                    'adaptive_total_attempts': 0
+                    'recent_activity_count': 0
                 })
         
         # Get engagement heatmap data for last 3 months
@@ -1039,116 +999,6 @@ def compare_courses(request):
         'comparison_type': 'courses',
         'compared_items': len(comparison_data),
         'data': comparison_data
-    })
-
-
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def adaptive_slide_statistics(request, slide_id):
-    """Statistics for adaptive learning slide"""
-    try:
-        slide = LectureSlide.objects.get(id=slide_id)
-        
-        # Check permissions
-        if request.user.is_lecturer and slide.uploaded_by != request.user:
-            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-        
-        quizzes = AdaptiveQuiz.objects.filter(lecture_slide=slide, is_active=True)
-        all_progress = StudentAdaptiveProgress.objects.filter(adaptive_quiz__in=quizzes)
-        
-        difficulty_stats = []
-        for difficulty in ['easy', 'medium', 'hard']:
-            difficulty_quiz = quizzes.filter(difficulty=difficulty).first()
-            if difficulty_quiz:
-                progress = all_progress.filter(adaptive_quiz=difficulty_quiz)
-                
-                difficulty_stats.append({
-                    'difficulty': difficulty,
-                    'total_attempts': progress.aggregate(total=Sum('attempts_count'))['total'] or 0,
-                    'students_attempted': progress.count(),
-                    'students_completed': progress.filter(completed=True).count(),
-                    'average_score': progress.filter(completed=True).aggregate(avg=Avg('best_score'))['avg'] or 0,
-                    'completion_rate': (progress.filter(completed=True).count() / progress.count() * 100) if progress.exists() else 0
-                })
-        
-        slide_stats = {
-            'slide_id': slide.id,
-            'slide_title': slide.title,
-            'course_code': slide.topic.course.code,
-            'topic_name': slide.topic.name,
-            'total_students': all_progress.values('student').distinct().count(),
-            'overall_completion_rate': (all_progress.filter(completed=True).count() / all_progress.count() * 100) if all_progress.exists() else 0,
-            'difficulty_breakdown': difficulty_stats
-        }
-        
-        return Response(slide_stats)
-        
-    except LectureSlide.DoesNotExist:
-        return Response({'error': 'Slide not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def get_progress_analytics(request):
-    """Get adaptive learning progress analytics"""
-    student_id = request.query_params.get('student_id')
-    course_id = request.query_params.get('course_id')
-    
-    if request.user.is_lecturer:
-        # Lecturer can view all students in their courses
-        courses = Course.objects.filter(lecturer=request.user, is_active=True)
-        if course_id:
-            courses = courses.filter(id=course_id)
-        
-        progress_query = StudentAdaptiveProgress.objects.filter(
-            adaptive_quiz__lecture_slide__topic__course__in=courses
-        )
-        
-        if student_id:
-            progress_query = progress_query.filter(student_id=student_id)
-    
-    elif request.user.is_student:
-        # Students can only view their own progress
-        progress_query = StudentAdaptiveProgress.objects.filter(student=request.user)
-        
-        if course_id:
-            progress_query = progress_query.filter(
-                adaptive_quiz__lecture_slide__topic__course_id=course_id
-            )
-    
-    else:
-        return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
-    
-    # Aggregate progress data
-    progress_data = []
-    
-    for progress in progress_query.select_related(
-        'student', 'adaptive_quiz__lecture_slide__topic__course'
-    ):
-        progress_info = {
-            'student_name': progress.student.get_full_name(),
-            'student_number': progress.student.student_number,
-            'course_code': progress.adaptive_quiz.lecture_slide.topic.course.code,
-            'slide_title': progress.adaptive_quiz.lecture_slide.title,
-            'difficulty': progress.adaptive_quiz.difficulty,
-            'attempts_count': progress.attempts_count,
-            'best_score': progress.best_score,
-            'completed': progress.completed,
-            'last_attempt': progress.last_attempt_at
-        }
-        progress_data.append(progress_info)
-    
-    # Summary statistics
-    summary = {
-        'total_progress_records': len(progress_data),
-        'completed_quizzes': len([p for p in progress_data if p['completed']]),
-        'average_score': sum(p['best_score'] for p in progress_data) / len(progress_data) if progress_data else 0,
-        'total_attempts': sum(p['attempts_count'] for p in progress_data)
-    }
-    
-    return Response({
-        'summary': summary,
-        'progress_details': progress_data
     })
 
 

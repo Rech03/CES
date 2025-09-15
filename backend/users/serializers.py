@@ -37,15 +37,25 @@ class StudentSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(source='get_full_name', read_only=True)
     profile = serializers.SerializerMethodField()
     courses_count = serializers.SerializerMethodField()
+    profile_picture_url = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
-            'student_number', 'profile_picture', 'is_active', 'date_joined',
+            'student_number', 'profile_picture', 'profile_picture_url', 'is_active', 'date_joined',
             'profile', 'courses_count'
         ]
-        read_only_fields = ['id', 'date_joined', 'full_name', 'profile', 'courses_count']
+        read_only_fields = ['id', 'date_joined', 'full_name', 'profile', 'courses_count', 'profile_picture_url']
+    
+    def get_profile_picture_url(self, obj):
+        """Return profile picture URL or default student avatar"""
+        if obj.profile_picture and hasattr(obj.profile_picture, 'url'):
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_picture.url)
+            return obj.profile_picture.url
+        return '/static/images/default_student_avatar.png'
     
     def get_profile(self, obj):
         if hasattr(obj, 'student_profile'):
@@ -59,14 +69,47 @@ class StudentSerializer(serializers.ModelSerializer):
 class LecturerSerializer(serializers.ModelSerializer):
     """Lecturer-specific serializer"""
     full_name = serializers.CharField(source='get_full_name', read_only=True)
+    profile_picture_url = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
-            'employee_id', 'department', 'profile_picture', 'is_active', 'date_joined'
+            'employee_id', 'department', 'profile_picture', 'profile_picture_url', 'is_active', 'date_joined'
         ]
-        read_only_fields = ['id', 'date_joined', 'full_name']
+        read_only_fields = ['id', 'date_joined', 'full_name', 'profile_picture_url']
+    
+    def get_profile_picture_url(self, obj):
+        """Return profile picture URL or default lecturer avatar"""
+        if obj.profile_picture and hasattr(obj.profile_picture, 'url'):
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_picture.url)
+            return obj.profile_picture.url
+        return '/static/images/default_lecturer_avatar.png'
+
+
+class AdminSerializer(serializers.ModelSerializer):
+    """Admin-specific serializer"""
+    full_name = serializers.CharField(source='get_full_name', read_only=True)
+    profile_picture_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
+            'profile_picture', 'profile_picture_url', 'is_active', 'date_joined', 'is_staff', 'is_superuser'
+        ]
+        read_only_fields = ['id', 'date_joined', 'full_name', 'is_staff', 'is_superuser', 'profile_picture_url']
+    
+    def get_profile_picture_url(self, obj):
+        """Return profile picture URL or default admin avatar"""
+        if obj.profile_picture and hasattr(obj.profile_picture, 'url'):
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_picture.url)
+            return obj.profile_picture.url
+        return '/static/images/default_admin_avatar.png'
 
 
 class LoginSerializer(serializers.Serializer):

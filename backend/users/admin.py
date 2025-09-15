@@ -64,6 +64,8 @@ class UserAdmin(BaseUserAdmin):
             return obj.student_number or 'No student number'
         elif obj.user_type == 'lecturer':
             return obj.employee_id or 'No employee ID'
+        elif obj.user_type == 'admin':
+            return 'Administrator'
         return '-'
     get_identifier.short_description = 'ID Number'
     
@@ -71,3 +73,12 @@ class UserAdmin(BaseUserAdmin):
         if obj and obj.user_type == 'student':
             return [StudentProfileInline(self.model, self.admin_site)]
         return []
+
+
+@admin.register(StudentProfile)
+class StudentProfileAdmin(admin.ModelAdmin):
+    """Admin for StudentProfile model"""
+    list_display = ('user', 'total_quizzes_completed', 'total_correct_answers', 'current_streak', 'longest_streak')
+    list_filter = ('current_streak', 'longest_streak')
+    search_fields = ('user__username', 'user__email', 'user__first_name', 'user__last_name')
+    readonly_fields = ('user',)  
