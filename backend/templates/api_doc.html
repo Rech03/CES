@@ -241,6 +241,7 @@
         .method.get { background: linear-gradient(135deg, #10b981, #059669); }
         .method.post { background: linear-gradient(135deg, #f59e0b, #d97706); }
         .method.put { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .method.patch { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
         .method.delete { background: linear-gradient(135deg, #ef4444, #dc2626); }
 
         .endpoint-url {
@@ -360,9 +361,12 @@
                 <img src="/static/images/Amandla.png" alt="Amandla Logo" class="logo-icon">
             </div>
             <ul class="nav-links">
+                <li><a href="#auth">Authentication</a></li>
                 <li><a href="#users">Users</a></li>
                 <li><a href="#courses">Courses</a></li>
                 <li><a href="#quizzes">Quizzes</a></li>
+                <li><a href="#ai-quiz">AI Quiz</a></li>
+                <li><a href="#analytics">Analytics</a></li>
                 <li><a href="#achievements">Achievements</a></li>
                 <li><a href="/admin/">Admin</a></li>
             </ul>
@@ -372,19 +376,18 @@
     <div class="hero">
         <div class="container">
             <h1>API Documentation</h1>
-            <p>Complete backend API reference for the Course Engagement System</p>
-
+            <p>Complete backend API reference for the Amandla Course Engagement System</p>
         </div>
     </div>
 
     <div class="container">
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-number">25</div>
+                <div class="stat-number">112</div>
                 <div class="stat-label">API Endpoints</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">6</div>
+                <div class="stat-number">7</div>
                 <div class="stat-label">Core Modules</div>
             </div>
             <div class="stat-card">
@@ -397,12 +400,11 @@
             </div>
         </div>
 
-
-
         <div class="content-grid">
             <div class="sidebar">
                 <h3>Quick Navigation</h3>
                 <ul>
+                    <li><a href="#auth">Authentication</a></li>
                     <li><a href="#users">User Management</a></li>
                     <li><a href="#courses">Course System</a></li>
                     <li><a href="#quizzes">Traditional Quizzes</a></li>
@@ -413,23 +415,58 @@
             </div>
 
             <div class="main-content">
-                <!-- Users Management Section -->
-                <div class="api-section" id="users">
+                <!-- Authentication Section -->
+                <div class="api-section" id="auth">
                     <div class="section-header">
-                        <h2>User Management</h2>
-                        <p>Authentication, user profiles, and role management (students, lecturers, admins)</p>
+                        <h2>Authentication</h2>
+                        <p>User authentication, login, logout, and session management</p>
                     </div>
                     <div class="endpoints">
                         <div class="endpoint">
                             <span class="method post">POST</span>
-                            <span class="endpoint-url">/api/users/login/</span>
+                            <span class="endpoint-url">/api/auth/login/</span>
                             <span class="endpoint-description">User login with username/email and password</span>
                         </div>
                         <div class="endpoint">
                             <span class="method post">POST</span>
-                            <span class="endpoint-url">/api/users/logout/</span>
+                            <span class="endpoint-url">/api/auth/logout/</span>
                             <span class="endpoint-description">User logout and token cleanup</span>
                         </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/auth/profile/</span>
+                            <span class="endpoint-description">Get current user profile data</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method put">PUT</span>
+                            <span class="endpoint-url">/api/auth/profile/</span>
+                            <span class="endpoint-description">Update user profile information</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/auth/change-password/</span>
+                            <span class="endpoint-description">Change user password</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/auth/dashboard/</span>
+                            <span class="endpoint-description">Get user dashboard data by role</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/auth/check-enrollment/</span>
+                            <span class="endpoint-description">Check student enrollment status</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Management Section -->
+                <div class="api-section" id="users">
+                    <div class="section-header">
+                        <h2>User Management</h2>
+                        <p>User profiles, dashboard access, and enrollment management</p>
+                    </div>
+                    <div class="endpoints">
                         <div class="endpoint">
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/users/profile/</span>
@@ -450,6 +487,11 @@
                             <span class="endpoint-url">/api/users/dashboard/</span>
                             <span class="endpoint-description">Get user dashboard data by type</span>
                         </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/users/check-enrollment/</span>
+                            <span class="endpoint-description">Check student enrollment by student number</span>
+                        </div>
                     </div>
                 </div>
 
@@ -460,6 +502,7 @@
                         <p>Course creation, enrollment, topics, and attendance management</p>
                     </div>
                     <div class="endpoints">
+                        <!-- Course CRUD Operations -->
                         <div class="endpoint">
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/courses/courses/</span>
@@ -472,18 +515,106 @@
                         </div>
                         <div class="endpoint">
                             <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/courses/courses/{id}/</span>
+                            <span class="endpoint-description">Get specific course details</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method put">PUT</span>
+                            <span class="endpoint-url">/api/courses/courses/{id}/</span>
+                            <span class="endpoint-description">Update course information</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method patch">PATCH</span>
+                            <span class="endpoint-url">/api/courses/courses/{id}/</span>
+                            <span class="endpoint-description">Partially update course information</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method delete">DELETE</span>
+                            <span class="endpoint-url">/api/courses/courses/{id}/</span>
+                            <span class="endpoint-description">Delete course</span>
+                        </div>
+                        
+                        <!-- Course Actions -->
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
                             <span class="endpoint-url">/api/courses/courses/{id}/students/</span>
                             <span class="endpoint-description">Get enrolled students (lecturers only)</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/courses/courses/{id}/dashboard/</span>
+                            <span class="endpoint-description">Get course dashboard data</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/courses/courses/{id}/remove_student/</span>
+                            <span class="endpoint-description">Remove student from course</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/courses/courses/{id}/topics/</span>
+                            <span class="endpoint-description">Get course topics</span>
                         </div>
                         <div class="endpoint">
                             <span class="method post">POST</span>
                             <span class="endpoint-url">/api/courses/course/{id}/upload-students/</span>
                             <span class="endpoint-description">Upload CSV to create and enroll students</span>
                         </div>
+
+                        <!-- Topic CRUD Operations -->
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/courses/topics/</span>
+                            <span class="endpoint-description">List topics</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/courses/topics/</span>
+                            <span class="endpoint-description">Create new topic</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/courses/topics/{id}/</span>
+                            <span class="endpoint-description">Get specific topic</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method put">PUT</span>
+                            <span class="endpoint-url">/api/courses/topics/{id}/</span>
+                            <span class="endpoint-description">Update topic</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method patch">PATCH</span>
+                            <span class="endpoint-url">/api/courses/topics/{id}/</span>
+                            <span class="endpoint-description">Partially update topic</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method delete">DELETE</span>
+                            <span class="endpoint-url">/api/courses/topics/{id}/</span>
+                            <span class="endpoint-description">Delete topic</span>
+                        </div>
+
+                        <!-- General Endpoints -->
                         <div class="endpoint">
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/courses/my-courses/</span>
                             <span class="endpoint-description">Get user's courses</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/courses/student/dashboard/</span>
+                            <span class="endpoint-description">Get student course dashboard</span>
+                        </div>
+
+                        <!-- Attendance Management -->
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/courses/course/{id}/attendance/</span>
+                            <span class="endpoint-description">Get course attendance records</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/courses/course/{id}/mark-attendance/</span>
+                            <span class="endpoint-description">Mark student attendance</span>
                         </div>
                     </div>
                 </div>
@@ -495,6 +626,7 @@
                         <p>Quiz creation, management, live quizzes, and submission</p>
                     </div>
                     <div class="endpoints">
+                        <!-- Quiz CRUD Operations -->
                         <div class="endpoint">
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/quizzes/quizzes/</span>
@@ -506,9 +638,137 @@
                             <span class="endpoint-description">Create new quiz (lecturers only)</span>
                         </div>
                         <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/quizzes/quizzes/{id}/</span>
+                            <span class="endpoint-description">Get specific quiz details</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method put">PUT</span>
+                            <span class="endpoint-url">/api/quizzes/quizzes/{id}/</span>
+                            <span class="endpoint-description">Update quiz</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method patch">PATCH</span>
+                            <span class="endpoint-url">/api/quizzes/quizzes/{id}/</span>
+                            <span class="endpoint-description">Partially update quiz</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method delete">DELETE</span>
+                            <span class="endpoint-url">/api/quizzes/quizzes/{id}/</span>
+                            <span class="endpoint-description">Delete quiz</span>
+                        </div>
+
+                        <!-- Quiz Actions -->
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/quizzes/quizzes/{id}/start_live/</span>
+                            <span class="endpoint-description">Start live quiz session</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/quizzes/quizzes/{id}/stop_live/</span>
+                            <span class="endpoint-description">Stop live quiz session</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/quizzes/quizzes/{id}/questions/</span>
+                            <span class="endpoint-description">Get quiz questions</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/quizzes/quizzes/{id}/attempts/</span>
+                            <span class="endpoint-description">Get quiz attempts</span>
+                        </div>
+
+                        <!-- Question CRUD Operations -->
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/quizzes/questions/</span>
+                            <span class="endpoint-description">List questions</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/quizzes/questions/</span>
+                            <span class="endpoint-description">Create new question</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/quizzes/questions/{id}/</span>
+                            <span class="endpoint-description">Get specific question</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method put">PUT</span>
+                            <span class="endpoint-url">/api/quizzes/questions/{id}/</span>
+                            <span class="endpoint-description">Update question</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method patch">PATCH</span>
+                            <span class="endpoint-url">/api/quizzes/questions/{id}/</span>
+                            <span class="endpoint-description">Partially update question</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method delete">DELETE</span>
+                            <span class="endpoint-url">/api/quizzes/questions/{id}/</span>
+                            <span class="endpoint-description">Delete question</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/quizzes/questions/{id}/add_choice/</span>
+                            <span class="endpoint-description">Add choice to question</span>
+                        </div>
+
+                        <!-- Choice CRUD Operations -->
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/quizzes/choices/</span>
+                            <span class="endpoint-description">List choices</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/quizzes/choices/</span>
+                            <span class="endpoint-description">Create new choice</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/quizzes/choices/{id}/</span>
+                            <span class="endpoint-description">Get specific choice</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method put">PUT</span>
+                            <span class="endpoint-url">/api/quizzes/choices/{id}/</span>
+                            <span class="endpoint-description">Update choice</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method patch">PATCH</span>
+                            <span class="endpoint-url">/api/quizzes/choices/{id}/</span>
+                            <span class="endpoint-description">Partially update choice</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method delete">DELETE</span>
+                            <span class="endpoint-url">/api/quizzes/choices/{id}/</span>
+                            <span class="endpoint-description">Delete choice</span>
+                        </div>
+
+                        <!-- Student Quiz Taking -->
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/quizzes/student/available-quizzes/</span>
+                            <span class="endpoint-description">Get available quizzes for student</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/quizzes/student/my-attempts/</span>
+                            <span class="endpoint-description">Get student's quiz attempts</span>
+                        </div>
+                        <div class="endpoint">
                             <span class="method post">POST</span>
                             <span class="endpoint-url">/api/quizzes/quiz/start/</span>
                             <span class="endpoint-description">Start quiz attempt (students only)</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/quizzes/quiz/submit-answer/</span>
+                            <span class="endpoint-description">Submit answer for question</span>
                         </div>
                         <div class="endpoint">
                             <span class="method post">POST</span>
@@ -517,8 +777,13 @@
                         </div>
                         <div class="endpoint">
                             <span class="method get">GET</span>
-                            <span class="endpoint-url">/api/quizzes/student/available-quizzes/</span>
-                            <span class="endpoint-description">Get available quizzes for student</span>
+                            <span class="endpoint-url">/api/quizzes/quiz/attempt/{id}/</span>
+                            <span class="endpoint-description">Get attempt details</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/quizzes/quiz/{id}/statistics/</span>
+                            <span class="endpoint-description">Get quiz statistics</span>
                         </div>
                     </div>
                 </div>
@@ -530,6 +795,7 @@
                         <p>Claude AI-generated adaptive learning quizzes from lecture slides</p>
                     </div>
                     <div class="endpoints">
+                        <!-- Lecturer Endpoints - Slide Management -->
                         <div class="endpoint">
                             <span class="method post">POST</span>
                             <span class="endpoint-url">/api/ai-quiz/lecturer/upload-slide/</span>
@@ -540,6 +806,33 @@
                             <span class="endpoint-url">/api/ai-quiz/lecturer/generate-questions/</span>
                             <span class="endpoint-description">Generate AI questions from slides using Claude API</span>
                         </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/ai-quiz/lecturer/slides/</span>
+                            <span class="endpoint-description">List lecturer's uploaded slides</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/ai-quiz/lecturer/slides/{id}/</span>
+                            <span class="endpoint-description">Get specific lecture slide details</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method delete">DELETE</span>
+                            <span class="endpoint-url">/api/ai-quiz/lecturer/slide/{id}/delete/</span>
+                            <span class="endpoint-description">Delete lecture slide</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/ai-quiz/lecturer/slide/{id}/regenerate/</span>
+                            <span class="endpoint-description">Regenerate AI questions for slide</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/ai-quiz/lecturer/analytics-summary/</span>
+                            <span class="endpoint-description">Get AI quiz analytics summary</span>
+                        </div>
+
+                        <!-- Student Endpoints - Quiz Taking -->
                         <div class="endpoint">
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/ai-quiz/student/available-slides/</span>
@@ -555,6 +848,26 @@
                             <span class="endpoint-url">/api/ai-quiz/student/submit-quiz/</span>
                             <span class="endpoint-description">Submit adaptive quiz attempt</span>
                         </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/ai-quiz/student/progress/</span>
+                            <span class="endpoint-description">Get student adaptive progress</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/ai-quiz/student/quiz/{id}/attempt/</span>
+                            <span class="endpoint-description">Get quiz attempt status</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/ai-quiz/student/learning-path/</span>
+                            <span class="endpoint-description">Get personalized learning path</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/ai-quiz/student/reset-progress/</span>
+                            <span class="endpoint-description">Reset adaptive progress for quiz</span>
+                        </div>
                     </div>
                 </div>
 
@@ -565,6 +878,14 @@
                         <p>Student engagement tracking, performance analytics, and comprehensive reporting</p>
                     </div>
                     <div class="endpoints">
+                        <!-- System Management -->
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/analytics/update-metrics/</span>
+                            <span class="endpoint-description">Update student metrics</span>
+                        </div>
+
+                        <!-- Lecturer Analytics Dashboard -->
                         <div class="endpoint">
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/analytics/lecturer/dashboard/</span>
@@ -577,9 +898,23 @@
                         </div>
                         <div class="endpoint">
                             <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/lecturer/course-options/</span>
+                            <span class="endpoint-description">Get course options for lecturer</span>
+                        </div>
+
+                        <!-- Student Analytics Dashboard -->
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
                             <span class="endpoint-url">/api/analytics/student/dashboard/</span>
                             <span class="endpoint-description">Student personal analytics dashboard</span>
                         </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/student/engagement-heatmap/</span>
+                            <span class="endpoint-description">Get student engagement heatmap</span>
+                        </div>
+
+                        <!-- Detailed Statistics Endpoints -->
                         <div class="endpoint">
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/analytics/quiz/{id}/stats/</span>
@@ -587,13 +922,81 @@
                         </div>
                         <div class="endpoint">
                             <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/topic/{id}/stats/</span>
+                            <span class="endpoint-description">Get topic statistics</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/course/{id}/stats/</span>
+                            <span class="endpoint-description">Get course statistics</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/student/{id}/engagement/</span>
+                            <span class="endpoint-description">Get student engagement data</span>
+                        </div>
+
+                        <!-- Data Export Endpoints -->
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
                             <span class="endpoint-url">/api/analytics/export/</span>
                             <span class="endpoint-description">Export analytics data (CSV/JSON)</span>
                         </div>
                         <div class="endpoint">
                             <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/quiz/{id}/export/</span>
+                            <span class="endpoint-description">Export quiz results</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/course/{id}/export/</span>
+                            <span class="endpoint-description">Export course data</span>
+                        </div>
+
+                        <!-- Real-Time Analytics -->
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/quiz/{id}/live-stats/</span>
+                            <span class="endpoint-description">Get live quiz statistics</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
                             <span class="endpoint-url">/api/analytics/trends/engagement/</span>
                             <span class="endpoint-description">Engagement trends over time</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/trends/performance/</span>
+                            <span class="endpoint-description">Performance trends over time</span>
+                        </div>
+
+                        <!-- Comparative Analytics -->
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/analytics/compare/quizzes/</span>
+                            <span class="endpoint-description">Compare multiple quizzes</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/analytics/compare/topics/</span>
+                            <span class="endpoint-description">Compare multiple topics</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/analytics/compare/courses/</span>
+                            <span class="endpoint-description">Compare multiple courses</span>
+                        </div>
+
+                        <!-- Adaptive Learning Analytics -->
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/slide/{id}/stats/</span>
+                            <span class="endpoint-description">Get adaptive slide statistics</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/analytics/progress-analytics/</span>
+                            <span class="endpoint-description">Get progress analytics</span>
                         </div>
                     </div>
                 </div>
@@ -602,24 +1005,34 @@
                 <div class="api-section" id="achievements">
                     <div class="section-header">
                         <h2>Student Achievements & Gamification</h2>
-                        <p>Badge system, XP tracking, streaks, and student achievement management</p>
+                        <p>Badge system, XP tracking, streaks, leaderboards, and student achievement management</p>
                     </div>
                     <div class="endpoints">
+                        <!-- Student Achievement Dashboard -->
                         <div class="endpoint">
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/achievements/dashboard/</span>
                             <span class="endpoint-description">Student achievement dashboard with XP, level, and recent badges</span>
                         </div>
+
+                        <!-- Badge Collection & Management -->
                         <div class="endpoint">
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/achievements/badges/</span>
-                            <span class="endpoint-description">Student's badge collection with filter options (all, earned, gold, legendary)</span>
+                            <span class="endpoint-description">Student's badge collection with filter options</span>
                         </div>
                         <div class="endpoint">
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/achievements/badges/available/</span>
                             <span class="endpoint-description">All available badges and their requirements</span>
                         </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/badge-progress/{id}/</span>
+                            <span class="endpoint-description">Get progress toward specific badge</span>
+                        </div>
+
+                        <!-- Progress & History -->
                         <div class="endpoint">
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/achievements/history/</span>
@@ -631,14 +1044,52 @@
                             <span class="endpoint-description">Detailed achievement statistics and badge breakdowns</span>
                         </div>
                         <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/daily-summary/</span>
+                            <span class="endpoint-description">Get daily achievement summary</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/weekly-recap/</span>
+                            <span class="endpoint-description">Get weekly achievement recap</span>
+                        </div>
+
+                        <!-- Achievement Processing -->
+                        <div class="endpoint">
                             <span class="method post">POST</span>
                             <span class="endpoint-url">/api/achievements/check/</span>
                             <span class="endpoint-description">Manually trigger achievement checking for student</span>
                         </div>
+
+                        <!-- Leaderboards & Competition -->
                         <div class="endpoint">
                             <span class="method get">GET</span>
                             <span class="endpoint-url">/api/achievements/leaderboard/</span>
                             <span class="endpoint-description">Achievement leaderboard by XP, badges, or streak</span>
+                        </div>
+
+                        <!-- Goal Setting & Social Features -->
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/achievements/set-goals/</span>
+                            <span class="endpoint-description">Set student achievement goals</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/social-features/</span>
+                            <span class="endpoint-description">Get social achievement features</span>
+                        </div>
+
+                        <!-- Rewards Store -->
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <span class="endpoint-url">/api/achievements/rewards-store/</span>
+                            <span class="endpoint-description">Get available rewards for purchase</span>
+                        </div>
+                        <div class="endpoint">
+                            <span class="method post">POST</span>
+                            <span class="endpoint-url">/api/achievements/purchase-reward/</span>
+                            <span class="endpoint-description">Purchase reward with earned points</span>
                         </div>
                     </div>
                 </div>
@@ -649,6 +1100,8 @@
     <div class="footer">
         <p>Amandla CES Backend API Documentation</p>
         <p>Built with Django REST Framework</p>
+        <p>&copy; Amandla CES 2025</p>
+        <p>   LLXSIM001   </p>
     </div>
 </body>
 </html>
