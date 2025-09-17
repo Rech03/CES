@@ -163,9 +163,7 @@ function CreateCourse() {
       </div>
        
       <div className="SideC">
-        <div className="Rating">
-          <StarRating />
-        </div>
+      
         <div className="List">
           <CoursesList 
             courses={courses}

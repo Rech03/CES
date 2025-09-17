@@ -498,9 +498,7 @@ function StudentAnalytics() {
 
       {/* Right rail */}
       <div className="SideST">
-        <div className="Rating">
-          <StarRating initialRating={4} />
-        </div>
+        
         <div className="List">
           <CoursesList
             courses={courses}

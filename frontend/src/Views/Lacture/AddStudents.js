@@ -267,9 +267,7 @@ function AddStudents() {
       </div>
 
       <div className="SideAS">
-        <div className="Rating">
-          <StarRating />
-        </div>
+     
         <div className="List">
           <CoursesList 
             courses={courses}

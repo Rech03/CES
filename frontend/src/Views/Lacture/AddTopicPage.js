@@ -183,9 +183,7 @@ function AddTopicPage() {
       </div>
        
       <div className="SideT">
-        <div className="Rating">
-          <StarRating />
-        </div>
+
         <div className="List">
           <CoursesList 
             courses={courses}

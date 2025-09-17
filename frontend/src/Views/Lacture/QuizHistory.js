@@ -111,9 +111,7 @@ function QuizHistory() {
       </div>
 
       <div className="SideST">
-        <div className="Rating">
-          <StarRating />
-        </div>
+        
         <div className="List">
           <CoursesList 
             courses={courses}
