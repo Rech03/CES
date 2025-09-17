@@ -1,676 +1,617 @@
-import { useEffect, useState } from "react";
-import { getMyCourses, listTopics } from "../../api/courses"; // Updated import
-import { addChoiceToQuestion, createQuestion, createQuiz } from "../../api/quizzes";
-import "./AddQuiz.css";
+import { useState, useEffect } from "react";
+import { myCourses, enrollStudent } from "../../api/courses";
+import { checkEnrollment } from "../../api/auth";
+import "./AddStudents.css";
 
-export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) {
-  const [courses, setCourses] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState("");
-  const [topics, setTopics] = useState([]);
-  const [filteredTopics, setFilteredTopics] = useState([]);
-  const [topicId, setTopicId] = useState("");
-  const [quizTitle, setQuizTitle] = useState("");
-  const [quizDescription, setQuizDescription] = useState("");
-  const [questions, setQuestions] = useState([]);
-  const [currentType, setCurrentType] = useState("");
-  const [currentQuestion, setCurrentQuestion] = useState({
-    text: "",
-    options: ["", "", "", ""], // 4 empty options for MCQ
-    answer: "",
-    points: 1
+function AddStudents({ 
+  onEnrollStudent, 
+  courses = [], 
+  selectedCourse, 
+  onCourseSelect, 
+  loading: externalLoading 
+}) {
+  const [selectedMethod, setSelectedMethod] = useState(null); // null, 'manual', or 'upload'
+  const [student, setStudent] = useState({
+    studentNumber: "",
+    password: "",
+    enrollmentCode: "",
   });
+  const [file, setFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [localCourses, setLocalCourses] = useState([]);
+  const [localSelectedCourse, setLocalSelectedCourse] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
 
-  // Load courses and topics when component mounts
+  // Load courses if not provided via props
   useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  // Filter topics when course is selected
-  useEffect(() => {
-    if (selectedCourse) {
-      const courseTopics = topics.filter(topic => topic.course === parseInt(selectedCourse));
-      setFilteredTopics(courseTopics);
-      setTopicId(""); // Reset topic selection when course changes
+    if (courses.length > 0) {
+      // Use courses from props
+      setLocalCourses(courses);
+      if (selectedCourse) {
+        setLocalSelectedCourse(selectedCourse);
+      } else if (courses.length > 0 && !localSelectedCourse) {
+        setLocalSelectedCourse(courses[0]);
+      }
     } else {
-      setFilteredTopics([]);
-      setTopicId("");
+      // Load courses from API
+      loadCourses();
     }
-  }, [selectedCourse, topics]);
+  }, [courses, selectedCourse]);
 
-  const loadInitialData = async () => {
+  const loadCourses = async () => {
     try {
-      // Load courses and topics in parallel - using updated API
-      const [coursesResponse, topicsResponse] = await Promise.all([
-        getMyCourses(), // Changed from myCourses
-        listTopics()
-      ]);
-
-      // Handle courses data - no need to check for courses array since getMyCourses returns direct array
+      const response = await myCourses();
+      
       let coursesData = [];
-      if (Array.isArray(coursesResponse.data)) {
-        coursesData = coursesResponse.data;
-      } else if (coursesResponse.data?.results && Array.isArray(coursesResponse.data.results)) {
-        coursesData = coursesResponse.data.results;
-      }
-      setCourses(coursesData);
-
-      // Handle topics data  
-      let topicsData = [];
-      if (Array.isArray(topicsResponse.data)) {
-        topicsData = topicsResponse.data;
-      } else if (Array.isArray(topicsResponse.data?.results)) {
-        topicsData = topicsResponse.data.results;
-      }
-      setTopics(topicsData);
       
-      if (coursesData.length === 0) {
-        setError("No courses available. Please create a course first before creating quizzes.");
-      } else if (topicsData.length === 0) {
-        setError("No topics available. Please create topics first before creating quizzes.");
+      if (response.data?.courses && Array.isArray(response.data.courses)) {
+        coursesData = response.data.courses;
+      } else if (Array.isArray(response.data)) {
+        coursesData = response.data;
       }
+      
+      setLocalCourses(coursesData);
+      
+      if (coursesData.length > 0 && !localSelectedCourse) {
+        setLocalSelectedCourse(coursesData[0]);
+      }
+      
     } catch (err) {
-      console.error("Error fetching initial data:", err);
-      
-      let errorMessage = "Failed to load courses and topics";
-      if (err.response?.data) {
-        const data = err.response.data;
-        if (typeof data === 'string') {
-          errorMessage = data;
-        } else if (data.detail) {
-          errorMessage = data.detail;
-        }
-      }
-      
-      setError(errorMessage);
-      setCourses([]);
-      setTopics([]);
+      console.error('Error loading courses:', err);
+      setError('Failed to load courses');
     }
   };
 
-  // Rest of the component remains the same as it's already using correct quiz APIs
-  const resetCurrentQuestion = () => {
-    setCurrentQuestion({
-      text: "",
-      options: ["", "", "", ""],
-      answer: "",
-      points: 1
-    });
-  };
-
-  const handleAddQuestion = () => {
-    if (!currentType || !currentQuestion.text.trim()) {
-      setError("Please select a question type and enter question text");
-      return;
-    }
-
-    // Validate based on question type
-    if (currentType === "mcq") {
-      const validOptions = currentQuestion.options.filter(opt => opt.trim());
-      if (validOptions.length < 2) {
-        setError("Multiple choice questions need at least 2 options");
-        return;
-      }
-      if (!currentQuestion.answer.trim()) {
-        setError("Please select the correct answer for multiple choice question");
-        return;
-      }
-      if (!validOptions.includes(currentQuestion.answer)) {
-        setError("The correct answer must be one of the provided options");
-        return;
-      }
-    }
-
-    if (currentType === "truefalse" && !currentQuestion.answer) {
-      setError("Please select the correct answer for true/false question");
-      return;
-    }
-
-    // Add question to list
-    const newQuestion = {
-      type: currentType,
-      text: currentQuestion.text.trim(),
-      answer: currentQuestion.answer,
-      points: currentQuestion.points || 1,
-      tempId: Date.now() // Temporary ID for tracking
-    };
-
-    if (currentType === "mcq") {
-      newQuestion.options = currentQuestion.options.filter(opt => opt.trim());
-    }
-
-    setQuestions([...questions, newQuestion]);
-    setCurrentType("");
-    resetCurrentQuestion();
-    setError("");
-    setSuccess(`Question ${questions.length + 1} added successfully!`);
-  };
-
-  const removeQuestion = (tempId) => {
-    setQuestions(questions.filter(q => q.tempId !== tempId));
-    setSuccess("Question removed successfully!");
-  };
-
-  const mapQuestionType = (type) => {
-    switch (type) {
-      case "mcq": return "MCQ";
-      case "truefalse": return "TF";
-      case "oneword": return "SA";
-      case "open": return "SA";
-      default: return "SA";
-    }
-  };
-
-  const handleSubmitQuiz = async (e) => {
-    e.preventDefault();
+  const handleMethodSelection = (method) => {
+    setSelectedMethod(method);
+    setStudent({ studentNumber: "", password: "", enrollmentCode: "" });
+    setFile(null);
     setError("");
     setSuccess("");
-    setIsSaving(true);
+  };
 
+  const handleChange = (e) => {
+    setStudent({ ...student, [e.target.name]: e.target.value });
+    if (error) setError("");
+  };
+
+  const handleCourseChange = (e) => {
+    const courseId = parseInt(e.target.value);
+    const course = localCourses.find(c => c.id === courseId);
+    setLocalSelectedCourse(course);
+    
+    if (onCourseSelect) {
+      onCourseSelect(course);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError("");
+    setSuccess("");
+    
     try {
-      // Validate quiz data
-      if (!selectedCourse) {
+      if (!localSelectedCourse) {
         throw new Error("Please select a course");
       }
-      if (!topicId) {
-        throw new Error("Please select a topic");
-      }
-      if (!quizTitle.trim()) {
-        throw new Error("Please enter a quiz title");
-      }
-      if (questions.length === 0) {
-        throw new Error("Please add at least one question");
+
+      if (!student.studentNumber.trim()) {
+        throw new Error("Student number is required");
       }
 
-      // 1) Create the quiz
-      const quizPayload = {
-        topic: Number(topicId),
-        title: quizTitle.trim(),
-        description: quizDescription.trim() || "",
-        is_graded: true,
+      if (!student.password.trim()) {
+        throw new Error("Password is required");
+      }
+
+      if (student.password.length < 6) {
+        throw new Error("Password must be at least 6 characters long");
+      }
+
+      // Check if student exists first
+      const checkResponse = await checkEnrollment(student.studentNumber.trim());
+      
+      if (checkResponse.data.exists) {
+        // Student exists, check if already enrolled in this course
+        if (checkResponse.data.enrolled_courses && 
+            checkResponse.data.enrolled_courses.includes(localSelectedCourse.id)) {
+          throw new Error(`Student ${student.studentNumber} is already enrolled in ${localSelectedCourse.code}`);
+        }
+        
+        // Student exists but not enrolled in this course - show info message
+        setSuccess(`Student ${student.studentNumber} found. Proceeding with enrollment...`);
+      } else {
+        throw new Error(`Student with number ${student.studentNumber} not found in the system. Please verify the student number.`);
+      }
+
+      // Prepare enrollment data including password
+      const enrollmentData = {
+        student_number: student.studentNumber.trim(),
+        password: student.password.trim(),
+        enrollment_code: student.enrollmentCode.trim() || localSelectedCourse.enrollment_code
       };
 
-      const { data: quiz } = await createQuiz(quizPayload);
-
-      // 2) Create questions and choices
-      for (let i = 0; i < questions.length; i++) {
-        const q = questions[i];
-        const questionType = mapQuestionType(q.type);
-        
-        const questionPayload = {
-          quiz: quiz.id,
-          question_text: q.text,
-          question_type: questionType,
-          points: q.points,
-          order: i + 1,
-        };
-
-        const { data: createdQuestion } = await createQuestion(questionPayload);
-
-        // Add choices for MCQ and True/False
-        if (q.type === "mcq") {
-          for (let j = 0; j < q.options.length; j++) {
-            const option = q.options[j];
-            await addChoiceToQuestion(createdQuestion.id, {
-              choice_text: option,
-              is_correct: option === q.answer,
-              order: j + 1,
-            });
-          }
-        }
-
-        if (q.type === "truefalse") {
-          await addChoiceToQuestion(createdQuestion.id, {
-            choice_text: "True",
-            is_correct: q.answer.toLowerCase() === "true",
-            order: 1,
-          });
-          await addChoiceToQuestion(createdQuestion.id, {
-            choice_text: "False",
-            is_correct: q.answer.toLowerCase() === "false",
-            order: 2,
-          });
-        }
+      // Use parent callback if provided, otherwise call API directly
+      if (onEnrollStudent) {
+        await onEnrollStudent(enrollmentData);
+      } else {
+        await enrollStudent(localSelectedCourse.id, enrollmentData);
       }
-
-      setSuccess(`Quiz "${quizTitle}" created successfully with ${questions.length} questions!`);
       
-      // Reset form
-      setSelectedCourse("");
-      setTopicId("");
-      setQuizTitle("");
-      setQuizDescription("");
-      setQuestions([]);
-      setCurrentType("");
-      resetCurrentQuestion();
-
-      // Call parent callback if provided
-      if (onQuizCreated) {
-        await onQuizCreated(quiz);
-      }
-
+      setSuccess(`Student ${student.studentNumber} enrolled successfully in ${localSelectedCourse.code}!`);
+      setStudent({ studentNumber: "", password: "", enrollmentCode: "" });
+      
     } catch (err) {
-      console.error("Error creating quiz:", err);
-      
-      let errorMessage = "Failed to create quiz";
-      if (err.message && !err.response) {
-        errorMessage = err.message;
-      } else if (err.response?.data) {
-        const data = err.response.data;
-        if (typeof data === 'string') {
-          errorMessage = data;
-        } else if (data.detail) {
-          errorMessage = data.detail;
-        } else if (data.non_field_errors) {
-          errorMessage = data.non_field_errors[0];
-        }
-      }
-      
+      const errorMessage = err.message || 
+                          err.response?.data?.detail || 
+                          err.response?.data?.message || 
+                          err.response?.data?.error ||
+                          "Failed to enroll student";
       setError(errorMessage);
     } finally {
-      setIsSaving(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleOptionChange = (index, value) => {
-    const newOptions = [...currentQuestion.options];
-    newOptions[index] = value;
-    setCurrentQuestion({ ...currentQuestion, options: newOptions });
-  };
+  const handleFileUpload = async (e) => {
+    e.preventDefault();
+    if (!file) return;
+    
+    setIsUploading(true);
+    setError("");
+    setSuccess("");
 
-  const addOption = () => {
-    if (currentQuestion.options.length < 6) { // Max 6 options
-      setCurrentQuestion({
-        ...currentQuestion,
-        options: [...currentQuestion.options, ""]
-      });
-    }
-  };
-
-  const removeOption = (index) => {
-    if (currentQuestion.options.length > 2) { // Min 2 options
-      const newOptions = currentQuestion.options.filter((_, i) => i !== index);
-      setCurrentQuestion({ ...currentQuestion, options: newOptions });
-      
-      // Reset answer if it was the removed option
-      if (currentQuestion.answer === currentQuestion.options[index]) {
-        setCurrentQuestion(prev => ({ ...prev, answer: "" }));
+    try {
+      if (!localSelectedCourse) {
+        throw new Error("Please select a course first");
       }
-    }
-  };
 
-  const renderQuestionForm = () => {
-    switch (currentType) {
-      case "mcq":
-        return (
-          <div className="form-section mcq-section">
-            <div className="question-input">
-              <label htmlFor="mcq-question">Question *</label>
-              <textarea
-                id="mcq-question"
-                value={currentQuestion.text}
-                onChange={(e) => setCurrentQuestion({ ...currentQuestion, text: e.target.value })}
-                placeholder="Enter your multiple choice question"
-                rows="3"
-                required
-              />
-            </div>
+      // Read and parse CSV file
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        throw new Error("CSV file must contain at least a header row and one data row");
+      }
 
-            <div className="options-section">
-              <label>Answer Options *</label>
-              {currentQuestion.options.map((option, index) => (
-                <div key={index} className="option-input-group">
-                  <div className="option-input">
-                    <span className="option-label">{String.fromCharCode(65 + index)}.</span>
-                    <input
-                      type="text"
-                      value={option}
-                      onChange={(e) => handleOptionChange(index, e.target.value)}
-                      placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                      required={index < 2} // First two options required
-                    />
-                    {currentQuestion.options.length > 2 && index >= 2 && (
-                      <button
-                        type="button"
-                        onClick={() => removeOption(index)}
-                        className="remove-option-btn"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              
-              {currentQuestion.options.length < 6 && (
-                <button
-                  type="button"
-                  onClick={addOption}
-                  className="add-option-btn"
-                >
-                  + Add Another Option
-                </button>
-              )}
-            </div>
+      // Parse header
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const studentNumberIndex = headers.indexOf('student_number');
+      const passwordIndex = headers.indexOf('password');
 
-            <div className="correct-answer-section">
-              <label htmlFor="mcq-answer">Correct Answer *</label>
-              <select
-                id="mcq-answer"
-                value={currentQuestion.answer}
-                onChange={(e) => setCurrentQuestion({ ...currentQuestion, answer: e.target.value })}
-                required
-              >
-                <option value="">Select the correct answer</option>
-                {currentQuestion.options
-                  .filter(opt => opt.trim())
-                  .map((option, index) => (
-                    <option key={index} value={option}>
-                      {String.fromCharCode(65 + index)}. {option}
-                    </option>
-                  ))}
-              </select>
-            </div>
-          </div>
-        );
+      if (studentNumberIndex === -1) {
+        throw new Error("CSV file must contain 'student_number' column");
+      }
 
-      case "truefalse":
-        return (
-          <div className="form-section">
-            <div className="question-input">
-              <label htmlFor="tf-question">Statement *</label>
-              <textarea
-                id="tf-question"
-                value={currentQuestion.text}
-                onChange={(e) => setCurrentQuestion({ ...currentQuestion, text: e.target.value })}
-                placeholder="Enter your true/false statement"
-                rows="3"
-                required
-              />
-            </div>
-            
-            <div className="tf-answer-section">
-              <label htmlFor="tf-answer">Correct Answer *</label>
-              <select
-                id="tf-answer"
-                value={currentQuestion.answer}
-                onChange={(e) => setCurrentQuestion({ ...currentQuestion, answer: e.target.value })}
-                required
-              >
-                <option value="">Select correct answer</option>
-                <option value="true">True</option>
-                <option value="false">False</option>
-              </select>
-            </div>
-          </div>
-        );
+      if (passwordIndex === -1) {
+        throw new Error("CSV file must contain 'password' column");
+      }
 
-      case "oneword":
-        return (
-          <div className="form-section">
-            <div className="question-input">
-              <label htmlFor="oneword-question">Question *</label>
-              <textarea
-                id="oneword-question"
-                value={currentQuestion.text}
-                onChange={(e) => setCurrentQuestion({ ...currentQuestion, text: e.target.value })}
-                placeholder="Enter your one-word answer question"
-                rows="3"
-                required
-              />
-            </div>
-            
-            <div className="answer-section">
-              <label htmlFor="oneword-answer">Expected Answer</label>
-              <input
-                id="oneword-answer"
-                type="text"
-                value={currentQuestion.answer}
-                onChange={(e) => setCurrentQuestion({ ...currentQuestion, answer: e.target.value })}
-                placeholder="Enter the expected one-word answer"
-              />
-              <small>Optional: Provide expected answer for reference</small>
-            </div>
-          </div>
-        );
+      // Process students
+      const students = [];
+      const duplicates = [];
+      const errors = [];
+      const processed = new Set(); // Track duplicates within CSV
 
-      case "open":
-        return (
-          <div className="form-section">
-            <div className="question-input">
-              <label htmlFor="open-question">Question *</label>
-              <textarea
-                id="open-question"
-                value={currentQuestion.text}
-                onChange={(e) => setCurrentQuestion({ ...currentQuestion, text: e.target.value })}
-                placeholder="Enter your open-ended question"
-                rows="3"
-                required
-              />
-            </div>
-            
-            <div className="answer-section">
-              <label htmlFor="open-answer">Sample Answer</label>
-              <textarea
-                id="open-answer"
-                value={currentQuestion.answer}
-                onChange={(e) => setCurrentQuestion({ ...currentQuestion, answer: e.target.value })}
-                placeholder="Enter a sample answer or key points (optional)"
-                rows="2"
-              />
-              <small>Optional: Provide sample answer or grading criteria</small>
-            </div>
-          </div>
-        );
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i].split(',').map(cell => cell.trim());
+        
+        if (row.length < headers.length) {
+          errors.push(`Row ${i + 1}: Incomplete data`);
+          continue;
+        }
 
-      default:
-        return null;
-    }
-  };
+        const studentNumber = row[studentNumberIndex];
+        const password = row[passwordIndex];
 
-  const loading = externalLoading || isSaving;
+        if (!studentNumber) {
+          errors.push(`Row ${i + 1}: Missing student number`);
+          continue;
+        }
 
-  return (
-    <div className="quiz-container">
-      <h2>Create Quiz</h2>
+        if (!password) {
+          errors.push(`Row ${i + 1}: Missing password for ${studentNumber}`);
+          continue;
+        }
 
-      {error && (
-        <div className="error-message" role="alert">
-          {error}
-        </div>
-      )}
+        if (password.length < 6) {
+          errors.push(`Row ${i + 1}: Password too short for ${studentNumber} (minimum 6 characters)`);
+          continue;
+        }
 
-      {success && (
-        <div className="success-message" role="alert">
-          {success}
-        </div>
-      )}
+        // Check for duplicates within CSV
+        if (processed.has(studentNumber)) {
+          duplicates.push(`${studentNumber} (appears multiple times in CSV)`);
+          continue;
+        }
 
-      <form onSubmit={handleSubmitQuiz} className="quiz-form">
-        {/* Quiz Basic Information */}
-        <div className="quiz-basic-info">
-          <div className="quiz-field">
-            <label htmlFor="course-select">Course *</label>
-            <select 
-              id="course-select"
-              value={selectedCourse} 
-              onChange={(e) => setSelectedCourse(e.target.value)} 
-              required
-              disabled={loading}
-            >
-              <option value="">Select a course first</option>
-              {courses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.code} - {course.name}
-                </option>
-              ))}
-            </select>
-            {selectedCourse && (
-              <small className="field-hint">
-                Selected: {courses.find(c => c.id === parseInt(selectedCourse))?.code}
-              </small>
-            )}
-          </div>
+        processed.add(studentNumber);
+        students.push({ studentNumber, password });
+      }
 
-          <div className="quiz-field">
-            <label htmlFor="topic-select">Topic *</label>
-            <select 
-              id="topic-select"
-              value={topicId} 
-              onChange={(e) => setTopicId(e.target.value)} 
-              required
-              disabled={loading || !selectedCourse}
-            >
-              <option value="">
-                {!selectedCourse 
-                  ? "Select a course first" 
-                  : filteredTopics.length === 0 
-                    ? "No topics available for this course" 
-                    : "Select a topic"
-                }
-              </option>
-              {filteredTopics.map((topic) => (
-                <option key={topic.id} value={topic.id}>
-                  {topic.name}
-                </option>
-              ))}
-            </select>
-            {selectedCourse && filteredTopics.length === 0 && (
-              <small className="field-hint warning">
-                No topics found for this course. Please create topics first.
-              </small>
-            )}
-          </div>
-        </div>
+      if (errors.length > 0) {
+        throw new Error(`CSV validation errors:\n${errors.join('\n')}`);
+      }
 
-        <div className="quiz-field full-width">
-          <label htmlFor="quiz-title">Quiz Title *</label>
-          <input 
-            id="quiz-title"
-            type="text" 
-            value={quizTitle} 
-            onChange={(e) => setQuizTitle(e.target.value)} 
-            placeholder="Enter quiz title"
-            required
-            disabled={loading}
-          />
-        </div>
+      if (students.length === 0) {
+        throw new Error("No valid students found in CSV file");
+      }
 
-        <div className="quiz-field full-width">
-          <label htmlFor="quiz-description">Quiz Description</label>
-          <textarea
-            id="quiz-description"
-            value={quizDescription}
-            onChange={(e) => setQuizDescription(e.target.value)}
-            placeholder="Enter quiz description (optional)"
-            rows="2"
-            disabled={loading}
-          />
-        </div>
+      // Check each student's existence and enrollment status
+      const enrollmentResults = {
+        successful: [],
+        alreadyEnrolled: [],
+        notFound: [],
+        apiErrors: []
+      };
 
-        {/* Question Creation Section */}
-        <div className="questions-section">
-          <h3>Add Questions</h3>
+      for (const { studentNumber, password } of students) {
+        try {
+          // Check if student exists
+          const checkResponse = await checkEnrollment(studentNumber);
           
-          <div className="question-type-selector">
-            <label htmlFor="question-type">Question Type</label>
-            <select 
-              id="question-type"
-              value={currentType} 
-              onChange={(e) => {
-                setCurrentType(e.target.value);
-                resetCurrentQuestion();
-                setError("");
-              }}
-              disabled={loading}
-            >
-              <option value="">Select question type</option>
-              <option value="mcq">Multiple Choice Question</option>
-              <option value="truefalse">True or False</option>
-              <option value="oneword">One Word Answer</option>
-              <option value="open">Open Ended Question</option>
-            </select>
-          </div>
+          if (!checkResponse.data.exists) {
+            enrollmentResults.notFound.push(studentNumber);
+            continue;
+          }
 
-          {renderQuestionForm()}
+          // Check if already enrolled in this course
+          if (checkResponse.data.enrolled_courses && 
+              checkResponse.data.enrolled_courses.includes(localSelectedCourse.id)) {
+            enrollmentResults.alreadyEnrolled.push(studentNumber);
+            continue;
+          }
 
-          {currentType && (
-            <div className="question-points">
-              <label htmlFor="question-points">Points</label>
-              <input
-                id="question-points"
-                type="number"
-                min="1"
-                max="10"
-                value={currentQuestion.points}
-                onChange={(e) => setCurrentQuestion({ ...currentQuestion, points: parseInt(e.target.value) || 1 })}
-                disabled={loading}
-              />
+          // Enroll student
+          const enrollmentData = {
+            student_number: studentNumber,
+            password: password,
+            enrollment_code: localSelectedCourse.enrollment_code
+          };
+
+          if (onEnrollStudent) {
+            await onEnrollStudent(enrollmentData);
+          } else {
+            await enrollStudent(localSelectedCourse.id, enrollmentData);
+          }
+
+          enrollmentResults.successful.push(studentNumber);
+
+        } catch (apiError) {
+          enrollmentResults.apiErrors.push(`${studentNumber}: ${apiError.message}`);
+        }
+
+        // Add small delay to prevent overwhelming the server
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Generate summary message
+      let summaryMessage = `CSV Upload Complete for ${localSelectedCourse.code}:\n\n`;
+      
+      if (enrollmentResults.successful.length > 0) {
+        summaryMessage += `âœ“ Successfully enrolled: ${enrollmentResults.successful.length} students\n`;
+      }
+      
+      if (enrollmentResults.alreadyEnrolled.length > 0) {
+        summaryMessage += `âš  Already enrolled: ${enrollmentResults.alreadyEnrolled.length} students\n`;
+      }
+      
+      if (enrollmentResults.notFound.length > 0) {
+        summaryMessage += `âœ— Students not found: ${enrollmentResults.notFound.length}\n`;
+      }
+      
+      if (duplicates.length > 0) {
+        summaryMessage += `âš  Duplicates in CSV: ${duplicates.length}\n`;
+      }
+      
+      if (enrollmentResults.apiErrors.length > 0) {
+        summaryMessage += `âœ— API errors: ${enrollmentResults.apiErrors.length}\n`;
+      }
+
+      // Show detailed results if there were issues
+      if (enrollmentResults.notFound.length > 0 || enrollmentResults.alreadyEnrolled.length > 0 || 
+          duplicates.length > 0 || enrollmentResults.apiErrors.length > 0) {
+        
+        summaryMessage += '\nDetails:\n';
+        
+        if (enrollmentResults.alreadyEnrolled.length > 0) {
+          summaryMessage += `\nAlready enrolled: ${enrollmentResults.alreadyEnrolled.join(', ')}`;
+        }
+        
+        if (enrollmentResults.notFound.length > 0) {
+          summaryMessage += `\nNot found: ${enrollmentResults.notFound.join(', ')}`;
+        }
+        
+        if (duplicates.length > 0) {
+          summaryMessage += `\nDuplicates: ${duplicates.join(', ')}`;
+        }
+        
+        if (enrollmentResults.apiErrors.length > 0) {
+          summaryMessage += `\nErrors: ${enrollmentResults.apiErrors.join(', ')}`;
+        }
+      }
+
+      if (enrollmentResults.successful.length > 0) {
+        setSuccess(summaryMessage);
+      } else {
+        setError("No students were enrolled. " + summaryMessage);
+      }
+
+      // Reset form
+      setFile(null);
+      e.target.reset();
+      
+    } catch (err) {
+      const errorMessage = err.message || "Error processing CSV file";
+      setError(errorMessage);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const goBack = () => {
+    setSelectedMethod(null);
+    setError("");
+    setSuccess("");
+  };
+
+  const loading = externalLoading || isSubmitting || isUploading;
+
+  // Method Selection Screen
+  if (!selectedMethod) {
+    return (
+      <div className="student-container">
+        <h2>Enroll Students</h2>
+        
+        {/* STEP 1: Course Selection - Always shown first */}
+        <div className="step-section">
+          <h3>Step 1: Select Course to Enroll Students Into</h3>
+          
+          {localCourses.length > 0 ? (
+            <div className="course-selection-field">
+              <label htmlFor="course-select">Choose Course *</label>
+              <select 
+                id="course-select"
+                value={localSelectedCourse?.id || ""} 
+                onChange={handleCourseChange}
+                className="course-select-dropdown"
+              >
+                <option value="">-- Select a Course --</option>
+                {localCourses.map(course => (
+                  <option key={course.id} value={course.id}>
+                    {course.code} - {course.name}
+                  </option>
+                ))}
+              </select>
             </div>
-          )}
-
-          {currentType && (
-            <button 
-              type="button" 
-              onClick={handleAddQuestion}
-              className="add-question-btn"
-              disabled={loading}
-            >
-              Add Question to Quiz
-            </button>
+          ) : (
+            <div className="no-courses-message">
+              <p>No courses available. Please create a course first using the "Create A Course" page.</p>
+            </div>
           )}
         </div>
 
-        {/* Questions List */}
-        {questions.length > 0 && (
-          <div className="questions-list">
-            <h3>Questions Added ({questions.length})</h3>
-            <div className="questions-preview">
-              {questions.map((q, index) => (
-                <div key={q.tempId} className="question-preview">
-                  <div className="question-header">
-                    <span className="question-number">Q{index + 1}</span>
-                    <span className="question-type">{q.type.toUpperCase()}</span>
-                    <span className="question-points">{q.points} pt{q.points !== 1 ? 's' : ''}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeQuestion(q.tempId)}
-                      className="remove-question-btn"
-                      disabled={loading}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  <div className="question-text">{q.text}</div>
-                  {q.options && (
-                    <div className="question-options">
-                      <strong>Options:</strong> {q.options.join(" | ")}
-                    </div>
-                  )}
-                  {q.answer && (
-                    <div className="question-answer">
-                      <strong>Answer:</strong> {q.answer}
-                    </div>
-                  )}
-                </div>
-              ))}
+        {/* Course Info Display - Only show when course is selected */}
+        {localSelectedCourse && (
+          <div className="step-section">
+            <h4>Selected Course Information:</h4>
+            <div className="selected-course-card">
+              <p><strong>Course Code:</strong> {localSelectedCourse.code}</p>
+              <p><strong>Course Name:</strong> {localSelectedCourse.name}</p>
+              <p><strong>Enrollment Code:</strong> {localSelectedCourse.enrollment_code || 'Not set'}</p>
+              {localSelectedCourse.description && (
+                <p><strong>Description:</strong> {localSelectedCourse.description}</p>
+              )}
             </div>
           </div>
         )}
 
-        {/* Submit Button */}
-        <div className="submit-section">
-          <button 
-            type="submit" 
-            className={`submit-btn ${loading ? 'loading' : ''}`}
-            disabled={loading || questions.length === 0}
-          >
-            {loading ? "Creating Quiz..." : `Create Quiz (${questions.length} question${questions.length !== 1 ? 's' : ''})`}
-          </button>
+        {/* Error/Success Messages */}
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+        
+        {success && (
+          <div className="success-message">
+            {success}
+          </div>
+        )}
+
+        {/* STEP 2: Method Selection - Only show if course is selected */}
+        {localSelectedCourse && (
+          <div className="step-section">
+            <h3>Step 2: Choose Enrollment Method</h3>
+            
+            <div className="method-options">
+              <div className="method-option" onClick={() => handleMethodSelection('manual')}>
+                <div className="method-icon">ðŸ‘¤</div>
+                <h4>Enroll Individual Student</h4>
+                <p>Enter student number to enroll in {localSelectedCourse.code}</p>
+              </div>
+              
+              <div className="method-option" onClick={() => handleMethodSelection('upload')}>
+                <div className="method-icon">ðŸ“„</div>
+                <h4>Upload CSV File</h4>
+                <p>Upload multiple students at once into {localSelectedCourse.code}</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Manual Entry Form
+  if (selectedMethod === 'manual') {
+    return (
+      <div className="student-container">
+        <div className="form-header">
+          <button className="back-btn" onClick={goBack}>â† Back</button>
+          <h2>Enroll Individual Student</h2>
         </div>
-      </form>
-    </div>
-  );
+
+        {localSelectedCourse && (
+          <div className="selected-course-display">
+            <h4>Enrolling in: {localSelectedCourse.code} - {localSelectedCourse.name}</h4>
+            <p>Course Enrollment Code: {localSelectedCourse.enrollment_code || 'Not set'}</p>
+          </div>
+        )}
+        
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+        
+        {success && (
+          <div className="success-message">
+            {success}
+          </div>
+        )}
+        
+        <div className="student-form-section">
+          <form onSubmit={handleSubmit} className="student-form">
+            <div className="student-field">
+              <label htmlFor="studentNumber">Student Number *</label>
+              <input
+                id="studentNumber"
+                type="text"
+                name="studentNumber"
+                placeholder="Enter student number (e.g., STDXXX001)"
+                value={student.studentNumber}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="student-field">
+              <label htmlFor="password">Student Password *</label>
+              <input
+                id="password"
+                type="password"
+                name="password"
+                placeholder="Enter password for student (min. 6 characters)"
+                value={student.password}
+                onChange={handleChange}
+                required
+                disabled={loading}
+                autoComplete="new-password"
+                minLength={6}
+              />
+              <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                This password will be used by the student to log into their account
+              </small>
+            </div>
+            
+            <div className="student-field">
+              <label htmlFor="enrollmentCode">
+                Enrollment Code (Optional)
+                <small>Leave blank to use course default</small>
+              </label>
+              <input
+                id="enrollmentCode"
+                type="text"
+                name="enrollmentCode"
+                placeholder={`Default: ${localSelectedCourse?.enrollment_code || 'Not set'}`}
+                value={student.enrollmentCode}
+                onChange={handleChange}
+                disabled={loading}
+                autoComplete="off"
+              />
+            </div>
+            
+            <button 
+              type="submit" 
+              disabled={loading}
+              className={loading ? 'loading' : ''}
+            >
+              {loading ? "Enrolling Student..." : "Enroll Student"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // CSV Upload Form
+  if (selectedMethod === 'upload') {
+    return (
+      <div className="student-container">
+        <div className="form-header">
+          <button className="back-btn" onClick={goBack}>â† Back</button>
+          <h2>Upload CSV File</h2>
+        </div>
+
+        {localSelectedCourse && (
+          <div className="selected-course-display">
+            <h4>Enrolling in: {localSelectedCourse.code} - {localSelectedCourse.name}</h4>
+          </div>
+        )}
+        
+        {error && (
+          <div className="error-message">
+            {error}
+          </div>
+        )}
+        
+        {success && (
+          <div className="success-message">
+            {success}
+          </div>
+        )}
+        
+        <div className="student-form-section">
+          <div className="upload-instructions">
+            <h4>CSV File Requirements:</h4>
+            <ul>
+              <li>File must be in CSV format (.csv)</li>
+              <li>Include headers: student_number, password</li>
+              <li>Each row should contain one student's information</li>
+              <li>Passwords must be at least 6 characters long</li>
+              <li>Duplicate student numbers will be skipped</li>
+              <li>Students already enrolled in this course will be skipped</li>
+            </ul>
+            <h5>Example CSV format:</h5>
+            <pre className="csv-example">
+student_number,password
+STDXXX001,student123
+STDXXX002,mypassword
+STDXXX003,secure456
+            </pre>
+            <p><strong>Note:</strong> The system will check for existing students and enrollment status automatically.</p>
+          </div>
+          
+          <form onSubmit={handleFileUpload} className="student-form">
+            <div className="file-input-wrapper">
+              <label htmlFor="csvFile">Select CSV File *</label>
+              <input
+                id="csvFile"
+                type="file"
+                accept=".csv"
+                onChange={(e) => setFile(e.target.files[0])}
+                required
+                disabled={loading}
+              />
+            </div>
+            
+            <button 
+              type="submit" 
+              className={`upload-btn ${loading ? 'loading' : ''}`}
+              disabled={loading || !file}
+            >
+              {loading ? "Uploading..." : "Upload CSV"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 }
+
+export default AddStudents;
