@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getMyCourses, listTopics } from "../../api/courses"; // Updated import
-import { addChoiceToQuestion, createQuestion, createQuiz } from "../../api/quizzes";
+import { getMyCourses, listTopics } from "../../api/courses";
+import { createQuestion, createQuiz } from "../../api/quizzes";
 import "./AddQuiz.css";
 
 export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) {
@@ -22,6 +22,7 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Load courses and topics when component mounts
   useEffect(() => {
@@ -41,28 +42,31 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
   }, [selectedCourse, topics]);
 
   const loadInitialData = async () => {
+    setIsLoadingData(true);
     try {
-      // Load courses and topics in parallel - using updated API
+      // Load courses and topics using the correct API endpoints
       const [coursesResponse, topicsResponse] = await Promise.all([
-        getMyCourses(), // Changed from myCourses
+        getMyCourses(),
         listTopics()
       ]);
 
-      // Handle courses data - no need to check for courses array since getMyCourses returns direct array
+      // Handle courses data - using getMyCourses endpoint
       let coursesData = [];
-      if (Array.isArray(coursesResponse.data)) {
+      if (coursesResponse.data && Array.isArray(coursesResponse.data)) {
         coursesData = coursesResponse.data;
-      } else if (coursesResponse.data?.results && Array.isArray(coursesResponse.data.results)) {
-        coursesData = coursesResponse.data.results;
+      } else if (coursesResponse.data?.courses && Array.isArray(coursesResponse.data.courses)) {
+        coursesData = coursesResponse.data.courses;
       }
       setCourses(coursesData);
 
-      // Handle topics data  
+      // Handle topics data - using listTopics endpoint
       let topicsData = [];
       if (Array.isArray(topicsResponse.data)) {
         topicsData = topicsResponse.data;
       } else if (Array.isArray(topicsResponse.data?.results)) {
         topicsData = topicsResponse.data.results;
+      } else if (Array.isArray(topicsResponse.data?.topics)) {
+        topicsData = topicsResponse.data.topics;
       }
       setTopics(topicsData);
       
@@ -81,16 +85,21 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
           errorMessage = data;
         } else if (data.detail) {
           errorMessage = data.detail;
+        } else if (data.non_field_errors && Array.isArray(data.non_field_errors)) {
+          errorMessage = data.non_field_errors[0];
         }
+      } else if (err.message) {
+        errorMessage = err.message;
       }
       
       setError(errorMessage);
       setCourses([]);
       setTopics([]);
+    } finally {
+      setIsLoadingData(false);
     }
   };
 
-  // Rest of the component remains the same as it's already using correct quiz APIs
   const resetCurrentQuestion = () => {
     setCurrentQuestion({
       text: "",
@@ -192,14 +201,17 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
         is_graded: true,
       };
 
+      console.log('Creating quiz with payload:', quizPayload);
       const { data: quiz } = await createQuiz(quizPayload);
+      console.log('Quiz created successfully:', quiz);
 
-      // 2) Create questions and choices
+      // 2) Create questions with choices included in the payload
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i];
         const questionType = mapQuestionType(q.type);
         
-        const questionPayload = {
+        // Base question payload
+        let questionPayload = {
           quiz: quiz.id,
           question_text: q.text,
           question_type: questionType,
@@ -207,31 +219,77 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
           order: i + 1,
         };
 
-        const { data: createdQuestion } = await createQuestion(questionPayload);
-
-        // Add choices for MCQ and True/False
+        // Add choices for MCQ and TF questions
         if (q.type === "mcq") {
-          for (let j = 0; j < q.options.length; j++) {
-            const option = q.options[j];
-            await addChoiceToQuestion(createdQuestion.id, {
-              choice_text: option,
-              is_correct: option === q.answer,
-              order: j + 1,
-            });
+          const choices = q.options.map((option, index) => ({
+            choice_text: option,
+            is_correct: option === q.answer,
+            order: index + 1,
+          }));
+          questionPayload.choices = choices;
+        } else if (q.type === "truefalse") {
+          const choices = [
+            {
+              choice_text: "True",
+              is_correct: q.answer.toLowerCase() === "true",
+              order: 1,
+            },
+            {
+              choice_text: "False", 
+              is_correct: q.answer.toLowerCase() === "false",
+              order: 2,
+            }
+          ];
+          questionPayload.choices = choices;
+        } else if (q.type === "oneword" || q.type === "open") {
+          // For SA (Short Answer) questions, add correct_answer_text if provided
+          if (q.answer && q.answer.trim()) {
+            questionPayload.correct_answer_text = q.answer.trim();
           }
         }
 
-        if (q.type === "truefalse") {
-          await addChoiceToQuestion(createdQuestion.id, {
-            choice_text: "True",
-            is_correct: q.answer.toLowerCase() === "true",
-            order: 1,
-          });
-          await addChoiceToQuestion(createdQuestion.id, {
-            choice_text: "False",
-            is_correct: q.answer.toLowerCase() === "false",
-            order: 2,
-          });
+        console.log('Creating question with payload:', questionPayload);
+        
+        try {
+          const { data: createdQuestion } = await createQuestion(questionPayload);
+          console.log('Question created successfully:', createdQuestion);
+        } catch (questionError) {
+          console.error('Failed to create question:', questionError);
+          console.error('Question payload that failed:', questionPayload);
+          
+          // Get specific error message from response
+          let errorMessage = `Failed to create question ${i + 1}`;
+          if (questionError.response?.data) {
+            const errorData = questionError.response.data;
+            if (typeof errorData === 'string') {
+              errorMessage = errorData;
+            } else if (errorData.detail) {
+              errorMessage = errorData.detail;
+            } else if (errorData.non_field_errors) {
+              errorMessage = Array.isArray(errorData.non_field_errors) 
+                ? errorData.non_field_errors[0] 
+                : errorData.non_field_errors;
+            } else if (errorData.choices) {
+              errorMessage = `Choices error: ${JSON.stringify(errorData.choices)}`;
+            } else if (errorData.quiz) {
+              errorMessage = `Quiz error: ${JSON.stringify(errorData.quiz)}`;
+            } else {
+              // Handle field-specific errors
+              const fieldErrors = [];
+              Object.keys(errorData).forEach(field => {
+                if (Array.isArray(errorData[field])) {
+                  fieldErrors.push(`${field}: ${errorData[field].join(', ')}`);
+                } else if (typeof errorData[field] === 'string') {
+                  fieldErrors.push(`${field}: ${errorData[field]}`);
+                }
+              });
+              if (fieldErrors.length > 0) {
+                errorMessage = fieldErrors.join('; ');
+              }
+            }
+          }
+          
+          throw new Error(errorMessage);
         }
       }
 
@@ -263,8 +321,10 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
           errorMessage = data;
         } else if (data.detail) {
           errorMessage = data.detail;
-        } else if (data.non_field_errors) {
+        } else if (data.non_field_errors && Array.isArray(data.non_field_errors)) {
           errorMessage = data.non_field_errors[0];
+        } else if (data.error) {
+          errorMessage = data.error;
         }
       }
       
@@ -470,7 +530,18 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
     }
   };
 
-  const loading = externalLoading || isSaving;
+  const loading = externalLoading || isSaving || isLoadingData;
+
+  if (isLoadingData) {
+    return (
+      <div className="quiz-container">
+        <h2>Create Quiz</h2>
+        <div className="loading-message">
+          Loading courses and topics...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="quiz-container">

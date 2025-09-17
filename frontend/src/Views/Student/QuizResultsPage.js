@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { getAttemptDetail } from '../../api/quizzes';
+import { getQuizStatistics } from '../../api/analytics';
 import './QuizResultsPage.css';
 
 const QuizResultsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showDetails, setShowDetails] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   // Get results data from navigation state
   const resultsData = location.state || {
@@ -16,18 +20,47 @@ const QuizResultsPage = () => {
     isRetake: false
   };
 
+  const [detailedResults, setDetailedResults] = useState(null);
+
+  useEffect(() => {
+    const fetchDetailedResults = async () => {
+      if (resultsData.attemptId) {
+        try {
+          const attemptResponse = await getAttemptDetail(resultsData.attemptId);
+          setDetailedResults(attemptResponse.data);
+        } catch (err) {
+          console.warn('Could not fetch detailed results:', err);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchDetailedResults();
+  }, [resultsData.attemptId]);
+
   // Calculate results
   const calculateResults = () => {
     const { answers, questions } = resultsData;
     let correctAnswers = 0;
     let totalQuestions = questions.length;
     
-    // Sample correct answers for demonstration
+    // Use detailed results if available
+    if (detailedResults) {
+      return {
+        correctAnswers: detailedResults.correct_answers || 0,
+        totalQuestions: detailedResults.total_questions || totalQuestions,
+        percentage: Math.round(detailedResults.score || 0),
+        passed: (detailedResults.score || 0) >= 50,
+        timeUsed: detailedResults.time_taken || resultsData.timeUsed || 0,
+        correctAnswersKey: detailedResults.question_results || {}
+      };
+    }
+
+    // Fallback calculation for demonstration
     const correctAnswersKey = {
       1: 1, // Multiple choice: first option
       2: true, // True/False: true
-      3: "Variables store data that can change, constants store data that cannot change", // Short answer (simplified check)
-      4: 3 // Multiple choice: third option
+      3: 3 // Multiple choice: third option
     };
 
     questions.forEach(question => {
@@ -36,7 +69,7 @@ const QuizResultsPage = () => {
       
       if (question.type === 'short_answer') {
         // Simple keyword matching for short answers
-        if (userAnswer && userAnswer.toLowerCase().includes('change')) {
+        if (userAnswer && userAnswer.toLowerCase().includes('variable')) {
           correctAnswers++;
         }
       } else {
@@ -47,7 +80,7 @@ const QuizResultsPage = () => {
     });
 
     const percentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-    const passed = percentage >= 50; // Assuming 50% is passing
+    const passed = percentage >= 50;
 
     return {
       correctAnswers,
@@ -87,20 +120,43 @@ const QuizResultsPage = () => {
   };
 
   const handleRetakeQuiz = () => {
-    navigate('/QuizCountdownPage', {
-      state: {
-        ...resultsData.quizData,
-        isRetake: true
-      }
-    });
+    if (resultsData.quizData.isAIGenerated) {
+      navigate('/AIQuizCountdownPage', {
+        state: {
+          ...resultsData.quizData,
+          isRetake: true
+        }
+      });
+    } else {
+      navigate('/QuizCountdownPage', {
+        state: {
+          ...resultsData.quizData,
+          isRetake: true
+        }
+      });
+    }
   };
 
   const renderQuestionReview = (question, index) => {
     const userAnswer = resultsData.answers[question.id];
-    const correctAnswer = results.correctAnswersKey[question.id];
-    const isCorrect = question.type === 'short_answer' 
-      ? userAnswer && userAnswer.toLowerCase().includes('change')
-      : userAnswer === correctAnswer;
+    let correctAnswer = null;
+    let isCorrect = false;
+
+    // Use detailed results if available
+    if (detailedResults && detailedResults.question_results) {
+      const questionResult = detailedResults.question_results.find(qr => qr.question_id === question.id);
+      if (questionResult) {
+        correctAnswer = questionResult.correct_answer;
+        isCorrect = questionResult.is_correct;
+      }
+    } else {
+      // Fallback logic
+      const correctAnswersKey = results.correctAnswersKey;
+      correctAnswer = correctAnswersKey[question.id];
+      isCorrect = question.type === 'short_answer' 
+        ? userAnswer && userAnswer.toLowerCase().includes('variable')
+        : userAnswer === correctAnswer;
+    }
 
     return (
       <div key={question.id} className="question-review">
@@ -125,7 +181,7 @@ const QuizResultsPage = () => {
                   className={`choice-review ${isSelected ? 'selected' : ''} ${isCorrectChoice ? 'correct-answer' : ''}`}
                 >
                   <span className="choice-letter">{String.fromCharCode(65 + choiceIndex)}</span>
-                  <span className="choice-text">{choice.text}</span>
+                  <span className="choice-text">{choice.text || choice.choice_text}</span>
                   {isSelected && <span className="selected-mark">Your Answer</span>}
                   {isCorrectChoice && <span className="correct-mark">Correct Answer</span>}
                 </div>
@@ -155,15 +211,28 @@ const QuizResultsPage = () => {
               <strong>Your Answer:</strong>
               <div className="answer-text">{userAnswer || 'No answer provided'}</div>
             </div>
-            <div className="sample-answer">
-              <strong>Sample Answer:</strong>
-              <div className="answer-text">Variables store data that can change during program execution, while constants store data that remains fixed.</div>
-            </div>
+            {detailedResults?.model_answer && (
+              <div className="sample-answer">
+                <strong>Model Answer:</strong>
+                <div className="answer-text">{detailedResults.model_answer}</div>
+              </div>
+            )}
           </div>
         )}
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="quiz-results-container">
+        <div className="loading-content">
+          <div className="spinner"></div>
+          <h2>Loading Results...</h2>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="quiz-results-container">
@@ -171,9 +240,12 @@ const QuizResultsPage = () => {
         {/* Header */}
         <div className="results-header">
           <h1>Quiz Results</h1>
-          <p className="quiz-title">{resultsData.quizData.quizTitle}</p>
+          <p className="quiz-title">{resultsData.quizData.quizTitle || resultsData.quizData.title}</p>
           {resultsData.isRetake && (
             <div className="retake-badge">Retake Attempt</div>
+          )}
+          {resultsData.quizData.isAIGenerated && (
+            <div className="ai-badge">AI Generated Quiz</div>
           )}
         </div>
 
@@ -208,7 +280,11 @@ const QuizResultsPage = () => {
             <div className="stat-label">Time Used</div>
           </div>
           <div className="stat-item">
-            <div className="stat-value">{results.percentage >= 80 ? 'Excellent' : results.percentage >= 70 ? 'Good' : results.percentage >= 50 ? 'Average' : 'Needs Improvement'}</div>
+            <div className="stat-value">
+              {results.percentage >= 80 ? 'Excellent' : 
+               results.percentage >= 70 ? 'Good' : 
+               results.percentage >= 50 ? 'Average' : 'Needs Improvement'}
+            </div>
             <div className="stat-label">Performance</div>
           </div>
         </div>
@@ -220,6 +296,13 @@ const QuizResultsPage = () => {
             onClick={() => setShowDetails(!showDetails)}
           >
             {showDetails ? 'Hide Details' : 'View Detailed Results'}
+          </button>
+          
+          <button 
+            className="retake-btn"
+            onClick={handleRetakeQuiz}
+          >
+            Retake Quiz
           </button>
           
           <button 
@@ -262,8 +345,25 @@ const QuizResultsPage = () => {
             {resultsData.isRetake && (
               <p><strong>Note:</strong> This was a retake attempt. Your highest score will be recorded.</p>
             )}
+
+            {resultsData.quizData.isAIGenerated && (
+              <p><strong>AI Note:</strong> The difficulty of future AI quizzes will adapt based on your performance.</p>
+            )}
+
+            {detailedResults?.feedback && (
+              <div className="personalized-feedback">
+                <h4>Personalized Feedback</h4>
+                <p>{detailedResults.feedback}</p>
+              </div>
+            )}
           </div>
         </div>
+
+        {error && (
+          <div className="error-message">
+            <p>Some detailed results could not be loaded: {error}</p>
+          </div>
+        )}
       </div>
     </div>
   );

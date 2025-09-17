@@ -22,6 +22,8 @@ import LecturerQuizHistory from "./Views/Lacture/QuizHistory";
 import LecturerAnalytics from "./Views/Lacture/StudentAnalytics";
 import LecturerAIQuizzes from "./Views/Lacture/AIQuizzes";
 import QuizzAnalytics from "./Views/Lacture/QuizAnalytics";
+import AddTopic from './Componets/Lacture/AddTopic';
+import AddTopicPage from './Views/Lacture/AddTopicPage';
 
 // Common Components
 import Login from './Views/LogIn/Login';
@@ -389,6 +391,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['lecturer', 'teacher', 'instructor']}>
                 <QuizzAnalytics />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/AddTopic" 
+            element={
+              <ProtectedRoute allowedRoles={['lecturer', 'teacher', 'instructor']}>
+                <AddTopicPage />
               </ProtectedRoute>
             } 
           />

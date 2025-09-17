@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { getMyCourses } from '../../api/courses';
 import Bio from "../../Componets/Student/bio";
 import CoursesList from "../../Componets/Student/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
@@ -6,6 +8,28 @@ import AIQuizzesDisplay from "../../Componets/Student/AIQuizzesDiaplay";
 import "./AIQuizzes.css";
 
 function AIQuizzes() {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      setLoading(true);
+      try {
+        const coursesResponse = await getMyCourses();
+        const fetchedCourses = coursesResponse.data.results || coursesResponse.data || [];
+        setCourses(fetchedCourses);
+      } catch (err) {
+        console.error('Error fetching courses for AI Quizzes page:', err);
+        setError('Failed to load courses');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, []);
+
   return (
     <div>
       <div className="NavBar">
@@ -14,6 +38,12 @@ function AIQuizzes() {
       
       {/* Main Container - AI Quizzes Display */}
       <div className="ContainerAI">
+        {error && (
+          <div className="error-banner">
+            <p>{error}</p>
+            <button onClick={() => window.location.reload()}>Retry</button>
+          </div>
+        )}
         <AIQuizzesDisplay />
       </div>
 
@@ -23,11 +53,15 @@ function AIQuizzes() {
           <StarRating />
         </div>
         <div className="List">
-          <CoursesList />
+          {loading ? (
+            <div className="loading-courses">
+              <p>Loading courses...</p>
+            </div>
+          ) : (
+            <CoursesList courses={courses} />
+          )}
         </div>
       </div>
-      
-   
     </div>
   );
 }
