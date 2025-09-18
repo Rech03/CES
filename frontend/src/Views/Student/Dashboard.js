@@ -219,13 +219,29 @@ function Dashboard() {
             ))
           ) : (
             <div className="no-quizzes">
+              <div style={{
+                fontSize: '48px',
+                marginBottom: '20px',
+                opacity: 0.3
+              }}>
+                📚
+              </div>
               {searchTerm ? (
                 <p>No quizzes found matching "{searchTerm}"</p>
               ) : availableQuizzes.length === 0 ? (
-                <p>No live or available quizzes at the moment. Check back later!</p>
+                
+                <p style={{
+                color: '#333',
+                marginBottom: '10px',
+                fontSize: '18px'
+              }}>No live or available quizzes at the moment. Check back later!</p>
+        
               ) : (
                 <p>No quizzes available at the moment.</p>
               )}
+               
+              
+              
             </div>
           )}
         </div>
