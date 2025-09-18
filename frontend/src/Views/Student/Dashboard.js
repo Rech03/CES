@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { getAvailableQuizzes } from '../../api/quizzes';
+import { getAvailableQuizzes, getMyAttempts } from '../../api/quizzes';
 import { getMyCourses } from '../../api/courses';
-import { studentDashboard } from '../../api/analytics';
+import { getProfile } from '../../api/users';
 import Bio from "../../Componets/Lacture/bio";
 import Biography from "../../Componets/Student/Biography";
 import CoursesList from "../../Componets/Student/CoursesList";
@@ -14,6 +14,7 @@ import "./Dashboard.css";
 function Dashboard() {
   const [quizzes, setQuizzes] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [userAttempts, setUserAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,8 +24,8 @@ function Dashboard() {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        // Fetch available quizzes and courses in parallel
-        const [quizzesResponse, coursesResponse] = await Promise.all([
+        // Fetch available quizzes, courses, and user attempts in parallel
+        const [quizzesResponse, coursesResponse, attemptsResponse] = await Promise.all([
           getAvailableQuizzes().catch(err => {
             console.warn('Could not fetch quizzes:', err);
             return { data: [] };
@@ -32,86 +33,85 @@ function Dashboard() {
           getMyCourses().catch(err => {
             console.warn('Could not fetch courses:', err);
             return { data: [] };
+          }),
+          getMyAttempts().catch(err => {
+            console.warn('Could not fetch attempts:', err);
+            return { data: [] };
           })
         ]);
 
-        const fetchedQuizzes = quizzesResponse.data.results || quizzesResponse.data || [];
-        const fetchedCourses = coursesResponse.data.results || coursesResponse.data || [];
+        // Process quiz data from API response
+        const fetchedQuizzes = Array.isArray(quizzesResponse.data) 
+          ? quizzesResponse.data 
+          : quizzesResponse.data?.results || [];
 
-        // Process quizzes with additional data
-        const processedQuizzes = fetchedQuizzes.map(quiz => ({
-          id: quiz.id,
-          title: quiz.title || 'Untitled Quiz',
-          duration: quiz.duration || `${quiz.time_limit || 20} min`,
-          course: quiz.course_name || quiz.topic_name || 'Unknown Course',
-          courseId: quiz.course_id || quiz.topic_id,
-          difficulty: quiz.difficulty || 'Medium',
-          questionCount: quiz.question_count || quiz.total_questions || 10,
-          isLive: quiz.is_live || false,
-          dueDate: quiz.due_date,
-          attempts: quiz.attempt_count || 0,
-          maxAttempts: quiz.max_attempts,
-          description: quiz.description,
-          status: quiz.status || 'available'
-        }));
+        const fetchedCourses = Array.isArray(coursesResponse.data)
+          ? coursesResponse.data
+          : coursesResponse.data?.results || [];
+
+        const fetchedAttempts = Array.isArray(attemptsResponse.data)
+          ? attemptsResponse.data
+          : attemptsResponse.data?.results || [];
+
+        setUserAttempts(fetchedAttempts);
+
+        // Create a map of quiz attempts for quick lookup
+        const attemptsByQuiz = {};
+        fetchedAttempts.forEach(attempt => {
+          const quizId = attempt.quiz || attempt.quiz_id;
+          if (!attemptsByQuiz[quizId]) {
+            attemptsByQuiz[quizId] = [];
+          }
+          attemptsByQuiz[quizId].push(attempt);
+        });
+
+        // Process quizzes with attempt information
+        const processedQuizzes = fetchedQuizzes.map(quiz => {
+          const quizAttempts = attemptsByQuiz[quiz.id] || [];
+          const completedAttempts = quizAttempts.filter(attempt => 
+            attempt.is_completed || attempt.status === 'completed'
+          );
+          
+          // Calculate best score from completed attempts
+          let bestScore = null;
+          if (completedAttempts.length > 0) {
+            const scores = completedAttempts.map(attempt => attempt.score || 0);
+            bestScore = Math.max(...scores);
+          }
+
+          // Determine quiz status
+          let status = 'available';
+          if (completedAttempts.length > 0) {
+            status = 'completed';
+          } else if (quiz.is_live === false && quiz.due_date && new Date(quiz.due_date) < new Date()) {
+            status = 'missed';
+          } else if (!quiz.is_live && quiz.scheduled_start && new Date(quiz.scheduled_start) > new Date()) {
+            status = 'locked';
+          }
+
+          return {
+            id: quiz.id,
+            title: quiz.title || 'Untitled Quiz',
+            duration: quiz.time_limit ? `${quiz.time_limit} min` : '20 min',
+            course: quiz.topic?.course?.name || quiz.course_name || 'Unknown Course',
+            courseId: quiz.topic?.course?.id || quiz.course_id,
+            courseCode: quiz.topic?.course?.code?.toLowerCase() || 'default',
+            difficulty: quiz.difficulty || 'Medium',
+            questionCount: quiz.total_questions || quiz.question_count || 10,
+            isLive: quiz.is_live || false,
+            dueDate: quiz.due_date ? `Due: ${new Date(quiz.due_date).toLocaleDateString()}` : null,
+            attempts: `${quizAttempts.length}/${quiz.max_attempts || 3}`,
+            maxAttempts: quiz.max_attempts || 3,
+            bestScore: bestScore ? `${bestScore}%` : null,
+            description: quiz.description,
+            status: status,
+            password: quiz.password,
+            scheduledStart: quiz.scheduled_start
+          };
+        });
 
         setQuizzes(processedQuizzes);
         setCourses(fetchedCourses);
-
-        // If no quizzes found, use fallback data for demonstration
-        if (processedQuizzes.length === 0) {
-          const fallbackQuizzes = [
-            {
-              id: 1,
-              title: 'CSC3002F - Parallel Programming',
-              duration: '20 min',
-              course: 'Parallel Programming',
-              difficulty: 'Medium',
-              questionCount: 15
-            },
-            {
-              id: 2,
-              title: 'CSC2001F - Data Structures',
-              duration: '25 min',
-              course: 'Data Structures',
-              difficulty: 'Hard',
-              questionCount: 20
-            },
-            {
-              id: 3,
-              title: 'CSC3003S - Computer Systems',
-              duration: '15 min',
-              course: 'Computer Systems',
-              difficulty: 'Easy',
-              questionCount: 12
-            },
-            {
-              id: 4,
-              title: 'CSC1015F - Computer Science',
-              duration: '30 min',
-              course: 'Computer Science',
-              difficulty: 'Medium',
-              questionCount: 25
-            },
-            {
-              id: 5,
-              title: 'CSC3022F - Machine Learning',
-              duration: '45 min',
-              course: 'Machine Learning',
-              difficulty: 'Expert',
-              questionCount: 30
-            },
-            {
-              id: 6,
-              title: 'CSC3021F - Software Engineering',
-              duration: '35 min',
-              course: 'Software Engineering',
-              difficulty: 'Hard',
-              questionCount: 22
-            }
-          ];
-          setQuizzes(fallbackQuizzes);
-        }
 
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
@@ -130,8 +130,13 @@ function Dashboard() {
     quiz.course.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Only show live quizzes and available quizzes
+  const availableQuizzes = filteredQuizzes.filter(quiz => 
+    quiz.isLive || quiz.status === 'available' || quiz.status === 'completed'
+  );
+
   // Determine how many quizzes to show
-  const quizzesToShow = showAllQuizzes ? filteredQuizzes : filteredQuizzes.slice(0, 6);
+  const quizzesToShow = showAllQuizzes ? availableQuizzes : availableQuizzes.slice(0, 6);
 
   const handleViewAll = () => {
     setShowAllQuizzes(!showAllQuizzes);
@@ -164,20 +169,12 @@ function Dashboard() {
         />
       </div>
       
-      {/* Main Container - everything inside will be contained */}
+      {/* Main Container */}
       <div className="ContainerD">
         {/* Biography Section */}
         <div className="Boigraphy">
           <Biography />
         </div>
-
-        {/* Error Display */}
-        {error && (
-          <div className="error-banner">
-            <p>{error}</p>
-            <button onClick={() => window.location.reload()}>Retry</button>
-          </div>
-        )}
 
         {/* Quiz Section Header */}
         <div className="quiz-header1">
@@ -185,7 +182,7 @@ function Dashboard() {
             Quiz List 
             {searchTerm && (
               <span className="search-results">
-                ({filteredQuizzes.length} result{filteredQuizzes.length !== 1 ? 's' : ''})
+                ({availableQuizzes.length} result{availableQuizzes.length !== 1 ? 's' : ''})
               </span>
             )}
           </div>
@@ -194,7 +191,7 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Quiz Grid - exactly 3 per row */}
+        {/* Quiz Grid */}
         <div className="QuizList">
           {quizzesToShow.length > 0 ? (
             quizzesToShow.map(quiz => (
@@ -203,21 +200,29 @@ function Dashboard() {
                 quizId={quiz.id}
                 title={quiz.title}
                 duration={quiz.duration}
-                course={quiz.course}
-                difficulty={quiz.difficulty}
-                questionCount={quiz.questionCount}
-                isLive={quiz.isLive}
-                dueDate={quiz.dueDate}
-                attempts={quiz.attempts}
-                maxAttempts={quiz.maxAttempts}
-                description={quiz.description}
+                totalQuestions={quiz.questionCount}
+                dueDate={quiz.dueDate || (quiz.isLive ? 'Live Quiz' : 'No due date')}
                 status={quiz.status}
+                courseCode={quiz.courseCode}
+                difficulty={quiz.difficulty}
+                attempts={quiz.attempts}
+                bestScore={quiz.bestScore}
+                onStartQuiz={() => {
+                  // Navigate to countdown page with quiz data
+                  window.location.href = `/QuizCountdownPage?quizId=${quiz.id}`;
+                }}
+                onViewResults={() => {
+                  // Navigate to analytics page
+                  window.location.href = `/QuizAnalyticsPage?quizId=${quiz.id}`;
+                }}
               />
             ))
           ) : (
             <div className="no-quizzes">
               {searchTerm ? (
                 <p>No quizzes found matching "{searchTerm}"</p>
+              ) : availableQuizzes.length === 0 ? (
+                <p>No live or available quizzes at the moment. Check back later!</p>
               ) : (
                 <p>No quizzes available at the moment.</p>
               )}
@@ -225,15 +230,15 @@ function Dashboard() {
           )}
         </div>
 
-        {/* Show pagination info */}
-        {filteredQuizzes.length > 6 && (
-          <div className="quiz-pagination-info">
-            Showing {quizzesToShow.length} of {filteredQuizzes.length} quiz{filteredQuizzes.length !== 1 ? 'es' : ''}
+        {error && (
+          <div className="error-message">
+            <p>{error}</p>
+            <button onClick={() => window.location.reload()}>Retry</button>
           </div>
         )}
       </div>
 
-      {/* Side panel remains outside */}
+      {/* Side panel */}
       <div className="SideD">
         <div className="Rating">
           <StarRating />

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { startLiveQuiz, stopLiveQuiz, deleteQuiz } from '../../api/quizzes';
 import './QuizTile.css';
+import { NavLink } from "react-router-dom";
 
 function QuizTile({ 
   quiz,
@@ -188,6 +189,8 @@ function QuizTile({
   };
 
   return (
+    <div>
+      <NavLink to="/QuizzAnalytics">
     <div className={`quiz-tile-container ${courseCode.toLowerCase()}`} onClick={onClick}>
       <div className="quiz-overlay"></div>
       
@@ -196,19 +199,12 @@ function QuizTile({
         <div className="quiz-status-text">{statusInfo.text}</div>
       </div>
 
-      {/* Duration Badge */}
-      <div className="quiz-duration-badge">
-        <div className="quiz-duration-text">
-          {time_limit ? `${time_limit} min` : 'No limit'}
-        </div>
-      </div>
-
       {/* Quiz Info */}
       <div className="quiz-info-section">
         <div className="quiz-creation-date">{formatDate(created_at)}</div>
         <div className="quiz-stats-mini">
-          <span className="quiz-questions">{questions_count} Questions</span>
-          <span className="quiz-points">{total_points} Points</span>
+          <span className="quiz-questions">{questions_count} Questions   :  <span className="quiz-points">{total_points} Points</span></span>
+          
         </div>
       </div>
 
@@ -240,7 +236,7 @@ function QuizTile({
       <div className="quiz-actions">
         {status === 'draft' && (
           <button 
-            className="action-btn edit-btn"
+            className="action-btn-edit-btn"
             onClick={(e) => {
               e.stopPropagation();
               onEdit && onEdit(quiz);
@@ -259,7 +255,7 @@ function QuizTile({
               handleMakeLive();
             }}
             disabled={isLoading}
-            style={{ backgroundColor: '#27AE60' }}
+            style={{ backgroundColor: '#095fffff' }}
           >
             {isLoading ? 'Going Live...' : '👁️ Make Live'}
           </button>
@@ -294,7 +290,7 @@ function QuizTile({
 
         {(status === 'draft' || status === 'closed') && (
           <button 
-            className="action-btn delete-btn"
+            className="action-btn-delete-btn"
             onClick={(e) => {
               e.stopPropagation();
               handleDelete();
@@ -324,6 +320,8 @@ function QuizTile({
           <div>Loading...</div>
         </div>
       )}
+    </div>
+    </NavLink>
     </div>
   );
 }

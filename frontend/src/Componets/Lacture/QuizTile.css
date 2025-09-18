@@ -13,7 +13,7 @@
   background-repeat: no-repeat;
   overflow: hidden;
   animation: fadeInUp 0.6s ease-out;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.39);
 }
 
 @keyframes fadeInUp {
@@ -35,7 +35,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.8) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.411) 0%, rgba(17, 17, 17, 0.8) 100%);
   border-radius: 12px;
 }
 
@@ -115,7 +115,7 @@
 
 .quiz-creation-date {
   color: rgba(255, 255, 255, 0.9);
-  font-size: 10px;
+  font-size: 13px;
   font-family: Poppins, sans-serif;
   font-weight: 400;
   margin-bottom: 8px;
@@ -129,16 +129,19 @@
 
 .quiz-questions,
 .quiz-students {
-  background: rgba(82, 150, 86, 0.2);
-  padding: 4px 20px;
+  background: rgba(3, 3, 3, 0.459);
+  padding: 6px 25px;
   border-radius: 8px;
   color: white;
-  font-size: 9px;
+  font-size: 12px;
   font-family: Poppins, sans-serif;
   font-weight: 500;
   
 }
-
+.quiz-points{
+  color: rgb(3, 255, 24);
+  font-size: 12px;
+}
 /* Title Container */
 .quiz-title-containerNew {
   position: absolute;
@@ -170,7 +173,7 @@
 
 .action-btn {
   flex: 1;
-  padding: 8px 12px;
+  padding: 8px 8px;
   border: none;
   border-radius: 6px;
   font-family: Poppins, sans-serif;
@@ -179,7 +182,8 @@
   text-transform: uppercase;
   cursor: pointer;
   transition: all 0.2s ease;
-  background-color: #6ab929;
+  background-color: #6ab9297e;
+  
 }
 
 .publish-btn {
@@ -188,7 +192,37 @@
   background-color: #6ab929;
   
 }
-
+.action-btn-delete-btn{
+  margin-right: 10px;
+  padding: 8px 25px;
+  border: none;
+  border-radius: 6px;
+  font-family: Poppins, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #6ab9297e;
+  max: 500px;
+  color: white;
+}
+.action-btn-edit-btn{
+  margin-right: 10px;
+  padding: 8px 35px;
+  border: none;
+  border-radius: 6px;
+  font-family: Poppins, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #0066ff;
+  max: 500px;
+  color: rgb(255, 255, 255);
+  margin-left: 20px;
+}
 .publish-btn:hover {
   background: linear-gradient(135deg, #229954 0%, #27AE60 100%);
   transform: translateY(-1px);
@@ -239,7 +273,12 @@
 .quiz-tile-container:active {
   transform: translateY(-2px);
 }
-
+.quiz-course-info{
+  color: white;
+  font-size: 12px;
+  font-family: Poppins, sans-serif;
+  font-weight: 500;
+}
 /* Responsive design */
 @media (max-width: 768px) {
   .quiz-tile-container {

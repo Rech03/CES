@@ -224,7 +224,7 @@ function AIQuizTile({
                 className="adaptive-level" 
                 style={{ color: getAdaptiveLevelColor(quizData.adaptiveLevel) }}
               >
-                Level: {quizData.adaptiveLevel}
+                🎯 {quizData.adaptiveLevel}
               </span>
             </div>
           </div>
@@ -237,7 +237,7 @@ function AIQuizTile({
           {/* Quiz Stats */}
           <div className="quiz-stats">
             <span className="attempts-count">
-              {quizData.attempts} attempt{quizData.attempts !== 1 ? 's' : ''}
+              📊 {quizData.attempts} attempt{quizData.attempts !== 1 ? 's' : ''}
             </span>
             <span className="last-updated">Updated: {quizData.lastUpdated}</span>
           </div>

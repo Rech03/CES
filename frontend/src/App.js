@@ -142,6 +142,7 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
 
   return children;
 }
+
 // Role-based Dashboard Redirect Component
 function DashboardRedirect() {
   const [user, setUser] = useState(null);
@@ -195,6 +196,12 @@ function Logout() {
       } finally {
         // Always clear local session regardless of API response
         localStorage.removeItem('userSession');
+        sessionStorage.removeItem('userSession');
+        // Clear all auth tokens
+        ['access', 'refresh', 'token'].forEach((k) => {
+          localStorage.removeItem(k);
+          sessionStorage.removeItem(k);
+        });
         window.location.href = '/';
       }
     };
@@ -303,7 +310,7 @@ function App() {
             } 
           />
 
-          {/* AI Quiz Routes for Students */}
+          {/* AI Quiz Routes for Students - using your existing components */}
           <Route 
             path="/AIQuizCountdownPage" 
             element={

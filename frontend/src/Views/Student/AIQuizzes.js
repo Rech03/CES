@@ -4,7 +4,7 @@ import Bio from "../../Componets/Student/bio";
 import CoursesList from "../../Componets/Student/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
 import StarRating from "../../Componets/Student/StarRating";
-import AIQuizzesDisplay from "../../Componets/Student/AIQuizzesDiaplay";
+import AIQuizzesDisplay from "../../Componets/Student/AIQuizzesDisplay";
 import "./AIQuizzes.css";
 
 function AIQuizzes() {
@@ -38,12 +38,7 @@ function AIQuizzes() {
       
       {/* Main Container - AI Quizzes Display */}
       <div className="ContainerAI">
-        {error && (
-          <div className="error-banner">
-            <p>{error}</p>
-            <button onClick={() => window.location.reload()}>Retry</button>
-          </div>
-        )}
+  
         <AIQuizzesDisplay />
       </div>
 

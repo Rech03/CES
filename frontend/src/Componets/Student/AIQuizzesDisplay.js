@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { studentAvailableSlides, studentAdaptiveProgress } from '../../api/ai-quiz';
 import { getMyAttempts } from '../../api/quizzes';
-import { studentDashboard } from '../../api/analytics';
 import AIQuizTile from './AIQuizTile';
-import EnhancedBiography from './EnhancedBiography';
 import './AIQuizzesDisplay.css';
 
 const AIQuizzesDisplay = () => {
@@ -83,26 +81,6 @@ const AIQuizzesDisplay = () => {
       } catch (err) {
         console.error('Error fetching AI quizzes:', err);
         setError('Failed to load AI quizzes');
-        
-        // Fallback to mock data if API fails
-        const mockAIQuizzes = [
-          {
-            id: 1,
-            slideId: 1,
-            title: "AI-Generated JavaScript Fundamentals",
-            topic: "JavaScript Basics",
-            difficulty: "Easy",
-            estimatedDuration: "10-15 min",
-            questionCount: "15-20",
-            sourceFile: "js_fundamentals.pdf",
-            adaptiveLevel: "Beginner",
-            lastUpdated: "2 hours ago",
-            completed: false,
-            attempts: 0,
-            maxAttempts: "Unlimited"
-          }
-        ];
-        setAiQuizzes(mockAIQuizzes);
       } finally {
         setLoading(false);
       }
@@ -187,13 +165,7 @@ const AIQuizzesDisplay = () => {
 
   return (
     <div className="ai-quizzes-container">
-      {/* Error Display */}
-      {error && (
-        <div className="error-banner">
-          <p>{error}</p>
-          <button onClick={() => window.location.reload()}>Retry</button>
-        </div>
-      )}
+    
 
       {/* AI Quizzes Header */}
       <div className="ai-quizzes-header">
