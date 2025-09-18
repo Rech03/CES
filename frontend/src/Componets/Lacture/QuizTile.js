@@ -3,35 +3,32 @@ import { startLiveQuiz, stopLiveQuiz, deleteQuiz } from '../../api/quizzes';
 import './QuizTile.css';
 
 function QuizTile({ 
-  quiz, // Full quiz object from API
+  quiz,
   onPublish,
   onEdit,
   onViewResults,
   onDelete,
   onClick,
-  onStatusChange // Callback when quiz status changes
+  onStatusChange
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Extract data from quiz object with fallbacks
   const {
     id,
     title = "Untitled Quiz",
     topic = {},
     total_points = 0,
-    question_count = 0,
+    questions_count = 0,
     created_at,
     is_live = false,
     is_graded = false,
-    password_required = false,
     time_limit = null
   } = quiz || {};
 
-  // Get course info from topic
   const courseCode = topic?.course?.code || "UNKNOWN";
-  const courseName = topic?.course?.name || "Unknown Course";
-  
+  const topicName = topic?.name || "No Topic";
+
   // Format dates
   const formatDate = (dateString) => {
     if (!dateString) return "No date";
@@ -47,11 +44,10 @@ function QuizTile({
     }
   };
 
-  // Determine quiz status
   const getQuizStatus = () => {
-    if (is_live) return 'published';
-    if (question_count === 0) return 'draft';
-    return 'draft'; // Default to draft if not live
+    if (is_live) return 'live';
+    if (questions_count === 0) return 'draft';
+    return 'ready'; // Has questions but not live yet
   };
 
   const status = getQuizStatus();
@@ -60,7 +56,9 @@ function QuizTile({
     switch(status) {
       case 'draft': 
         return { text: 'Draft', color: '#95A5A6' };
-      case 'published': 
+      case 'ready': 
+        return { text: 'Ready', color: '#F39C12' };
+      case 'live': 
         return { text: 'Live', color: '#27AE60' };
       case 'closed': 
         return { text: 'Closed', color: '#E74C3C' };
@@ -71,16 +69,19 @@ function QuizTile({
 
   const statusInfo = getStatusInfo(status);
 
-  // Handle publishing quiz (start live)
-  const handlePublish = async () => {
+  const handleMakeLive = async () => {
     if (!id) return;
     
     setIsLoading(true);
     setError('');
     
     try {
-      // Start live quiz - you might want to prompt for password
-      const payload = password_required ? { password: prompt('Enter quiz password:') || '' } : {};
+      // The backend expects { action: 'start', password: 'some_password' }
+      const payload = { 
+        action: 'start',
+        password: `${courseCode}-${Date.now()}` 
+      };
+      
       await startLiveQuiz(id, payload);
       
       if (onPublish) {
@@ -88,33 +89,47 @@ function QuizTile({
       }
       
       if (onStatusChange) {
-        onStatusChange(id, 'published');
+        onStatusChange(id, 'live');
       }
       
     } catch (err) {
-      console.error('Error publishing quiz:', err);
-      const errorMessage = err.response?.data?.detail || 
-                          err.response?.data?.message || 
-                          'Failed to publish quiz';
+      console.error('Error making quiz live:', err);
+      console.error('Response data:', err.response?.data);
+      
+      let errorMessage = 'Failed to make quiz live';
+      if (err.response?.data) {
+        const data = err.response.data;
+        if (typeof data === 'string') {
+          errorMessage = data;
+        } else if (data.detail) {
+          errorMessage = data.detail;
+        } else if (data.message) {
+          errorMessage = data.message;
+        } else if (data.error) {
+          errorMessage = data.error;
+        } else if (data.non_field_errors) {
+          errorMessage = Array.isArray(data.non_field_errors) 
+            ? data.non_field_errors[0] 
+            : data.non_field_errors;
+        }
+      }
+      
       setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle closing quiz (stop live)
-  const handleClose = async () => {
+  const handleCloseLive = async () => {
     if (!id) return;
-    
-    if (!window.confirm('Are you sure you want to close this quiz? Students will no longer be able to take it.')) {
-      return;
-    }
     
     setIsLoading(true);
     setError('');
     
     try {
-      await stopLiveQuiz(id, {});
+      // The backend expects { action: 'stop' }
+      const payload = { action: 'stop' };
+      await stopLiveQuiz(id, payload);
       
       if (onStatusChange) {
         onStatusChange(id, 'closed');
@@ -122,20 +137,32 @@ function QuizTile({
       
     } catch (err) {
       console.error('Error closing quiz:', err);
-      const errorMessage = err.response?.data?.detail || 
-                          err.response?.data?.message || 
-                          'Failed to close quiz';
+      console.error('Response data:', err.response?.data);
+      
+      let errorMessage = 'Failed to close quiz';
+      if (err.response?.data) {
+        const data = err.response.data;
+        if (typeof data === 'string') {
+          errorMessage = data;
+        } else if (data.detail) {
+          errorMessage = data.detail;
+        } else if (data.message) {
+          errorMessage = data.message;
+        } else if (data.error) {
+          errorMessage = data.error;
+        }
+      }
+      
       setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle deleting quiz
   const handleDelete = async () => {
-    if (!id) return;
+    if (!id || status === 'live') return;
     
-    if (!window.confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+    if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) {
       return;
     }
     
@@ -180,16 +207,15 @@ function QuizTile({
       <div className="quiz-info-section">
         <div className="quiz-creation-date">{formatDate(created_at)}</div>
         <div className="quiz-stats-mini">
-          <span className="quiz-questions">{question_count} Questions</span>
+          <span className="quiz-questions">{questions_count} Questions</span>
           <span className="quiz-points">{total_points} Points</span>
-          {password_required && <span className="quiz-protected">🔒 Protected</span>}
         </div>
       </div>
 
       {/* Title Container */}
       <div className="quiz-title-containerNew">
         <div className="quiz-title-text">{title}</div>
-        <div className="quiz-course-info">{courseCode} - {topic?.name || 'No Topic'}</div>
+        <div className="quiz-course-info">{courseCode} - {topicName}</div>
       </div>
 
       {/* Error Message */}
@@ -212,20 +238,48 @@ function QuizTile({
 
       {/* Action Buttons */}
       <div className="quiz-actions">
-        {status === 'draft' && question_count > 0 && (
+        {status === 'draft' && (
           <button 
-            className="action-btn publish-btn"
+            className="action-btn edit-btn"
             onClick={(e) => {
               e.stopPropagation();
-              handlePublish();
+              onEdit && onEdit(quiz);
             }}
             disabled={isLoading}
           >
-            {isLoading ? 'Publishing...' : 'Publish'}
+            Edit
+          </button>
+        )}
+
+        {status === 'ready' && questions_count > 0 && (
+          <button 
+            className="action-btn eye-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleMakeLive();
+            }}
+            disabled={isLoading}
+            style={{ backgroundColor: '#27AE60' }}
+          >
+            {isLoading ? 'Going Live...' : '👁️ Make Live'}
           </button>
         )}
         
-        {status === 'published' && (
+        {status === 'live' && (
+          <button 
+            className="action-btn close-live-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCloseLive();
+            }}
+            disabled={isLoading}
+            style={{ backgroundColor: '#E74C3C' }}
+          >
+            {isLoading ? 'Closing...' : '⏹️ Close Live'}
+          </button>
+        )}
+
+        {status === 'closed' && (
           <button 
             className="action-btn results-btn"
             onClick={(e) => {
@@ -238,31 +292,7 @@ function QuizTile({
           </button>
         )}
 
-        <button 
-          className="action-btn edit-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit && onEdit(quiz);
-          }}
-          disabled={isLoading}
-        >
-          Edit
-        </button>
-
-        {status === 'published' && (
-          <button 
-            className="action-btn close-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClose();
-            }}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Closing...' : 'Close'}
-          </button>
-        )}
-
-        {status === 'draft' && (
+        {(status === 'draft' || status === 'closed') && (
           <button 
             className="action-btn delete-btn"
             onClick={(e) => {

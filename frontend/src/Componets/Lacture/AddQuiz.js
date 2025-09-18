@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getMyCourses, listTopics } from "../../api/courses";
-import { addChoiceToQuestion, createQuestion, createQuiz } from "../../api/quizzes";
+import { createQuestion, createQuiz } from "../../api/quizzes";
 import "./AddQuiz.css";
 
 export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) {
@@ -11,6 +11,7 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
   const [topicId, setTopicId] = useState("");
   const [quizTitle, setQuizTitle] = useState("");
   const [quizDescription, setQuizDescription] = useState("");
+  const [quizPassword, setQuizPassword] = useState("");
   const [questions, setQuestions] = useState([]);
   const [currentType, setCurrentType] = useState("");
   const [currentQuestion, setCurrentQuestion] = useState({
@@ -199,18 +200,19 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
         title: quizTitle.trim(),
         description: quizDescription.trim() || "",
         is_graded: true,
+        quiz_password: quizPassword.trim() || null,
       };
 
       console.log('Creating quiz with payload:', quizPayload);
       const { data: quiz } = await createQuiz(quizPayload);
       console.log('Quiz created successfully:', quiz);
 
-      // 2) Create questions and choices
+      // 2) Create questions with choices included in the payload
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i];
         const questionType = mapQuestionType(q.type);
         
-        // Build base question payload
+        // Base question payload
         let questionPayload = {
           quiz: quiz.id,
           question_text: q.text,
@@ -219,7 +221,7 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
           order: i + 1,
         };
 
-        // Add choices for MCQ and True/False BEFORE creating the question
+        // Add choices for MCQ and TF questions
         if (q.type === "mcq") {
           const choices = q.options.map((option, index) => ({
             choice_text: option,
@@ -227,9 +229,7 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
             order: index + 1,
           }));
           questionPayload.choices = choices;
-        }
-
-        if (q.type === "truefalse") {
+        } else if (q.type === "truefalse") {
           const choices = [
             {
               choice_text: "True",
@@ -243,6 +243,11 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
             }
           ];
           questionPayload.choices = choices;
+        } else if (q.type === "oneword" || q.type === "open") {
+          // For SA (Short Answer) questions, add correct_answer_text if provided
+          if (q.answer && q.answer.trim()) {
+            questionPayload.correct_answer_text = q.answer.trim();
+          }
         }
 
         console.log('Creating question with payload:', questionPayload);
@@ -255,7 +260,7 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
           console.error('Question payload that failed:', questionPayload);
           
           // Get specific error message from response
-          let errorMessage = "Failed to create question";
+          let errorMessage = `Failed to create question ${i + 1}`;
           if (questionError.response?.data) {
             const errorData = questionError.response.data;
             if (typeof errorData === 'string') {
@@ -263,14 +268,26 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
             } else if (errorData.detail) {
               errorMessage = errorData.detail;
             } else if (errorData.non_field_errors) {
-              errorMessage = errorData.non_field_errors[0];
+              errorMessage = Array.isArray(errorData.non_field_errors) 
+                ? errorData.non_field_errors[0] 
+                : errorData.non_field_errors;
             } else if (errorData.choices) {
               errorMessage = `Choices error: ${JSON.stringify(errorData.choices)}`;
             } else if (errorData.quiz) {
               errorMessage = `Quiz error: ${JSON.stringify(errorData.quiz)}`;
             } else {
-              // Show all validation errors
-              errorMessage = JSON.stringify(errorData);
+              // Handle field-specific errors
+              const fieldErrors = [];
+              Object.keys(errorData).forEach(field => {
+                if (Array.isArray(errorData[field])) {
+                  fieldErrors.push(`${field}: ${errorData[field].join(', ')}`);
+                } else if (typeof errorData[field] === 'string') {
+                  fieldErrors.push(`${field}: ${errorData[field]}`);
+                }
+              });
+              if (fieldErrors.length > 0) {
+                errorMessage = fieldErrors.join('; ');
+              }
             }
           }
           
@@ -285,6 +302,7 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
       setTopicId("");
       setQuizTitle("");
       setQuizDescription("");
+      setQuizPassword("");
       setQuestions([]);
       setCurrentType("");
       resetCurrentQuestion();
@@ -601,17 +619,34 @@ export default function CreateQuiz({ onQuizCreated, loading: externalLoading }) 
           </div>
         </div>
 
-        <div className="quiz-field full-width">
-          <label htmlFor="quiz-title">Quiz Title *</label>
-          <input 
-            id="quiz-title"
-            type="text" 
-            value={quizTitle} 
-            onChange={(e) => setQuizTitle(e.target.value)} 
-            placeholder="Enter quiz title"
-            required
-            disabled={loading}
-          />
+        <div className="quiz-basic-info">
+          <div className="quiz-field">
+            <label htmlFor="quiz-title">Quiz Title *</label>
+            <input 
+              id="quiz-title"
+              type="text" 
+              value={quizTitle} 
+              onChange={(e) => setQuizTitle(e.target.value)} 
+              placeholder="Enter quiz title"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="quiz-field">
+            <label htmlFor="quiz-password">Quiz Password</label>
+            <input 
+              id="quiz-password"
+              type="text" 
+              value={quizPassword} 
+              onChange={(e) => setQuizPassword(e.target.value)} 
+              placeholder="Enter password for live quiz access (optional)"
+              disabled={loading}
+            />
+            <small className="field-hint">
+              Students will need this password to access the quiz when it's live. Leave blank for auto-generated password.
+            </small>
+          </div>
         </div>
 
         <div className="quiz-field full-width">

@@ -57,11 +57,7 @@ function QuizHistory() {
 
     } catch (err) {
       console.error('Error loading quiz history:', err);
-      let errorMessage = 'Failed to load quiz history';
-      if (err.response?.data?.detail) {
-        errorMessage = err.response.data.detail;
-      }
-      setError(errorMessage);
+    
     } finally {
       setLoading(false);
     }
@@ -255,7 +251,7 @@ function QuizHistory() {
               }}>
                 {searchTerm || selectedCourse
                   ? 'Try adjusting your search terms or course filter to find what you\'re looking for.'
-                  : 'Your completed quiz attempts will appear here. Take some quizzes to build your history!'
+                  : 'Your completed quiz will appear here.Create Some quizez For your students!'
                 }
               </p>
               {(searchTerm || selectedCourse) ? (

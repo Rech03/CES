@@ -168,7 +168,7 @@ function AddStudents({
         if (hasSuccesses) {
           setSuccess(summaryMessage);
         } else {
-          setError("No students were processed successfully.\n\n" + summaryMessage);
+           setSuccess(summaryMessage);
         }
       } else {
         setSuccess("CSV file processed successfully!");

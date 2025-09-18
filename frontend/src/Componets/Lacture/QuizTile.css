@@ -7,8 +7,8 @@
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
-  background-image: url('../../../public//BSCS\ 3rd\ semester\ notes\ \(1\).jpeg');
-  background-size: cover;
+  background-image: url('../../../public/Dotted\ Light\ Bulb\,\ Point\,\ Line\,\ Bulb\ PNG\ and\ Vector\ with\ Transparent\ Background\ for\ Free\ Download.jpeg');
+  background-size:auto;
   background-position: center;
   background-repeat: no-repeat;
   overflow: hidden;
@@ -150,7 +150,7 @@
 
 .quiz-title-text {
   color: white;
-  font-size: 14px;
+  font-size: 20px;
   font-family: Poppins, sans-serif;
   font-weight: 600;
   text-shadow: 0 2px 4px rgba(0,0,0,0.8);
@@ -248,7 +248,14 @@
   }
   
   .quiz-title-text {
-    font-size: 12px;
+    font-size: 2px;
+    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-weight: 600;
+  }
+  .quiz-course-info{
+    font-size: 20px;
+    font-family: 'Poppins', 'Segoe UI', sans-serif;
+    font-weight: 600;
   }
   
   .action-btn {

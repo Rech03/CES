@@ -7,12 +7,12 @@ function NavBar() {
       <img src="/Amandla.png" alt="Logo" className="Logo" />
       <ul>
         <li>
-          <NavLink to="/Dashboard" className={({ isActive }) => isActive ? "active" : ""}>
+          <NavLink to="/StudentDashboard" className={({ isActive }) => isActive ? "active" : ""}>
             Dashboard
           </NavLink>
         </li>
         <li>
-          <NavLink to="/LactureAIQuizzes" className={({ isActive }) => isActive ? "active" : ""}>
+          <NavLink to="/AIQuizzes" className={({ isActive }) => isActive ? "active" : ""}>
             AI Quizzes
           </NavLink>
         </li>
