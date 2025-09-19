@@ -126,21 +126,22 @@ class StudentAchievement(models.Model):
             student=self.student,
             is_completed=True
         )
-        
+    
         if attempts.exists():
             self.total_quizzes_completed = attempts.count()
             self.perfect_scores = attempts.filter(score_percentage=100).count()
             self.average_score = attempts.aggregate(
                 avg=models.Avg('score_percentage')
             )['avg'] or 0
-            
-            # Calculate total study time (rough estimate)
+        
+            # Calculate total study time using started_at and completed_at
             total_duration = timezone.timedelta()
             for attempt in attempts:
-                if attempt.time_taken:
-                    total_duration += attempt.time_taken
+                if attempt.completed_at and attempt.started_at:
+                    duration = attempt.completed_at - attempt.started_at
+                    total_duration += duration
             self.total_study_time = total_duration
-        
+    
         self.save()
 
 

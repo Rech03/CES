@@ -179,21 +179,23 @@ class QuizAttempt(models.Model):
     
     def calculate_score(self):
         """Calculate the score for this attempt"""
-        total_points = 0
+        # Use total points from the quiz, not just answered questions
+        total_points = self.quiz.total_points
         earned_points = 0
-        
+    
+        # Only count points from correct answers
         for answer in self.answers.all():
-            total_points += answer.question.points
             if answer.is_correct:
                 earned_points += answer.question.points
-        
+    
         self.score_points = earned_points
         if total_points > 0:
             self.score_percentage = (earned_points / total_points) * 100
         else:
             self.score_percentage = 0.0
-        
+    
         self.save()
+
         return self.score_points, self.score_percentage
     
     def submit_attempt(self):
