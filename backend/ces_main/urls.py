@@ -26,15 +26,14 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     # Root redirects to docs
-    path('', RedirectView.as_view(url='/docs/', permanent=False)),
+    #path('', RedirectView.as_view(url='/docs/', permanent=False)),
     
     # API Documentation (your custom HTML page)
-    path('docs/', APIDocumentationView.as_view(), name='api_docs'),
+    #path('docs/', APIDocumentationView.as_view(), name='api_docs'),
     
     # Your API endpoints
     path('api/users/', include('users.urls')),
     path('api/courses/', include('courses.urls')),
-    path('api/quizzes/', include('quizzes.urls')),
     path('api/analytics/', include('analytics.urls')),
     path('api/ai-quiz/', include('ai_quiz.urls')),
     path('api/achievements/', include('achievements.urls')),

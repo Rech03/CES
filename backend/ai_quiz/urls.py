@@ -18,4 +18,9 @@ urlpatterns = [
     # Analytics for AI Quiz (separate from main analytics)
     path('slide/<int:slide_id>/stats/', views.adaptive_slide_statistics, name='adaptive_slide_statistics'),
     path('progress-analytics/', views.get_progress_analytics, name='get_progress_analytics'),
+    # Quiz moderation endpoints
+    path('lecturer/quiz/<int:quiz_id>/moderate/', views.get_quiz_for_moderation, name='get_quiz_for_moderation'),
+    path('lecturer/quiz/<int:quiz_id>/update/', views.update_quiz_questions, name='update_quiz_questions'),
+    path('lecturer/quiz/<int:quiz_id>/publish/', views.publish_quiz, name='publish_quiz'),
+    path('lecturer/quizzes-for-review/', views.get_quizzes_for_review, name='get_quizzes_for_review'),
 ]
