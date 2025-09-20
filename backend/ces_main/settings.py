@@ -45,13 +45,11 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
-    #'coreapi',
     #local apps
     'users',
     'courses',
-    'quizzes',
-    'analytics',
     'ai_quiz',
+    'analytics',
     'achievements',
 ]
 

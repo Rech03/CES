@@ -48,13 +48,13 @@ class Course(models.Model):
         """Get count of topics in course"""
         return self.topics.count()
     
-    def get_total_quizzes_count(self):
-        """Get total quizzes across all topics"""
-        try:
-            from quizzes.models import Quiz
-            return Quiz.objects.filter(topic__course=self).count()
-        except ImportError:
-            return 0
+    def get_total_ai_quizzes_count(self):
+        """Get total AI quizzes across all topics"""
+        from ai_quiz.models import AdaptiveQuiz
+        return AdaptiveQuiz.objects.filter(
+            lecture_slide__topic__course=self,
+            is_active=True
+        ).count()
     
     def __str__(self):
         return f"{self.code} - {self.name}"
@@ -106,8 +106,8 @@ class Topic(models.Model):
     def get_quizzes_count(self):
         """Get count of quizzes in topic"""
         try:
-            from quizzes.models import Quiz
-            return Quiz.objects.filter(topic=self).count()
+            from ai_quiz.models import AdaptiveQuiz
+            return AdaptiveQuiz.objects.filter(topic=self).count()
         except ImportError:
             return 0
     
@@ -131,8 +131,8 @@ class Attendance(models.Model):
     date = models.DateField(default=timezone.now)
     is_present = models.BooleanField(default=False)
     verified_by_quiz = models.BooleanField(default=False)
-    quiz_attempt = models.ForeignKey(
-        'quizzes.QuizAttempt',
+    ai_quiz_attempt = models.ForeignKey(
+        'ai_quiz.AdaptiveQuizAttempt',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
