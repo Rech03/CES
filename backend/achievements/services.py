@@ -3,7 +3,8 @@ from django.db.models import Avg, Count
 from datetime import timedelta
 
 from .models import StudentAchievement, BadgeType, EarnedBadge, DailyActivity
-from quizzes.models import QuizAttempt
+
+from achievements import models
 
 
 class AchievementService:
@@ -146,23 +147,107 @@ class AchievementService:
         
         return requirements
     
+    # @classmethod
+    # def process_quiz_completion(cls, student, adaptive_quiz_attempt):
+    #     """Process achievements for AI quiz completion"""
+    #     from ai_quiz.models import AdaptiveQuizAttempt
+    
+    #     # Get student achievement record
+    #     achievement, created = StudentAchievement.objects.get_or_create(student=student)
+    #     achievement.update_ai_quiz_stats()  # New method to handle AI quizzes
+    #     achievement.update_streak()
+    
+    #     # Calculate XP based on difficulty and performance
+    #     base_xp = 50
+    #     difficulty_multiplier = {'easy': 1, 'medium': 1.5, 'hard': 2.0}
+    #     score_bonus = int(adaptive_quiz_attempt.score_percentage * 2)
+    
+    #     difficulty = adaptive_quiz_attempt.progress.adaptive_quiz.difficulty
+    #     total_xp = int((base_xp * difficulty_multiplier[difficulty]) + score_bonus)
+    
+    #     achievement.add_xp(total_xp)
+    
+    #     # Check for new badges
+    #     new_badges = cls.check_and_award_badges(student)
+    
+    #     return {
+    #         'xp_earned': total_xp,
+    #         'total_xp': achievement.total_xp,
+    #         'level': achievement.level,
+    #         'new_badges': new_badges,
+    #         'streak': achievement.current_streak
+    #     }
+    
+    # @classmethod
+    # def _calculate_time_bonus(cls, quiz_attempt):
+    #     """Calculate time bonus for quiz completion speed"""
+    #     if not quiz_attempt.time_taken:
+    #         return 0
+        
+    #     # Get average time for this quiz
+    #     from ai_quiz import AdaptiveQuizAttempt
+    #     avg_time = AdaptiveQuizAttempt.objects.filter(
+    #         quiz=quiz_attempt.quiz,
+    #         is_completed=True,
+    #         time_taken__isnull=False
+    #     ).aggregate(avg=Avg('time_taken'))['avg']
+        
+    #     if not avg_time:
+    #         return 10  # Default bonus if no average available
+        
+    #     # Bonus for completing faster than average
+    #     time_ratio = quiz_attempt.time_taken.total_seconds() / avg_time.total_seconds()
+        
+    #     if time_ratio < 0.8:  # Completed in less than 80% of average time
+    #         return 25
+    #     elif time_ratio < 0.9:  # Completed in less than 90% of average time
+    #         return 15
+    #     elif time_ratio < 1.0:  # Completed faster than average
+    #         return 10
+    #     else:
+    #         return 5  # Small bonus for completion
+    
     @classmethod
-    def process_quiz_completion(cls, student, quiz_attempt):
-        """Process achievement updates when student completes a quiz"""
+    def ensure_student_achievement_exists(cls, student):
+        """Ensure StudentAchievement record exists for student"""
+        achievement, created = StudentAchievement.objects.get_or_create(student=student)
+        if created:
+            achievement.update_stats()
+        return achievement
+    
+    @classmethod
+    def process_ai_quiz_completion(cls, student, adaptive_quiz_attempt):
+        """Process achievement updates when student completes an AI quiz"""
+        from ai_quiz.models import AdaptiveQuizAttempt
+    
         # Update achievement stats
         achievement, created = StudentAchievement.objects.get_or_create(student=student)
-        achievement.update_stats()
+        achievement.update_ai_quiz_stats()  
         achievement.update_streak()
-        
-        # Calculate XP based on performance
-        base_xp = 50  # Base XP for completing any quiz
-        score_bonus = int(quiz_attempt.score_percentage * 2)  # Up to 200 XP for perfect score
-        time_bonus = cls._calculate_time_bonus(quiz_attempt)
-        
-        total_xp = base_xp + score_bonus + time_bonus
+    
+        # Calculate XP based on AI quiz performance and difficulty
+        base_xp = 50  # Base XP for completing any AI quiz
+    
+        # Difficulty multipliers
+        difficulty_multipliers = {
+            'easy': 1.0,
+            'medium': 1.5,
+            'hard': 2.0
+        }
+    
+        difficulty = adaptive_quiz_attempt.progress.adaptive_quiz.difficulty
+        difficulty_bonus = base_xp * (difficulty_multipliers.get(difficulty, 1.0) - 1.0)
+    
+        # Score bonus (up to 200 XP for perfect score)
+        score_bonus = int(adaptive_quiz_attempt.score_percentage * 2)
+    
+        # Time bonus for AI quizzes
+        time_bonus = cls._calculate_ai_quiz_time_bonus(adaptive_quiz_attempt)
+    
+        total_xp = int(base_xp + difficulty_bonus + score_bonus + time_bonus)
         achievement.add_xp(total_xp)
-        
-        # Update daily activity
+    
+        # Update daily activity for AI quizzes
         today = timezone.now().date()
         daily_activity, created = DailyActivity.objects.get_or_create(
             student=student,
@@ -173,16 +258,17 @@ class AchievementService:
                 'study_time': timedelta()
             }
         )
-        
+    
         daily_activity.quizzes_completed += 1
         daily_activity.xp_earned += total_xp
-        if quiz_attempt.time_taken:
-            daily_activity.study_time += quiz_attempt.time_taken
+        if adaptive_quiz_attempt.completed_at and adaptive_quiz_attempt.started_at:
+            duration = adaptive_quiz_attempt.completed_at - adaptive_quiz_attempt.started_at
+            daily_activity.study_time += duration
         daily_activity.save()
-        
-        # Check for new badges
-        new_badges = cls.check_and_award_badges(student)
-        
+    
+        # Check for new badges based on AI quiz performance
+        new_badges = cls.check_and_award_ai_quiz_badges(student)
+    
         return {
             'xp_earned': total_xp,
             'total_xp': achievement.total_xp,
@@ -190,39 +276,121 @@ class AchievementService:
             'new_badges': new_badges,
             'streak': achievement.current_streak
         }
-    
+
     @classmethod
-    def _calculate_time_bonus(cls, quiz_attempt):
-        """Calculate time bonus for quiz completion speed"""
-        if not quiz_attempt.time_taken:
+    def _calculate_ai_quiz_time_bonus(cls, adaptive_quiz_attempt):
+        """Calculate time bonus for AI quiz completion speed"""
+        if not (adaptive_quiz_attempt.completed_at and adaptive_quiz_attempt.started_at):
             return 0
-        
-        # Get average time for this quiz
-        avg_time = QuizAttempt.objects.filter(
-            quiz=quiz_attempt.quiz,
-            is_completed=True,
-            time_taken__isnull=False
-        ).aggregate(avg=Avg('time_taken'))['avg']
-        
-        if not avg_time:
-            return 10  # Default bonus if no average available
-        
-        # Bonus for completing faster than average
-        time_ratio = quiz_attempt.time_taken.total_seconds() / avg_time.total_seconds()
-        
-        if time_ratio < 0.8:  # Completed in less than 80% of average time
-            return 25
-        elif time_ratio < 0.9:  # Completed in less than 90% of average time
-            return 15
-        elif time_ratio < 1.0:  # Completed faster than average
+    
+        # Get average time for this difficulty level
+        from ai_quiz.models import AdaptiveQuizAttempt
+    
+        difficulty = adaptive_quiz_attempt.progress.adaptive_quiz.difficulty
+        avg_time_attempts = AdaptiveQuizAttempt.objects.filter(
+            progress__adaptive_quiz__difficulty=difficulty,
+            completed_at__isnull=False,
+            started_at__isnull=False
+        ).exclude(id=adaptive_quiz_attempt.id)
+    
+        if not avg_time_attempts.exists():
+            return 10  # Default bonus if no comparison data
+    
+        # Calculate average time for this difficulty
+        total_seconds = 0
+        count = 0
+        for attempt in avg_time_attempts:
+            duration = attempt.completed_at - attempt.started_at
+            total_seconds += duration.total_seconds()
+            count += 1
+    
+        if count == 0:
             return 10
+    
+        avg_seconds = total_seconds / count
+        attempt_duration = (adaptive_quiz_attempt.completed_at - adaptive_quiz_attempt.started_at).total_seconds()
+    
+        # Bonus for completing faster than average
+        time_ratio = attempt_duration / avg_seconds
+    
+        if time_ratio < 0.7:  # Much faster than average
+            return 30
+        elif time_ratio < 0.8:  # Faster than average
+            return 20
+        elif time_ratio < 0.9:  # Slightly faster
+            return 15
         else:
             return 5  # Small bonus for completion
-    
+
     @classmethod
-    def ensure_student_achievement_exists(cls, student):
-        """Ensure StudentAchievement record exists for student"""
+    def check_and_award_ai_quiz_badges(cls, student):
+        """Check and award badges specifically for AI quiz performance"""
+        newly_earned = []
+    
+        # Get student's achievement record
         achievement, created = StudentAchievement.objects.get_or_create(student=student)
-        if created:
-            achievement.update_stats()
-        return achievement
+    
+        # Get AI quiz specific stats
+        from ai_quiz.models import AdaptiveQuizAttempt
+        ai_attempts = AdaptiveQuizAttempt.objects.filter(
+            progress__student=student
+        )
+    
+        # Get badges not yet earned
+        earned_badge_ids = EarnedBadge.objects.filter(
+            student=student
+        ).values_list('badge_type_id', flat=True)
+    
+        available_badges = BadgeType.objects.filter(
+            is_active=True
+        ).exclude(id__in=earned_badge_ids)
+    
+        for badge_type in available_badges:
+            if cls._check_ai_quiz_badge_criteria(student, badge_type, achievement, ai_attempts):
+                # Award the badge
+                earned_badge = EarnedBadge.objects.create(
+                    student=student,
+                    badge_type=badge_type
+                )
+            
+                # Add XP reward
+                achievement.add_xp(badge_type.xp_reward)
+            
+                # Update badge count
+                achievement.badges_earned += 1
+                achievement.save()
+            
+                newly_earned.append(earned_badge)
+    
+        return newly_earned
+
+    @classmethod
+    def _check_ai_quiz_badge_criteria(cls, student, badge_type, achievement, ai_attempts):
+        """Check if student meets AI quiz badge criteria"""
+    
+        # Performance badges - based on AI quiz scores
+        if badge_type.required_score is not None:
+            if not ai_attempts.exists():
+                return False
+            avg_score = ai_attempts.aggregate(avg=models.Avg('score_percentage'))['avg'] or 0
+            if avg_score < badge_type.required_score:
+                return False
+    
+        # Completion badges - based on number of AI quizzes completed
+        if badge_type.required_quizzes is not None:
+            completed_count = ai_attempts.count()
+            if completed_count < badge_type.required_quizzes:
+                return False
+    
+        # Perfect score badges - based on perfect AI quiz scores
+        if badge_type.required_perfect_scores is not None:
+            perfect_count = ai_attempts.filter(score_percentage=100).count()
+            if perfect_count < badge_type.required_perfect_scores:
+                return False
+    
+        # Streak badges - same as before (based on daily activity)
+        if badge_type.required_streak is not None:
+            if achievement.current_streak < badge_type.required_streak:
+                return False
+    
+        return True

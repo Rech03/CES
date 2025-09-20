@@ -224,7 +224,8 @@ class AdaptiveQuizService:
         """
         quizzes = AdaptiveQuiz.objects.filter(
             lecture_slide=lecture_slide,
-            is_active=True
+            is_active=True,
+            status = 'published'
         ).order_by('difficulty')
         
         quiz_info_list = []

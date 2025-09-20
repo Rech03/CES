@@ -9,7 +9,7 @@ class CourseSerializer(serializers.ModelSerializer):
     lecturer_name = serializers.CharField(source='lecturer.get_full_name', read_only=True)
     enrolled_students_count = serializers.SerializerMethodField()
     topics_count = serializers.SerializerMethodField()
-    total_quizzes_count = serializers.SerializerMethodField()
+    total_ai_quizzes_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Course
@@ -28,7 +28,7 @@ class CourseSerializer(serializers.ModelSerializer):
         return obj.get_topics_count()
     
     def get_total_quizzes_count(self, obj):
-        return obj.get_total_quizzes_count()
+        return obj.get_total_ai_quizzes_count()
 
 
 class CourseCreateSerializer(serializers.ModelSerializer):
@@ -102,30 +102,7 @@ class CourseDashboardSerializer(serializers.ModelSerializer):
         return obj.get_topics_count()
     
     def get_total_quizzes(self, obj):
-        return obj.get_total_quizzes_count()
-    
-    def get_active_quizzes(self, obj):
-        try:
-            from quizzes.models import Quiz
-            return Quiz.objects.filter(topic__course=obj, is_active=True).count()
-        except ImportError:
-            return 0
-    
-    def get_recent_activity(self, obj):
-        try:
-            from quizzes.models import QuizAttempt
-            recent_attempts = QuizAttempt.objects.filter(
-                quiz__topic__course=obj
-            ).select_related('student', 'quiz').order_by('-started_at')[:5]
-            
-            return [{
-                'student_name': attempt.student.get_full_name(),
-                'quiz_title': attempt.quiz.title,
-                'score': attempt.score_percentage,
-                'date': attempt.started_at
-            } for attempt in recent_attempts]
-        except ImportError:
-            return []
+        return obj.get_total_ai_quizzes_count()
     
     def get_attendance_rate(self, obj):
         total_students = obj.get_enrolled_students_count()
