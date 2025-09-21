@@ -77,9 +77,6 @@ function Analytics() {
 
       {/* Side panel remains outside */}
       <div className="SideAI">
-        <div className="Rating">
-          <StarRating />
-        </div>
         <div className="List">
           <CoursesList courses={courses} />
         </div>

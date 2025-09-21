@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { getAdaptiveQuiz, getQuizAttemptStatus } from '../../api/ai-quiz';
+import { getAdaptiveQuiz, checkQuizAccess, studentAdaptiveProgress } from '../../api/ai-quiz';
 import { getAttemptDetail } from '../../api/quizzes';
+import { getAdaptiveSlideStats } from '../../api/analytics';
 import './AIQuizTile.css';
 import { NavLink } from "react-router-dom";
 
@@ -36,7 +37,9 @@ function AIQuizTile({
     lastUpdated: lastUpdated || "2 hours ago",
     completed: completed || false,
     bestScore: bestScore || null,
-    attempts: attempts || 0
+    attempts: attempts || 0,
+    hasAccess: true,
+    isLocked: false
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -56,47 +59,87 @@ function AIQuizTile({
             const adaptiveQuiz = adaptiveResponse.data;
             
             fetchedData = {
-              title: adaptiveQuiz.title || `AI Quiz - ${adaptiveQuiz.topic_name || 'Topic'}`,
-              topic: adaptiveQuiz.topic_name || adaptiveQuiz.subject || 'AI Generated Topic',
-              difficulty: adaptiveQuiz.difficulty_level || 'Medium',
-              estimatedDuration: `${adaptiveQuiz.estimated_duration || 15} min`,
-              questionCount: `${adaptiveQuiz.total_questions || 20}`,
-              sourceFile: adaptiveQuiz.source_file_name || 'AI Generated',
-              adaptiveLevel: adaptiveQuiz.adaptive_level || 'Beginner',
-              lastUpdated: adaptiveQuiz.last_updated ? 
-                new Date(adaptiveQuiz.last_updated).toLocaleString() : 
-                'Recently generated'
+              title: adaptiveQuiz.title || adaptiveQuiz.slide_title || `AI Quiz - ${adaptiveQuiz.topic_name || 'Topic'}`,
+              topic: adaptiveQuiz.topic_name || adaptiveQuiz.subject || adaptiveQuiz.slide_topic || 'AI Generated Topic',
+              difficulty: adaptiveQuiz.difficulty_level || adaptiveQuiz.current_difficulty || 'Medium',
+              estimatedDuration: `${adaptiveQuiz.estimated_duration || adaptiveQuiz.duration || 15} min`,
+              questionCount: `${adaptiveQuiz.total_questions || adaptiveQuiz.question_count || 20}`,
+              sourceFile: adaptiveQuiz.source_file_name || adaptiveQuiz.slide_file || 'AI Generated',
+              adaptiveLevel: adaptiveQuiz.adaptive_level || adaptiveQuiz.current_level || 'Beginner',
+              lastUpdated: adaptiveQuiz.last_updated || adaptiveQuiz.updated_at ? 
+                new Date(adaptiveQuiz.last_updated || adaptiveQuiz.updated_at).toLocaleDateString() : 
+                'Recently generated',
+              hasAccess: adaptiveQuiz.has_access !== false,
+              isLocked: adaptiveQuiz.is_locked || false
             };
 
-            // Check attempt status
+            // Get slide statistics for more details
             try {
-              const attemptResponse = await getQuizAttemptStatus(slideId);
-              const attemptData = attemptResponse.data;
+              const statsResponse = await getAdaptiveSlideStats(slideId);
+              const stats = statsResponse.data;
               
-              fetchedData.completed = attemptData.is_completed || false;
-              fetchedData.bestScore = attemptData.best_score || null;
-              fetchedData.attempts = attemptData.attempt_count || 0;
-            } catch (attemptErr) {
-              console.warn('Could not fetch attempt status:', attemptErr);
+              if (stats) {
+                fetchedData.attempts = stats.total_attempts || stats.attempt_count || 0;
+                fetchedData.averageScore = stats.average_score || null;
+                fetchedData.completionRate = stats.completion_rate || null;
+              }
+            } catch (statsErr) {
+              console.warn('Could not fetch slide stats:', statsErr);
             }
 
           } catch (adaptiveErr) {
             console.warn('Could not fetch adaptive quiz data:', adaptiveErr);
+            setError('Unable to load AI quiz data');
           }
         }
 
-        // Fetch regular quiz attempt data if quizId provided
+        // Check quiz access if quizId provided
         if (quizId) {
           try {
-            const attemptResponse = await getAttemptDetail(quizId);
-            const attempt = attemptResponse.data;
+            const accessResponse = await checkQuizAccess(quizId);
+            const accessData = accessResponse.data;
             
-            fetchedData.completed = attempt.is_completed || false;
-            fetchedData.bestScore = attempt.score || null;
-            fetchedData.attempts = 1; // This specific attempt
-          } catch (attemptErr) {
-            console.warn('Could not fetch quiz attempt:', attemptErr);
+            fetchedData.hasAccess = accessData.has_access || accessData.accessible || true;
+            fetchedData.isLocked = accessData.is_locked || false;
+            fetchedData.accessMessage = accessData.message || null;
+
+            // Try to get attempt data
+            try {
+              const attemptResponse = await getAttemptDetail(quizId);
+              const attempt = attemptResponse.data;
+              
+              fetchedData.completed = attempt.is_completed || attempt.submitted_at !== null;
+              fetchedData.bestScore = attempt.score || attempt.percentage_score || null;
+              fetchedData.attempts = 1; // This specific attempt
+            } catch (attemptErr) {
+              console.warn('Could not fetch quiz attempt:', attemptErr);
+            }
+          } catch (accessErr) {
+            console.warn('Could not check quiz access:', accessErr);
           }
+        }
+
+        // Get overall student progress for AI quizzes
+        try {
+          const progressResponse = await studentAdaptiveProgress();
+          const progressData = progressResponse.data;
+          
+          if (progressData && Array.isArray(progressData)) {
+            const currentProgress = progressData.find(p => 
+              (slideId && p.slide_id === slideId) || 
+              (quizId && p.quiz_id === quizId)
+            );
+            
+            if (currentProgress) {
+              fetchedData.completed = currentProgress.is_completed || currentProgress.completed || false;
+              fetchedData.bestScore = currentProgress.best_score || currentProgress.score || null;
+              fetchedData.attempts = currentProgress.attempt_count || currentProgress.attempts || 0;
+              fetchedData.currentLevel = currentProgress.current_level || null;
+              fetchedData.progress = currentProgress.progress_percentage || null;
+            }
+          }
+        } catch (progressErr) {
+          console.warn('Could not fetch student progress:', progressErr);
         }
 
         // Update state with fetched data, keeping original values as fallbacks
@@ -117,26 +160,29 @@ function AIQuizTile({
   }, [quizId, slideId]);
 
   const getDifficultyInfo = (difficulty) => {
-    switch(difficulty) {
-      case 'Easy': 
-        return { color: '#27AE60', icon: '📗', description: 'Basic concepts' };
-      case 'Medium': 
-        return { color: '#F39C12', icon: '📙', description: 'Intermediate level' };
-      case 'Hard': 
-        return { color: '#E74C3C', icon: '📕', description: 'Advanced topics' };
-      case 'Expert':
-        return { color: '#9B59B6', icon: '📜', description: 'Expert level' };
+    switch(difficulty?.toLowerCase()) {
+      case 'easy': 
+      case 'beginner':
+        return { color: '#27AE60', icon: '🟢', description: 'Basic concepts' };
+      case 'medium': 
+      case 'intermediate':
+        return { color: '#F39C12', icon: '🟡', description: 'Intermediate level' };
+      case 'hard': 
+      case 'advanced':
+        return { color: '#E74C3C', icon: '🔴', description: 'Advanced topics' };
+      case 'expert':
+        return { color: '#9B59B6', icon: '🟣', description: 'Expert level' };
       default: 
-        return { color: '#95A5A6', icon: '📄', description: 'Unknown level' };
+        return { color: '#95A5A6', icon: '⚪', description: 'Unknown level' };
     }
   };
 
   const getAdaptiveLevelColor = (level) => {
-    switch(level) {
-      case 'Beginner': return '#3498DB';
-      case 'Intermediate': return '#F39C12';
-      case 'Advanced': return '#E74C3C';
-      case 'Expert': return '#9B59B6';
+    switch(level?.toLowerCase()) {
+      case 'beginner': return '#3498DB';
+      case 'intermediate': return '#F39C12';
+      case 'advanced': return '#E74C3C';
+      case 'expert': return '#9B59B6';
       default: return '#95A5A6';
     }
   };
@@ -201,13 +247,27 @@ function AIQuizTile({
             <span className="difficulty-text">{quizData.difficulty}</span>
           </div>
 
+          {/* Access Status Badge */}
+          {quizData.isLocked && (
+            <div className="access-badge locked">
+              <span>🔒 Locked</span>
+            </div>
+          )}
+
           {/* Completion Badge */}
           {quizData.completed && (
             <div className="completion-badge">
-              <span>✓ Completed</span>
+              <span>✅ Completed</span>
               {quizData.bestScore && (
                 <span className="score-display">{quizData.bestScore}%</span>
               )}
+            </div>
+          )}
+
+          {/* Progress Badge for partially completed */}
+          {!quizData.completed && quizData.progress && (
+            <div className="progress-badge">
+              <span>📊 {Math.round(quizData.progress)}% Progress</span>
             </div>
           )}
 
@@ -224,7 +284,7 @@ function AIQuizTile({
                 className="adaptive-level" 
                 style={{ color: getAdaptiveLevelColor(quizData.adaptiveLevel) }}
               >
-                🎯 {quizData.adaptiveLevel}
+                🎯 {quizData.currentLevel || quizData.adaptiveLevel}
               </span>
             </div>
           </div>
@@ -242,9 +302,16 @@ function AIQuizTile({
             <span className="last-updated">Updated: {quizData.lastUpdated}</span>
           </div>
 
+          {/* Access Message */}
+          {quizData.accessMessage && (
+            <div className="access-message">
+              <small>{quizData.accessMessage}</small>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="ai-quiz-actions">
-            {!quizData.completed && (
+            {!quizData.completed && quizData.hasAccess && !quizData.isLocked && (
               <button 
                 className="ai-action-btn ai-start-btn"
                 onClick={(e) => {
@@ -254,7 +321,27 @@ function AIQuizTile({
                 }}
               >
                 <span className="btn-icon">🚀</span>
-                Start AI Quiz
+                {quizData.attempts > 0 ? 'Continue Quiz' : 'Start AI Quiz'}
+              </button>
+            )}
+
+            {quizData.isLocked && (
+              <button 
+                className="ai-action-btn ai-locked-btn"
+                disabled
+              >
+                <span className="btn-icon">🔒</span>
+                Quiz Locked
+              </button>
+            )}
+
+            {!quizData.hasAccess && (
+              <button 
+                className="ai-action-btn ai-access-btn"
+                disabled
+              >
+                <span className="btn-icon">⚠️</span>
+                Access Restricted
               </button>
             )}
             
@@ -271,17 +358,19 @@ function AIQuizTile({
                   <span className="btn-icon">📊</span>
                   View Results
                 </button>
-                <button 
-                  className="ai-action-btn ai-retake-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    handleStartQuiz();
-                  }}
-                >
-                  <span className="btn-icon">🔄</span>
-                  Retake
-                </button>
+                {quizData.hasAccess && !quizData.isLocked && (
+                  <button 
+                    className="ai-action-btn ai-retake-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      handleStartQuiz();
+                    }}
+                  >
+                    <span className="btn-icon">🔄</span>
+                    Retake
+                  </button>
+                )}
               </>
             )}
           </div>

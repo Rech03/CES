@@ -36,22 +36,59 @@ function AddStudents({
 
   const loadCourses = async () => {
     setIsLoadingCourses(true);
+    setError("");
+    
     try {
-      // Use getMyCourses API from the courses API file
+      console.log('Loading courses...');
       const response = await getMyCourses();
+      console.log('Courses API response:', response);
       
       let coursesData = [];
       
-      if (response.data && Array.isArray(response.data)) {
-        // Direct array response
-        coursesData = response.data;
-      } else if (response.data?.courses && Array.isArray(response.data.courses)) {
-        // Response with courses property
-        coursesData = response.data.courses;
-      } else if (response.data?.results && Array.isArray(response.data.results)) {
-        // Paginated response
-        coursesData = response.data.results;
+      // Handle different possible response formats
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          // Direct array response
+          coursesData = response.data;
+          console.log('Using direct array response');
+        } else if (response.data.results && Array.isArray(response.data.results)) {
+          // Paginated response
+          coursesData = response.data.results;
+          console.log('Using paginated response');
+        } else if (response.data.courses && Array.isArray(response.data.courses)) {
+          // Response with courses property
+          coursesData = response.data.courses;
+          console.log('Using courses property');
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          // Response with data property
+          coursesData = response.data.data;
+          console.log('Using data property');
+        } else {
+          // Try to find any array property in the response
+          console.log('Response data keys:', Object.keys(response.data));
+          const arrayProperty = Object.keys(response.data).find(key => 
+            Array.isArray(response.data[key])
+          );
+          
+          if (arrayProperty) {
+            coursesData = response.data[arrayProperty];
+            console.log(`Using array property: ${arrayProperty}`);
+          } else {
+            console.warn('No array found in response data:', response.data);
+            // If it's an object but not an array, try to convert or handle it
+            if (typeof response.data === 'object' && response.data !== null) {
+              // Maybe it's a single course object? Convert to array
+              if (response.data.id && response.data.name) {
+                coursesData = [response.data];
+                console.log('Converting single course object to array');
+              }
+            }
+          }
+        }
       }
+      
+      console.log('Final courses data:', coursesData);
+      console.log('Courses count:', coursesData.length);
       
       setLocalCourses(coursesData);
       
@@ -65,19 +102,27 @@ function AddStudents({
       
     } catch (err) {
       console.error('Error loading courses:', err);
+      console.error('Error response:', err.response);
       
       let errorMessage = 'Failed to load courses';
+      
       if (err.response?.data) {
         const data = err.response.data;
         if (typeof data === 'string') {
           errorMessage = data;
         } else if (data.detail) {
           errorMessage = data.detail;
+        } else if (data.message) {
+          errorMessage = data.message;
+        } else if (data.error) {
+          errorMessage = data.error;
         } else if (data.non_field_errors && Array.isArray(data.non_field_errors)) {
           errorMessage = data.non_field_errors[0];
+        } else {
+          errorMessage = `Failed to load courses: ${JSON.stringify(data)}`;
         }
       } else if (err.message) {
-        errorMessage = err.message;
+        errorMessage = `Failed to load courses: ${err.message}`;
       }
       
       setError(errorMessage);
@@ -99,31 +144,43 @@ function AddStudents({
 
   const handleFileUpload = async (e) => {
     e.preventDefault();
-    if (!file) return;
+    if (!file) {
+      setError("Please select a CSV file first");
+      return;
+    }
+    
+    if (!localSelectedCourse) {
+      setError("Please select a course first");
+      return;
+    }
     
     setIsUploading(true);
     setError("");
     setSuccess("");
 
     try {
-      if (!localSelectedCourse) {
-        throw new Error("Please select a course first");
-      }
-
       console.log(`Processing CSV file for course: ${localSelectedCourse.id}`);
+      console.log('Selected file:', file);
 
-      // Use the uploadStudentsCSV API with correct parameter name
+      // Create FormData with the file
       const formData = new FormData();
-      formData.append('csv_file', file); // Note: using 'csv_file' as per API spec
+      formData.append('csv_file', file);
+      
+      // Log FormData contents for debugging
+      console.log('FormData contents:');
+      for (let pair of formData.entries()) {
+        console.log(`${pair[0]}:`, pair[1]);
+      }
       
       const response = await uploadStudentsCSV(localSelectedCourse.id, formData);
-      console.log('CSV upload response:', response.data);
+      console.log('CSV upload response:', response);
 
       // Handle response based on your API's response format
       if (response.data) {
         const result = response.data;
+        console.log('Upload result:', result);
         
-        let summaryMessage = `CSV Processing Complete for ${localSelectedCourse.code}:\n\n`;
+        let summaryMessage = `CSV Processing Complete for ${localSelectedCourse.code || localSelectedCourse.name}:\n\n`;
         
         // Handle different possible response formats
         if (result.successful_enrollments !== undefined) {
@@ -142,12 +199,6 @@ function AddStudents({
           summaryMessage += `⚠ Duplicate students: ${result.duplicate_students} students\n`;
         }
         
-        if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
-          summaryMessage += `✗ Errors: ${result.errors.length}\n`;
-          summaryMessage += `\nError details:\n${result.errors.join('\n')}`;
-        }
-        
-        // Alternative response format handling
         if (result.created !== undefined) {
           summaryMessage += `✓ Students created: ${result.created}\n`;
         }
@@ -160,15 +211,24 @@ function AddStudents({
           summaryMessage += `✗ Failed: ${result.failed} students\n`;
         }
         
+        if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
+          summaryMessage += `\n✗ Errors (${result.errors.length}):\n${result.errors.join('\n')}`;
+        }
+        
+        if (result.details && Array.isArray(result.details)) {
+          summaryMessage += `\nDetails:\n${result.details.join('\n')}`;
+        }
+        
         // Show success if any students were processed successfully
         const hasSuccesses = (result.successful_enrollments || 0) > 0 || 
                             (result.created || 0) > 0 || 
                             (result.enrolled || 0) > 0;
         
-        if (hasSuccesses) {
+        if (hasSuccesses || summaryMessage.includes('✓')) {
           setSuccess(summaryMessage);
         } else {
-           setSuccess(summaryMessage);
+          // If no clear successes, but no explicit errors, still show as success
+          setSuccess(summaryMessage || "CSV file processed successfully!");
         }
       } else {
         setSuccess("CSV file processed successfully!");
@@ -180,11 +240,16 @@ function AddStudents({
       
     } catch (err) {
       console.error('Error uploading CSV file:', err);
+      console.error('Error response data:', err.response?.data);
+      console.error('Error status:', err.response?.status);
       
       let errorMessage = "Error processing CSV file";
       
       if (err.response?.data) {
         const data = err.response.data;
+        console.log('Error data type:', typeof data);
+        console.log('Error data keys:', Object.keys(data || {}));
+        
         if (typeof data === 'string') {
           errorMessage = data;
         } else if (data.detail) {
@@ -194,13 +259,13 @@ function AddStudents({
         } else if (data.error) {
           errorMessage = data.error;
         } else if (data.errors && Array.isArray(data.errors)) {
-          errorMessage = data.errors.join('\n');
+          errorMessage = `Upload errors:\n${data.errors.join('\n')}`;
         } else if (data.non_field_errors && Array.isArray(data.non_field_errors)) {
           errorMessage = data.non_field_errors.join('\n');
         } else if (data.csv_file && Array.isArray(data.csv_file)) {
           errorMessage = `CSV file error: ${data.csv_file.join(', ')}`;
         } else {
-          // Handle other possible field errors
+          // Handle field-specific errors
           const fieldErrors = [];
           Object.entries(data).forEach(([field, messages]) => {
             if (Array.isArray(messages)) {
@@ -212,6 +277,8 @@ function AddStudents({
           
           if (fieldErrors.length > 0) {
             errorMessage = fieldErrors.join('\n');
+          } else {
+            errorMessage = `Upload failed: ${JSON.stringify(data)}`;
           }
         }
       } else if (err.message) {
@@ -261,26 +328,32 @@ function AddStudents({
                 </option>
               ))}
             </select>
+            {localSelectedCourse && (
+              <p className="selected-course-info">
+                Selected: <strong>{localSelectedCourse.code} - {localSelectedCourse.name}</strong>
+              </p>
+            )}
           </div>
         ) : (
           <div className="no-courses-message">
             <p>No courses available. Please create a course first using the "Create A Course" page.</p>
+            <button onClick={loadCourses} className="retry-btn">
+              Retry Loading Courses
+            </button>
           </div>
         )}
       </div>
 
-  
-
       {/* Error/Success Messages */}
       {error && (
         <div className="error-message">
-          {error}
+          <pre>{error}</pre>
         </div>
       )}
       
       {success && (
         <div className="success-message">
-          {success}
+          <pre>{success}</pre>
         </div>
       )}
 
@@ -315,14 +388,18 @@ function AddStudents({
                   disabled={loading}
                 />
                 {file && (
-                  <p className="file-selected">Selected: {file.name}</p>
+                  <div className="file-selected">
+                    <p>Selected: <strong>{file.name}</strong></p>
+                    <p>Size: {(file.size / 1024).toFixed(2)} KB</p>
+                    <p>Type: {file.type || 'text/csv'}</p>
+                  </div>
                 )}
               </div>
               
               <button 
                 type="submit" 
                 className={`upload-btn submit-btn ${loading ? 'loading' : ''}`}
-                disabled={loading || !file}
+                disabled={loading || !file || !localSelectedCourse}
               >
                 {loading ? "Processing CSV..." : "Upload and Enroll Students"}
               </button>

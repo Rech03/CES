@@ -1,206 +1,124 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { getMyCourses } from '../../api/courses';
-import { listQuizzes } from '../../api/quizzes';
 import './CoursesList.css';
 
-function CoursesList({ courses }) {
-  const [coursesData, setCoursesData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+function CoursesList({ courses: propCourses, loading: externalLoading = false, onRefresh }) {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(!Array.isArray(propCourses));
+  const [error, setError] = useState('');
 
-  const defaultCourses = [
-    {
-      id: 1,
-      code: 'CSC3002F',
-      lastQuiz: '10 July 2025',
-      isActive: true
-    },
-    {
-      id: 2,
-      code: 'CSC3001F',
-      lastQuiz: '12 June 2025',
-      isActive: true
-    },
-    {
-      id: 3,
-      code: 'CSC3003S',
-      lastQuiz: '12 July 2025',
-      isActive: false
-    },
-    {
-      id: 4,
-      code: 'CSC2001F',
-      lastQuiz: '12 May 2025',
-      isActive: true
+  // Normalize any server shape to a plain array
+  const normalizeCourses = (data) => {
+    if (Array.isArray(data)) return data;                 // bare array
+    if (data && Array.isArray(data.courses)) return data.courses; // { courses: [...] }
+    if (data && Array.isArray(data.results)) return data.results; // paginated
+    if (data && typeof data === 'object') {
+      const k = Object.keys(data).find((key) => Array.isArray(data[key]));
+      if (k) return data[k];
     }
-  ];
-
-  useEffect(() => {
-    const fetchCourses = async () => {
-      // Only fetch if no courses prop provided
-      if (!courses || courses.length === 0) {
-        setLoading(true);
-        try {
-          // Fetch user's courses
-          const coursesResponse = await getMyCourses();
-          const fetchedCourses = coursesResponse.data.results || coursesResponse.data || [];
-          
-          // For each course, get the latest quiz date
-          const coursesWithQuizData = await Promise.all(
-            fetchedCourses.map(async (course) => {
-              try {
-                // Fetch quizzes for this course/topic
-                const quizzesResponse = await listQuizzes({ 
-                  topic: course.id,
-                  ordering: '-created_at' // Get most recent first
-                });
-                
-                const quizzes = quizzesResponse.data.results || quizzesResponse.data || [];
-                const latestQuiz = quizzes[0];
-                
-                return {
-                  id: course.id,
-                  code: course.code || course.name || `Course ${course.id}`,
-                  name: course.name || course.title,
-                  lastQuiz: latestQuiz ? 
-                    new Date(latestQuiz.created_at || latestQuiz.date_created).toLocaleDateString('en-GB', {
-                      day: 'numeric',
-                      month: 'long', 
-                      year: 'numeric'
-                    }) : 
-                    'No quizzes yet',
-                  isActive: course.is_active !== false, // Default to true unless explicitly false
-                  quizCount: quizzes.length,
-                  studentCount: course.student_count || course.enrolled_students || 0
-                };
-              } catch (quizErr) {
-                console.warn(`Could not fetch quizzes for course ${course.id}:`, quizErr);
-                return {
-                  id: course.id,
-                  code: course.code || course.name || `Course ${course.id}`,
-                  name: course.name || course.title,
-                  lastQuiz: 'Unable to load',
-                  isActive: course.is_active !== false,
-                  quizCount: 0,
-                  studentCount: course.student_count || course.enrolled_students || 0
-                };
-              }
-            })
-          );
-
-          setCoursesData(coursesWithQuizData);
-        } catch (err) {
-          console.error('Error fetching courses:', err);
-          setError('Failed to load courses');
-          setCoursesData(defaultCourses); // Fallback to default
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        setCoursesData(courses);
-      }
-    };
-
-    fetchCourses();
-  }, [courses]);
-
-  const renderIcon = (isActive) => {
-    return (
-      <div className="course-icon-container">
-        <div className="course-icon">
-          <svg 
-            className="icon-svg" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            {isActive ? (
-              <path 
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              />
-            ) : (
-              <path 
-                d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-              />
-            )}
-          </svg>
-        </div>
-      </div>
-    );
+    return [];
   };
 
-  const displayCourses = coursesData.length > 0 ? coursesData : defaultCourses;
+  const fetchCourses = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const resp = await getMyCourses();
+      const list = normalizeCourses(resp?.data);
+      setCourses(list);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+      const d = err.response?.data;
+      let msg = 'Failed to load courses';
+      if (typeof d === 'string') msg = d;
+      else if (d?.detail) msg = d.detail;
+      else if (d?.message) msg = d.message;
+      else if (d?.error) msg = d.error;
+      setError(msg);
+      setCourses([]); // no fallback “fake” data — always show real server result
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  if (loading) {
-    return (
-      <div className="courses-list-container">
-        <div className="courses-header">
-          <div className="courses-title">Courses</div>
-        </div>
-        <div className="courses-content">
-          {[1, 2, 3].map((index) => (
-            <div key={index}>
+  // Use prop when provided by parent (Dashboard/AIQuizzes); otherwise fetch here
+  useEffect(() => {
+    if (Array.isArray(propCourses) && propCourses.length >= 0) {
+      setCourses(propCourses);
+      setLoading(false);
+    } else {
+      fetchCourses();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [propCourses]);
+
+  const effectiveLoading = loading || externalLoading;
+
+  return (
+    <div className="courses-list-container">
+      <div className="courses-header">
+        <div className="courses-title">Course List</div>
+      
+      </div>
+
+      {error && <div className="error-text">{error}</div>}
+
+      <div className="courses-content">
+        {effectiveLoading ? (
+          [1,2,3].map((i) => (
+            <div key={i}>
               <div className="course-item">
                 <div className="course-icon-container">
                   <div className="course-icon skeleton"></div>
                 </div>
                 <div className="course-info">
-                  <div className="course-code skeleton">Loading...</div>
-                  <div className="course-last-quiz skeleton">Loading...</div>
+                  <div className="course-code skeleton">Loading…</div>
+                  <div className="course-last-quiz skeleton">Loading…</div>
                 </div>
               </div>
-              {index < 3 && <div className="course-divider"></div>}
+              {i < 3 && <div className="course-divider"></div>}
             </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="courses-list-container">
-      <div className="courses-header">
-        <div className="courses-title">Courses</div>
-        {error && <div className="error-text">{error}</div>}
-      </div>
-      
-      <div className="courses-content">
-        {displayCourses.map((course, index) => (
-          <div key={course.id || index}>
-            <div className="course-item">
-              {renderIcon(course.isActive)}
-              <div className="course-info">
-                <div className="course-code" title={course.name}>
-                  {course.code}
-                </div>
-                <div className="course-last-quiz">
-                  Last Quiz: {course.lastQuiz}
-                </div>
-                {course.quizCount !== undefined && (
-                  <div className="course-stats">
-                    {course.quizCount} quiz{course.quizCount !== 1 ? 'es' : ''} • {course.studentCount} student{course.studentCount !== 1 ? 's' : ''}
-                  </div>
-                )}
-              </div>
-            </div>
-            {index < displayCourses.length - 1 && <div className="course-divider"></div>}
+          ))
+        ) : courses.length === 0 ? (
+          <div className="no-courses">
+            <p>No courses found. Create your first course to get started!</p>
           </div>
-        ))}
+        ) : (
+          courses.map((c, idx) => (
+            <div key={c.id ?? idx}>
+              <div className="course-item">
+                <div className="course-icon-container">
+                  <div className="course-icon">
+                    <svg className="icon-svg" viewBox="0 0 24 24" fill="none">
+                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+                <div className="course-info">
+                  <div className="course-code" title={c.name || c.code}>
+                    {c.code || c.name || `Course ${c.id}`}
+                  </div>
+                  {/* Placeholder until backend provides last_quiz_at per course */}
+                  <div className="course-last-quiz">
+                    Last Quiz: {c.last_quiz_at
+                      ? new Date(c.last_quiz_at).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })
+                      : '—'}
+                  </div>
+                  {(typeof c.quiz_count === 'number' || typeof c.student_count === 'number') && (
+                    <div className="course-stats">
+                      {typeof c.quiz_count === 'number' ? `${c.quiz_count} quiz${c.quiz_count !== 1 ? 'es' : ''}` : null}
+                      {typeof c.quiz_count === 'number' && typeof c.student_count === 'number' ? ' • ' : null}
+                      {typeof c.student_count === 'number' ? `${c.student_count} student${c.student_count !== 1 ? 's' : ''}` : null}
+                  </div>
+                  )}
+                </div>
+              </div>
+              {idx < courses.length - 1 && <div className="course-divider"></div>}
+            </div>
+          ))
+        )}
       </div>
-      
-      {displayCourses.length === 0 && !loading && (
-        <div className="no-courses">
-          <p>No courses found. Create your first course to get started!</p>
-        </div>
-      )}
     </div>
   );
 }

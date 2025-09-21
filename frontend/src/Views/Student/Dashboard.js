@@ -256,9 +256,6 @@ function Dashboard() {
 
       {/* Side panel */}
       <div className="SideD">
-        <div className="Rating">
-          <StarRating />
-        </div>
         <div className="List">
           <CoursesList courses={courses} />
         </div>

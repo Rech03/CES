@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { startQuizAttempt, submitAnswer, submitQuizAttempt } from '../../api/quizzes';
-import { getAdaptiveQuiz, submitAdaptiveQuiz } from '../../api/ai-quiz';
-import { getQuizQuestions } from '../../api/quizzes';
+import { startQuizAttempt, submitAnswer, submitQuizAttempt, getQuizQuestions } from '../../api/quizzes';
 import MultipleChoiceQuestion from '../../Componets/Student/MultipleChoiceQuestion';
 import TrueFalseQuestion from '../../Componets/Student/TrueFalseQuestion';
 import ShortAnswerQuestion from '../../Componets/Student/ShortAnswerQuestion';
@@ -14,7 +12,7 @@ const QuizInterface = () => {
 
   // Get quiz data from navigation state
   const quizData = location.state || {
-    quizTitle: 'CSC3002F - Parallel Programming Quiz',
+    quizTitle: 'Quiz',
     quizDuration: '15 min',
     totalQuestions: 20,
     quizId: 1
@@ -23,7 +21,7 @@ const QuizInterface = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [timeRemaining, setTimeRemaining] = useState(
-    getDurationInSeconds(quizData.quizDuration)
+    getDurationInSeconds(quizData.time_limit || quizData.quizDuration)
   );
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -31,107 +29,78 @@ const QuizInterface = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [attemptId, setAttemptId] = useState(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState('');
 
   // Convert duration to seconds
   function getDurationInSeconds(duration) {
+    if (typeof duration === 'number') {
+      return duration * 60; // Assume it's in minutes
+    }
     if (typeof duration === 'string') {
       const match = duration.match(/(\d+)\s*min/);
       return match ? parseInt(match[1], 10) * 60 : 900; // default 15 minutes
     }
-    return duration || 900;
+    return 900;
   }
 
   useEffect(() => {
     const initializeQuiz = async () => {
       setLoading(true);
       try {
-        let fetchedQuestions = [];
-        let quizAttemptId = null;
-
-        // Handle AI-generated quiz
-        if (quizData.isAIGenerated && quizData.slideId) {
-          try {
-            const adaptiveResponse = await getAdaptiveQuiz(quizData.slideId);
-            const adaptiveQuiz = adaptiveResponse.data;
-            
-            fetchedQuestions = adaptiveQuiz.questions || [];
-            setTimeRemaining(getDurationInSeconds(adaptiveQuiz.duration || quizData.quizDuration));
-          } catch (aiErr) {
-            console.error('Error fetching AI quiz:', aiErr);
-            setError('Failed to load AI quiz');
-          }
+        if (!quizData.quizId && !quizData.id) {
+          throw new Error('No quiz ID provided');
         }
-        // Handle regular quiz
-        else if (quizData.quizId) {
-          try {
-            // Start quiz attempt
-            const attemptResponse = await startQuizAttempt({
-              quiz: quizData.quizId,
-              password: quizData.password || null
-            });
-            
-            quizAttemptId = attemptResponse.data.attempt_id || attemptResponse.data.id;
-            setAttemptId(quizAttemptId);
 
-            // Fetch quiz questions
-            const questionsResponse = await getQuizQuestions(quizData.quizId);
-            fetchedQuestions = questionsResponse.data.results || questionsResponse.data || [];
-            
-          } catch (quizErr) {
-            console.error('Error starting quiz:', quizErr);
-            setError('Failed to start quiz');
-          }
+        const actualQuizId = quizData.quizId || quizData.id;
+        
+        // Start quiz attempt
+        const attemptResponse = await startQuizAttempt({
+          quiz: actualQuizId,
+          password: quizData.password || null
+        });
+        
+        const quizAttemptId = attemptResponse.data.attempt_id || 
+                             attemptResponse.data.id || 
+                             attemptResponse.data.attempt?.id;
+        
+        if (!quizAttemptId) {
+          throw new Error('Failed to create quiz attempt');
         }
+        
+        setAttemptId(quizAttemptId);
+
+        // Fetch quiz questions
+        const questionsResponse = await getQuizQuestions(actualQuizId);
+        const fetchedQuestions = questionsResponse.data.results || 
+                               questionsResponse.data || 
+                               [];
 
         // Process questions into consistent format
         const processedQuestions = fetchedQuestions.map((q, index) => ({
           id: q.id || index + 1,
           type: q.question_type || q.type || 'multiple_choice',
-          question: q.question_text || q.text || q.question,
-          choices: q.choices || q.options || [],
+          question: q.question_text || q.text || q.question || `Question ${index + 1}`,
+          choices: q.choices?.map(choice => ({
+            id: choice.id,
+            text: choice.choice_text || choice.text || choice.answer_text
+          })) || [],
           points: q.points || 1,
           order: q.order || index + 1
         }));
 
-        setQuestions(processedQuestions);
-
-        // Fallback to sample questions if no questions loaded
         if (processedQuestions.length === 0) {
-          const sampleQuestions = [
-            {
-              id: 1,
-              type: 'multiple_choice',
-              question: 'What is a variable in programming?',
-              choices: [
-                { id: 1, text: 'A container that stores data values', choice_text: 'A container that stores data values' },
-                { id: 2, text: 'A type of function', choice_text: 'A type of function' },
-                { id: 3, text: 'A programming language', choice_text: 'A programming language' },
-                { id: 4, text: 'A computer component', choice_text: 'A computer component' }
-              ]
-            },
-            {
-              id: 2,
-              type: 'true_false',
-              question: 'Variables in most programming languages are case-sensitive.'
-            },
-            {
-              id: 3,
-              type: 'multiple_choice',
-              question: 'Which of the following is a valid variable name?',
-              choices: [
-                { id: 1, text: '2variable', choice_text: '2variable' },
-                { id: 2, text: 'variable-name', choice_text: 'variable-name' },
-                { id: 3, text: 'variable_name', choice_text: 'variable_name' },
-                { id: 4, text: 'variable name', choice_text: 'variable name' }
-              ]
-            }
-          ];
-          setQuestions(sampleQuestions);
+          throw new Error('No questions found for this quiz');
         }
+
+        setQuestions(processedQuestions);
+        
+        // Set timer based on quiz settings (convert minutes to seconds)
+        const timeLimit = (quizData.time_limit || quizData.duration || 15) * 60;
+        setTimeRemaining(timeLimit);
 
       } catch (err) {
         console.error('Error initializing quiz:', err);
-        setError('Failed to initialize quiz');
+        setError(err.message || 'Failed to initialize quiz');
       } finally {
         setLoading(false);
       }
@@ -167,17 +136,24 @@ const QuizInterface = () => {
       [currentQuestion.id]: answer
     }));
 
-    // Submit answer to API for regular quizzes
-    if (attemptId && !quizData.isAIGenerated) {
+    // Submit answer to API
+    if (attemptId) {
       try {
+        setAutoSaveStatus('Saving...');
+        
         await submitAnswer({
           attempt_id: attemptId,
           question: currentQuestion.id,
           selected_choice: typeof answer === 'number' ? answer : null,
           answer_text: typeof answer === 'string' ? answer : null
         });
+        
+        setAutoSaveStatus('Saved');
+        setTimeout(() => setAutoSaveStatus(''), 2000);
       } catch (err) {
         console.warn('Failed to submit answer:', err);
+        setAutoSaveStatus('Error saving');
+        setTimeout(() => setAutoSaveStatus(''), 3000);
       }
     }
   };
@@ -202,27 +178,15 @@ const QuizInterface = () => {
     setIsSubmitted(true);
     setShowSubmitModal(false);
 
-    const timeUsed = getDurationInSeconds(quizData.quizDuration) - timeRemaining;
+    const timeUsed = getDurationInSeconds(quizData.time_limit || quizData.quizDuration) - timeRemaining;
 
     try {
-      // Submit AI quiz
-      if (quizData.isAIGenerated && quizData.slideId) {
-        await submitAdaptiveQuiz({
-          adaptive_quiz_id: quizData.slideId,
-          answers: Object.entries(answers).map(([questionId, answer]) => ({
-            question_id: parseInt(questionId),
-            answer: answer
-          }))
-        });
-      }
-      // Submit regular quiz
-      else if (attemptId) {
+      if (attemptId) {
         await submitQuizAttempt({
           attempt_id: attemptId
         });
+        console.log('Quiz submitted successfully');
       }
-
-      console.log('Quiz submitted successfully');
     } catch (submitErr) {
       console.error('Error submitting quiz:', submitErr);
     }
@@ -239,11 +203,15 @@ const QuizInterface = () => {
           attemptId
         }
       });
-    }, 1000);
+    }, 1500);
   };
 
   const getAnsweredCount = () => {
     return Object.keys(answers).length;
+  };
+
+  const getUnansweredQuestions = () => {
+    return questions.filter(q => !answers[q.id]);
   };
 
   if (loading) {
@@ -295,7 +263,8 @@ const QuizInterface = () => {
       onAnswerSelect: handleAnswerSelect,
       questionNumber: currentQuestionIndex + 1,
       totalQuestions: questions.length,
-      isSubmitted
+      isSubmitted: false,
+      points: currentQuestion.points
     };
 
     switch (currentQuestion.type) {
@@ -303,16 +272,19 @@ const QuizInterface = () => {
         return (
           <MultipleChoiceQuestion 
             {...questionProps} 
-            choices={currentQuestion.choices.map(choice => ({
-              id: choice.id,
-              text: choice.text || choice.choice_text || choice.answer_text
-            }))}
+            choices={currentQuestion.choices}
           />
         );
       case 'true_false':
         return <TrueFalseQuestion {...questionProps} />;
       case 'short_answer':
-        return <ShortAnswerQuestion {...questionProps} />;
+        return (
+          <ShortAnswerQuestion 
+            {...questionProps}
+            autoSave={true}
+            maxLength={500}
+          />
+        );
       default:
         return <div>Unknown question type: {currentQuestion.type}</div>;
     }
@@ -326,15 +298,15 @@ const QuizInterface = () => {
           <h2>Quiz Submitted Successfully!</h2>
           <p>Your answers have been recorded. Redirecting to results...</p>
           {quizData.isRetake && (
-            <p>
-              <strong>Retake completed - your best score will be kept</strong>
-            </p>
+            <p><strong>Retake completed - your best score will be kept</strong></p>
           )}
-          {quizData.isAIGenerated && (
-            <p>
-              <strong>AI Quiz completed - difficulty will adapt based on your performance</strong>
-            </p>
+          {quizData.isLive && (
+            <p><strong>Live quiz completed</strong></p>
           )}
+          <div className="submission-summary">
+            <p>Questions answered: {getAnsweredCount()}/{questions.length}</p>
+            <p>Time used: {formatTime(getDurationInSeconds(quizData.time_limit || quizData.quizDuration) - timeRemaining)}</p>
+          </div>
         </div>
       </div>
     );
@@ -347,9 +319,7 @@ const QuizInterface = () => {
         <div className="quiz-info">
           <h1 className="quiz-title">{quizData.quizTitle || quizData.title}</h1>
           <div className="quiz-progress">
-            <span>
-              Question {currentQuestionIndex + 1} of {questions.length}
-            </span>
+            <span>Question {currentQuestionIndex + 1} of {questions.length}</span>
             <span>•</span>
             <span>{getAnsweredCount()} answered</span>
             {quizData.isRetake && (
@@ -358,21 +328,22 @@ const QuizInterface = () => {
                 <span className="retake-indicator">Retake Attempt</span>
               </>
             )}
-            {quizData.isAIGenerated && (
+            {quizData.isLive && (
               <>
                 <span>•</span>
-                <span className="ai-indicator">AI Generated</span>
+                <span className="live-indicator">Live Quiz</span>
               </>
             )}
           </div>
+          {autoSaveStatus && (
+            <div className={`auto-save-status ${autoSaveStatus.includes('Error') ? 'error' : 'success'}`}>
+              {autoSaveStatus}
+            </div>
+          )}
         </div>
 
         <div className="quiz-timer">
-          <div
-            className={`timer ${timeRemaining < 300 ? 'warning' : ''} ${
-              timeRemaining < 60 ? 'critical' : ''
-            }`}
-          >
+          <div className={`timer ${timeRemaining < 300 ? 'warning' : ''} ${timeRemaining < 60 ? 'critical' : ''}`}>
             <span className="timer-icon">⏱️</span>
             <span className="timer-text">{formatTime(timeRemaining)}</span>
           </div>
@@ -389,6 +360,7 @@ const QuizInterface = () => {
                 answers[questions[index].id] ? 'answered' : ''
               }`}
               onClick={() => handleQuestionJump(index)}
+              title={`Question ${index + 1} ${answers[questions[index].id] ? '(Answered)' : '(Unanswered)'}`}
             >
               {index + 1}
             </button>
@@ -411,7 +383,10 @@ const QuizInterface = () => {
           </button>
 
           {currentQuestionIndex === questions.length - 1 ? (
-            <button className="nav-btn submit-btn" onClick={() => setShowSubmitModal(true)}>
+            <button 
+              className="nav-btn submit-btn" 
+              onClick={() => setShowSubmitModal(true)}
+            >
               {quizData.isRetake ? 'Submit Retake' : 'Submit Quiz'}
             </button>
           ) : (
@@ -420,6 +395,14 @@ const QuizInterface = () => {
             </button>
           )}
         </div>
+
+        {/* Progress indicator */}
+        <div className="quiz-progress-bar">
+          <div 
+            className="progress-fill" 
+            style={{ width: `${(getAnsweredCount() / questions.length) * 100}%` }}
+          ></div>
+        </div>
       </div>
 
       {/* Submit Confirmation Modal */}
@@ -427,22 +410,30 @@ const QuizInterface = () => {
         <div className="modal-overlay">
           <div className="submit-modal">
             <h3>{quizData.isRetake ? 'Submit Retake?' : 'Submit Quiz?'}</h3>
-            <p>
-              You have answered {getAnsweredCount()} out of {questions.length} questions.
-            </p>
-            <p>
-              Are you sure you want to submit your {quizData.isRetake ? 'retake' : 'quiz'}? This
-              action cannot be undone.
-            </p>
+            
+            <div className="submission-summary">
+              <p>You have answered <strong>{getAnsweredCount()}</strong> out of <strong>{questions.length}</strong> questions.</p>
+              
+              {getUnansweredQuestions().length > 0 && (
+                <div className="unanswered-warning">
+                  <p>⚠️ You have {getUnansweredQuestions().length} unanswered question(s):</p>
+                  <ul>
+                    {getUnansweredQuestions().slice(0, 5).map((q, index) => (
+                      <li key={q.id}>Question {questions.indexOf(q) + 1}</li>
+                    ))}
+                    {getUnansweredQuestions().length > 5 && <li>... and {getUnansweredQuestions().length - 5} more</li>}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <p>Are you sure you want to submit your {quizData.isRetake ? 'retake' : 'quiz'}? This action cannot be undone.</p>
+            
             {quizData.isRetake && (
-              <p>
-                <strong>Note: Your best score will be kept regardless of this attempt.</strong>
-              </p>
+              <p><strong>Note: Your best score will be kept regardless of this attempt.</strong></p>
             )}
-            {quizData.isAIGenerated && (
-              <p>
-                <strong>Note: AI will adapt future quiz difficulty based on this performance.</strong>
-              </p>
+            {quizData.isLive && (
+              <p><strong>Note: This is a live quiz session.</strong></p>
             )}
 
             <div className="modal-actions">

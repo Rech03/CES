@@ -44,9 +44,6 @@ function AIQuizzes() {
 
       {/* Side panel */}
       <div className="SideAI">
-        <div className="Rating">
-          <StarRating />
-        </div>
         <div className="List">
           {loading ? (
             <div className="loading-courses">
