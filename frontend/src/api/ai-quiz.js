@@ -14,13 +14,14 @@ export const updateQuizQuestions = (quizId, payload) => api.put(`ai-quiz/lecture
 export const publishQuiz = (quizId, payload) => api.post(`ai-quiz/lecturer/quiz/${quizId}/publish/`, payload); // { review_notes? }
 export const rejectQuiz = (quizId, payload) => api.post(`ai-quiz/lecturer/quiz/${quizId}/reject/`, payload); // { review_notes }
 
+
 // STUDENT ENDPOINTS - Quiz Taking
 export const studentAvailableSlides = () => api.get('ai-quiz/student/available-slides/');
 export const getAdaptiveQuiz = (quizId) => api.get(`ai-quiz/student/quiz/${quizId}/`);
 export const submitAdaptiveQuiz = (payload) => api.post('ai-quiz/student/submit-quiz/', payload); // { adaptive_quiz_id, answers }
 export const studentAdaptiveProgress = () => api.get('ai-quiz/student/progress/');
 
-// AI QUIZ ANALYTICS (specific to adaptive quizzes)
+// AI QUIZ ANALYTICS
 export const getAdaptiveSlideStats = (slideId) => api.get(`ai-quiz/slide/${slideId}/stats/`);
 export const getProgressAnalytics = (params) => api.get('ai-quiz/progress-analytics/', { params }); // { student_id?, course_id? }
 
