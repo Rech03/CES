@@ -1,3 +1,4 @@
+// src/api/courses.js
 import api from './client';
 
 // COURSE CRUD OPERATIONS (ViewSet)
@@ -15,7 +16,11 @@ export const removeStudentFromCourse = (courseId, payload) => api.post(`courses/
 export const getCourseTopics = (courseId) => api.get(`courses/courses/${courseId}/topics/`);
 
 // BULK STUDENT MANAGEMENT
-export const uploadStudentsCSV = (courseId, payload) => api.post(`courses/course/${courseId}/upload-students/`, payload); // FormData: { csv_file }
+// ⬇️ IMPORTANT: let the browser set the multipart boundary; we still hint the type here
+export const uploadStudentsCSV = (courseId, formData) =>
+  api.post(`courses/course/${courseId}/upload-students/`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
 
 // TOPIC CRUD OPERATIONS (ViewSet)
 export const listTopics = (params) => api.get('courses/topics/', { params });

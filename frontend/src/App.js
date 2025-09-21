@@ -22,6 +22,8 @@ import LecturerQuizHistory from "./Views/Lacture/QuizHistory";
 import LecturerAnalytics from "./Views/Lacture/StudentAnalytics";
 import LecturerAIQuizzes from "./Views/Lacture/AIQuizzes";
 import QuizzAnalytics from "./Views/Lacture/QuizAnalytics";
+import AddTopic from './Componets/Lacture/AddTopic';
+import AddTopicPage from './Views/Lacture/AddTopicPage';
 
 // Common Components
 import Login from './Views/LogIn/Login';
@@ -140,6 +142,7 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
 
   return children;
 }
+
 // Role-based Dashboard Redirect Component
 function DashboardRedirect() {
   const [user, setUser] = useState(null);
@@ -193,6 +196,12 @@ function Logout() {
       } finally {
         // Always clear local session regardless of API response
         localStorage.removeItem('userSession');
+        sessionStorage.removeItem('userSession');
+        // Clear all auth tokens
+        ['access', 'refresh', 'token'].forEach((k) => {
+          localStorage.removeItem(k);
+          sessionStorage.removeItem(k);
+        });
         window.location.href = '/';
       }
     };
@@ -301,7 +310,7 @@ function App() {
             } 
           />
 
-          {/* AI Quiz Routes for Students */}
+          {/* AI Quiz Routes for Students - using your existing components */}
           <Route 
             path="/AIQuizCountdownPage" 
             element={
@@ -389,6 +398,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['lecturer', 'teacher', 'instructor']}>
                 <QuizzAnalytics />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/AddTopic" 
+            element={
+              <ProtectedRoute allowedRoles={['lecturer', 'teacher', 'instructor']}>
+                <AddTopicPage />
               </ProtectedRoute>
             } 
           />

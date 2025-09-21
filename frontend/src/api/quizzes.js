@@ -1,3 +1,4 @@
+// src/api/quizzes.js
 import api from './client';
 
 // QUIZ CRUD OPERATIONS (ViewSet)
@@ -10,7 +11,7 @@ export const deleteQuiz = (id) => api.delete(`quizzes/quizzes/${id}/`);
 
 // QUIZ ACTIONS
 export const startLiveQuiz = (id, payload) => api.post(`quizzes/quizzes/${id}/start_live/`, payload); // { password }
-export const stopLiveQuiz = (id) => api.post(`quizzes/quizzes/${id}/stop_live/`, payload);
+export const stopLiveQuiz = (id, payload) => api.post(`quizzes/quizzes/${id}/stop_live/`, payload); // { confirm?: true }
 export const getQuizQuestions = (id) => api.get(`quizzes/quizzes/${id}/questions/`);
 export const getQuizAttempts = (id) => api.get(`quizzes/quizzes/${id}/attempts/`);
 

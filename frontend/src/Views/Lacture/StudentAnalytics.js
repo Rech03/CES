@@ -1,151 +1,414 @@
+// src/Views/Lecture/StudentAnalytics.js
+import { useState, useEffect, useMemo } from "react";
+
+// NOTE: keeping these relative paths exactly as you have them
 import BarChart from "../../Componets/Lacture/BarChart";
 import Bio from "../../Componets/Lacture/bio";
 import CoursesList from "../../Componets/Lacture/CoursesList";
 import MetricCard from "../../Componets/Lacture/MetricCard";
 import NavBar from "../../Componets/Lacture/NavBar";
 import StarRating from "../../Componets/Lacture/StarRating";
+
+import {
+  lecturerDashboard,
+  lecturerChart,
+  lecturerCourseOptions,
+  getEngagementTrends,
+  getPerformanceTrends,
+  // optional: update backend-derived aggregates before fetching dashboards
+  updateStudentMetrics,
+} from "../../api/analytics";
+
 import "./StudentAnalytics.css";
 
+/**
+ * Lecturer Student Analytics
+ * - Uses the correct lecturer analytics endpoints
+ * - Uses lecturerCourseOptions() for the course list
+ * - Defensive parsing for API shapes { courses: [...] } vs [...]
+ * - Normalizes IDs to numbers when calling APIs
+ */
 function StudentAnalytics() {
-  // Mock data for the analytics
-  const quizAttemptData = [
-    { quiz: 'Quiz 1', attempted: 385, total: 400 },
-    { quiz: 'Quiz 2', attempted: 372, total: 400 },
-    { quiz: 'Quiz 3', attempted: 358, total: 400 },
-    { quiz: 'Quiz 4', attempted: 342, total: 400 },
-    { quiz: 'Quiz 5', attempted: 367, total: 400 }
-  ];
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [courses, setCourses] = useState([]);
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [chartData, setChartData] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [loadingCourse, setLoadingCourse] = useState(false);
+  const [error, setError] = useState("");
 
-  const performanceData = [
-    { month: 'Jan', score: 72 },
-    { month: 'Feb', score: 75 },
-    { month: 'Mar', score: 78 },
-    { month: 'Apr', score: 81 },
-    { month: 'May', score: 79 }
-  ];
+  // Normalize to number for requests that expect numeric IDs
+  const normalizedCourseId = useMemo(() => {
+    if (!selectedCourseId) return null;
+    const asNum = Number(selectedCourseId);
+    return Number.isNaN(asNum) ? null : asNum;
+  }, [selectedCourseId]);
 
-  const strugglingStudents = [
-    { name: 'John Doe', trend: 'declining', lastScore: '45%', needsHelp: 'Quiz Concepts' },
-    { name: 'Sarah Wilson', trend: 'inconsistent', lastScore: '52%', needsHelp: 'Time Management' },
-    { name: 'Mike Brown', trend: 'improving', lastScore: '61%', needsHelp: 'Study Methods' },
-    { name: 'Emma Davis', trend: 'struggling', lastScore: '38%', needsHelp: 'Foundation Knowledge' }
-  ];
+  useEffect(() => {
+    // Optionally ask backend to recompute/refresh aggregates
+    // Safe to ignore failures
+    updateStudentMetrics()
+      .catch(() => {})
+      .finally(() => {
+        loadInitialData();
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const conceptStruggles = [
-    { concept: 'Parallel Algorithms', struggling: 28, total: 45 },
-    { concept: 'Synchronization', struggling: 35, total: 45 },
-    { concept: 'Thread Safety', struggling: 22, total: 45 },
-    { concept: 'Memory Models', struggling: 31, total: 45 }
-  ];
+  useEffect(() => {
+    if (normalizedCourseId !== null) {
+      loadCourseAnalytics(normalizedCourseId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [normalizedCourseId]);
+
+  async function loadInitialData() {
+    try {
+      setLoading(true);
+      setError("");
+
+      // Fetch lecturer dashboard + course options in parallel
+      const [dashboardRes, courseOptsRes] = await Promise.all([
+        lecturerDashboard(),
+        lecturerCourseOptions(),
+      ]);
+
+      setAnalyticsData(dashboardRes?.data ?? null);
+
+      // Handle courses response that might be { courses: [...] } or [...]
+      let coursesData = [];
+      const payload = courseOptsRes?.data;
+
+      if (Array.isArray(payload)) {
+        coursesData = payload;
+      } else if (payload?.courses && Array.isArray(payload.courses)) {
+        coursesData = payload.courses;
+      }
+      setCourses(coursesData);
+
+      // Auto-select the first available course
+      if (coursesData.length > 0) {
+        setSelectedCourseId(String(coursesData[0].id));
+      } else {
+        // No courses → clear charts
+        setSelectedCourseId("");
+        setChartData({});
+      }
+    } catch (err) {
+      console.error("Error loading lecturer analytics:", err);
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.statusText ||
+        "Failed to load analytics data";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadCourseAnalytics(courseId) {
+    try {
+      setLoadingCourse(true);
+
+      const [
+        engagementRes,
+        performanceRes,
+        participationRes,
+        strugglingRes,
+      ] = await Promise.all([
+        getEngagementTrends({ period: "month", course_id: courseId }).catch(
+          () => null
+        ),
+        getPerformanceTrends({ period: "month", course_id: courseId }).catch(
+          () => null
+        ),
+        // Custom per-course charts
+        lecturerChart({
+          chart_type: "participation",
+          target_id: courseId,
+        }).catch(() => null),
+        lecturerChart({
+          chart_type: "struggling_students",
+          target_id: courseId,
+        }).catch(() => null),
+      ]);
+
+      setChartData({
+        engagement: engagementRes?.data ?? null,
+        performance: performanceRes?.data ?? null,
+        participation: participationRes?.data ?? null,
+        struggling: strugglingRes?.data ?? null,
+      });
+    } catch (err) {
+      console.error("Error loading course analytics:", err);
+      // Non-fatal: keep UI visible
+    } finally {
+      setLoadingCourse(false);
+    }
+  }
+
+  const handleCourseChange = (e) => {
+    setSelectedCourseId(e.target.value);
+  };
+
+  // ===== Helpers to shape chart data safely =====
+  function processQuizParticipationData() {
+    const quizzes = chartData?.participation?.quizzes;
+    if (!Array.isArray(quizzes)) return [];
+    return quizzes.map((q) => ({
+      quiz: q.title || `Quiz ${q.id}`,
+      attempted: Number(q.attempted_count || 0),
+      total: Number(q.total_students || 0),
+    }));
+  }
+
+  function processPerformanceData() {
+    const trends = chartData?.performance?.trends;
+    if (!Array.isArray(trends)) return [];
+    return trends.map((t) => ({
+      month: new Date(t.date).toLocaleDateString("en", { month: "short" }),
+      score: Math.round(Number(t.average_score || 0)),
+    }));
+  }
+
+  function processConceptStruggles() {
+    const concepts = chartData?.struggling?.concepts;
+    if (!Array.isArray(concepts)) return [];
+    return concepts.map((c) => ({
+      concept: c.name,
+      struggling: Number(c.struggling_count || 0),
+      total: Number(c.total_students || 0),
+    }));
+  }
+
+  function processStrugglingStudents() {
+    const students = chartData?.struggling?.students;
+    if (!Array.isArray(students)) return [];
+    return students.map((s) => ({
+      name: s.name || "Anonymous",
+      trend: s.trend || "stable",
+      lastScore: `${Math.round(Number(s.last_score || 0))}%`,
+      needsHelp: s.weak_areas?.[0] || "General Support",
+    }));
+  }
+
+  // ===== Derived UI data =====
+  const metrics = analyticsData?.metrics || {};
+  const quizParticipationData = processQuizParticipationData();
+  const performanceSeries = processPerformanceData();
+  const conceptStruggles = processConceptStruggles();
+  const strugglingStudents = processStrugglingStudents();
+
+  if (loading && !analyticsData) {
+    return (
+      <div>
+        <div className="NavBar">
+          <NavBar />
+        </div>
+        <div className="Container">
+          <div className="analytics-content">
+            <div className="loading-state">
+              <h3>Loading Student Analytics...</h3>
+              <div className="loading-spinner"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div>
+        <div className="NavBar">
+          <NavBar />
+        </div>
+        <div className="Container">
+          <div className="analytics-content">
+            <div className="error-state">
+              <h3>Error Loading Analytics</h3>
+              <p>{error}</p>
+              <button onClick={loadInitialData} className="retry-btn">
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
       <div className="NavBar">
         <NavBar />
       </div>
-      
+
       <div className="Container">
         <div className="analytics-content">
           <div className="analytics-header">
             <h2>Student Support Analytics</h2>
+
+            {/* Course Selector */}
+            {courses.length > 0 && (
+              <div className="course-selector">
+                <label htmlFor="course-select">Analyze Course:</label>
+                <select
+                  id="course-select"
+                  value={selectedCourseId}
+                  onChange={handleCourseChange}
+                >
+                  <option value="">All Courses</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={String(c.id)}>
+                      {c.code} - {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
-          
+
           {/* Metrics Grid */}
           <div className="metrics-grid">
-            <MetricCard 
-              title="Students Needing Support" 
-              value="23" 
-              subtitle="Below 60% average" 
-              trend={-8} 
+            <MetricCard
+              title="Students Needing Support"
+              value={metrics.students_needing_support || "0"}
+              subtitle="Below 60% average"
+              trend={metrics.support_trend || 0}
             />
-            <MetricCard 
-              title="Improving Students" 
-              value="31" 
-              subtitle="Upward trend this month" 
-              trend={12} 
+            <MetricCard
+              title="Improving Students"
+              value={metrics.improving_students || "0"}
+              subtitle="Upward trend this month"
+              trend={metrics.improvement_trend || 0}
             />
-            <MetricCard 
-              title="Participation Rate" 
-              value="85.5%" 
-              subtitle="Recent quiz attempts" 
-              trend={3} 
+            <MetricCard
+              title="Participation Rate"
+              value={`${metrics.participation_rate || 0}%`}
+              subtitle="Recent quiz attempts"
+              trend={metrics.participation_trend || 0}
             />
-            <MetricCard 
-              title="Help Requests" 
-              value="18" 
-              subtitle="This week" 
-              trend={-5} 
+            <MetricCard
+              title="Help Requests"
+              value={metrics.help_requests || "0"}
+              subtitle="This week"
+              trend={metrics.help_trend || 0}
             />
           </div>
 
           {/* Charts Grid */}
           <div className="charts-grid">
+            {/* Quiz Participation Chart */}
             <div className="chart-section">
-              <BarChart 
-                data={quizAttemptData} 
-                title="Quiz Participation Tracking" 
-              />
+              {quizParticipationData.length > 0 ? (
+                <BarChart
+                  data={quizParticipationData}
+                  title="Quiz Participation Tracking"
+                />
+              ) : (
+                <div className="chart-placeholder">
+                  <h4>Quiz Participation Tracking</h4>
+                  <p>No participation data available</p>
+                </div>
+              )}
             </div>
-            
+
+            {/* Performance Trend */}
             <div className="chart-section">
               <div className="chart-container">
                 <div className="chart-title">Class Performance Trend</div>
-                <div className="line-chart">
-                  {performanceData.map((item, index) => (
-                    <div key={index} className="performance-point">
-                      <div className="point-value">{item.score}%</div>
-                      <div className="point-bar" style={{height: `${item.score}%`}}></div>
-                      <div className="point-label">{item.month}</div>
-                    </div>
-                  ))}
-                </div>
+                {performanceSeries.length > 0 ? (
+                  <div className="line-chart">
+                    {performanceSeries.map((pt, idx) => (
+                      <div key={idx} className="performance-point">
+                        <div className="point-value">{pt.score}%</div>
+                        <div
+                          className="point-bar"
+                          style={{ height: `${Math.max(pt.score, 10)}%` }}
+                        ></div>
+                        <div className="point-label">{pt.month}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="chart-placeholder">
+                    <p>No performance trend data available</p>
+                  </div>
+                )}
               </div>
             </div>
 
+            {/* Concepts Needing Attention */}
             <div className="chart-section">
               <div className="chart-container">
                 <div className="chart-title">Concepts Needing Attention</div>
-                <div className="concept-struggles">
-                  {conceptStruggles.map((item, index) => {
-                    const percentage = Math.round((item.struggling / item.total) * 100);
-                    return (
-                      <div key={index} className="concept-item">
-                        <div className="concept-name">{item.concept}</div>
-                        <div className="struggle-bar">
-                          <div 
-                            className="struggle-fill" 
-                            style={{ width: `${percentage}%` }}
-                          ></div>
+                {conceptStruggles.length > 0 ? (
+                  <div className="concept-struggles">
+                    {conceptStruggles.map((it, idx) => {
+                      const pct =
+                        it.total > 0
+                          ? Math.round((it.struggling / it.total) * 100)
+                          : 0;
+                      return (
+                        <div key={idx} className="concept-item">
+                          <div className="concept-name">{it.concept}</div>
+                          <div className="struggle-bar">
+                            <div
+                              className="struggle-fill"
+                              style={{ width: `${pct}%` }}
+                            ></div>
+                          </div>
+                          <div className="struggle-count">
+                            {it.struggling}/{it.total} struggling
+                          </div>
                         </div>
-                        <div className="struggle-count">{item.struggling}/{item.total} struggling</div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="chart-placeholder">
+                    <p>No concept struggle data available</p>
+                  </div>
+                )}
               </div>
             </div>
 
+            {/* Students Requiring Support */}
             <div className="chart-section">
               <div className="chart-container">
                 <div className="chart-title">Students Requiring Support</div>
-                <div className="support-list">
-                  {strugglingStudents.map((student, index) => (
-                    <div key={index} className="support-item">
-                      <div className={`trend-indicator ${student.trend}`}></div>
-                      <div className="student-info">
-                        <div className="student-name">{student.name}</div>
-                        <div className="student-details">
-                          <span className="last-score">Last: {student.lastScore}</span>
-                          <span className="help-area">Focus: {student.needsHelp}</span>
+                {strugglingStudents.length > 0 ? (
+                  <div className="support-list">
+                    {strugglingStudents.slice(0, 6).map((s, idx) => (
+                      <div key={idx} className="support-item">
+                        <div className={`trend-indicator ${s.trend}`}></div>
+                        <div className="student-info">
+                          <div className="student-name">{s.name}</div>
+                          <div className="student-details">
+                            <span className="last-score">Last: {s.lastScore}</span>
+                            <span className="help-area">Focus: {s.needsHelp}</span>
+                          </div>
                         </div>
+                        <div className="action-button">Reach Out</div>
                       </div>
-                      <div className="action-button">Reach Out</div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="chart-placeholder">
+                    <p>No students requiring support at this time</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
+
+          {/* Loading indicator for course-specific data */}
+          {loadingCourse && (
+            <div className="loading-overlay">
+              <div className="loading-message">Loading course analytics...</div>
+            </div>
+          )}
 
           {/* Support Actions Section */}
           <div className="support-actions">
@@ -157,29 +420,35 @@ function StudentAnalytics() {
                   <div className="action-title">Immediate Attention</div>
                 </div>
                 <div className="action-content">
-                  <p>4 students have missed multiple quizzes and are falling behind</p>
+                  <p>
+                    {metrics.urgent_students || 0} students have missed multiple
+                    quizzes and are falling behind
+                  </p>
                   <button className="action-btn">Send Check-in Email</button>
                 </div>
               </div>
-              
+
               <div className="action-card moderate">
                 <div className="action-header">
                   <div className="action-icon">📚</div>
                   <div className="action-title">Study Support</div>
                 </div>
                 <div className="action-content">
-                  <p>Create study group for Parallel Algorithms concepts</p>
+                  <p>Create study group for challenging concepts</p>
                   <button className="action-btn">Organize Session</button>
                 </div>
               </div>
-              
+
               <div className="action-card positive">
                 <div className="action-header">
                   <div className="action-icon">🎯</div>
                   <div className="action-title">Encourage Progress</div>
                 </div>
                 <div className="action-content">
-                  <p>31 students showing improvement - send motivational message</p>
+                  <p>
+                    {metrics.improving_students || 0} students showing improvement
+                    — send motivational message
+                  </p>
                   <button className="action-btn">Send Encouragement</button>
                 </div>
               </div>
@@ -195,27 +464,30 @@ function StudentAnalytics() {
                 <div className="insight-content">
                   <div className="insight-title">Timing Patterns</div>
                   <div className="insight-description">
-                    Students who attempt quizzes late tend to score 15% lower
+                    {analyticsData?.insights?.timing_insight ||
+                      "Students who attempt quizzes late tend to score lower"}
                   </div>
                 </div>
               </div>
-              
+
               <div className="insight-card">
                 <div className="insight-icon">🤝</div>
                 <div className="insight-content">
                   <div className="insight-title">Peer Support</div>
                   <div className="insight-description">
-                    Study groups improve struggling student scores by average 23%
+                    {analyticsData?.insights?.peer_insight ||
+                      "Study groups improve struggling student scores significantly"}
                   </div>
                 </div>
               </div>
-              
+
               <div className="insight-card">
                 <div className="insight-icon">💡</div>
                 <div className="insight-content">
                   <div className="insight-title">Learning Strategy</div>
                   <div className="insight-description">
-                    Concept review sessions reduce quiz anxiety and improve performance
+                    {analyticsData?.insights?.strategy_insight ||
+                      "Concept review sessions reduce quiz anxiety and improve performance"}
                   </div>
                 </div>
               </div>
@@ -224,15 +496,20 @@ function StudentAnalytics() {
         </div>
       </div>
 
+      {/* Right rail */}
       <div className="SideST">
-        <div className="Rating">
-          <StarRating initialRating={4} />
-        </div>
+        
         <div className="List">
-          <CoursesList />
+          <CoursesList
+            courses={courses}
+            selectedCourse={courses.find(
+              (c) => String(c.id) === String(selectedCourseId)
+            )}
+            onCourseSelect={(course) => setSelectedCourseId(String(course.id))}
+          />
         </div>
       </div>
-      
+
       <div className="BoiST">
         <Bio />
       </div>

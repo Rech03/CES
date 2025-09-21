@@ -17,7 +17,7 @@ class CourseSerializer(serializers.ModelSerializer):
             'id', 'name', 'code', 'description', 'lecturer', 'lecturer_name',
             'created_at', 'updated_at', 'is_active', 'enrollment_code',
             'max_students', 'enrolled_students_count', 'topics_count',
-            'total_quizzes_count'
+            'total_ai_quizzes_count'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'enrollment_code']
     
@@ -27,7 +27,7 @@ class CourseSerializer(serializers.ModelSerializer):
     def get_topics_count(self, obj):
         return obj.get_topics_count()
     
-    def get_total_quizzes_count(self, obj):
+    def get_total_ai_quizzes_count(self, obj):
         return obj.get_total_ai_quizzes_count()
 
 

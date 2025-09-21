@@ -16,6 +16,8 @@ export const getWeeklyRecap = (params) => api.get('achievements/weekly-recap/', 
 
 // ACHIEVEMENT PROCESSING
 export const checkAchievements = () => api.post('achievements/check/');
+export const getBadges = () => api.get('achievements/badges/');
+export const getBadgeTypes = () => api.get('achievements/badge-types/');
 
 // LEADERBOARDS & COMPETITION
 export const getLeaderboard = (params) => api.get('achievements/leaderboard/', { params }); // { type?, course_id? }

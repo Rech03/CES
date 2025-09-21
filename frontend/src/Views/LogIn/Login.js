@@ -10,15 +10,6 @@ function Login() {
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState("");
 
-  // Debug logging for environment variables
-  useEffect(() => {
-    console.log('=== LOGIN COMPONENT DEBUG ===');
-    console.log('Environment variables check:');
-    console.log('- REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
-    console.log('- NODE_ENV:', process.env.NODE_ENV);
-    console.log('- All REACT_APP vars:', Object.keys(process.env).filter(key => key.startsWith('REACT_APP_')));
-  }, []);
-
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -28,35 +19,24 @@ function Login() {
     const username = String(f.get("username") || "").trim();
     const password = String(f.get("password") || "");
 
-    console.log('=== FORM SUBMISSION DEBUG ===');
-    console.log('Form data extracted:', { username, password: password ? '***' : 'empty' });
-    console.log('Remember me checked:', remember);
-
     try {
       // Validate inputs
       if (!username || !password) {
-        console.log('Validation failed: missing username or password');
         setError("Please enter both username and password.");
         return;
       }
-
-      console.log('Validation passed, calling login function...');
       
-      // Call the actual API
+      // Call the login API
       const response = await login(username, password, remember, remember);
-      
-      console.log('=== LOGIN RESPONSE PROCESSING ===');
-      console.log('Login function returned:', response);
       
       // Extract user data from response
       const userData = response.user || response;
-      console.log('User data extracted:', userData);
       
       // Create user session - map Django fields to frontend expectations
       const userSession = {
         username: username,
         name: userData.full_name || `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.username,
-        role: response.user_type || 'student', // Django uses user_type
+        role: response.user_type || userData.user_type || 'student',
         studentId: userData.student_number || null,
         employeeId: userData.employee_id || null,
         department: userData.department || null,
@@ -66,61 +46,53 @@ function Login() {
         rememberMe: remember
       };
       
-      console.log('User session created:', userSession);
-      
-      // Store session
-      localStorage.setItem('userSession', JSON.stringify(userSession));
-      console.log('Session stored in localStorage');
+      // Store session based on remember preference
+      if (remember) {
+        localStorage.setItem('userSession', JSON.stringify(userSession));
+      } else {
+        sessionStorage.setItem('userSession', JSON.stringify(userSession));
+      }
       
       // Role-based routing
       if (userSession.role === 'student') {
-        console.log(`Student login successful: ${userSession.name}`);
-        console.log('Navigating to /StudentDashboard');
         nav("/StudentDashboard");
       } else if (userSession.role === 'lecturer' || userSession.role === 'teacher' || userSession.role === 'instructor') {
-        console.log(`Lecturer login successful: ${userSession.name}`);
-        console.log('Navigating to /LecturerDashboard');
         nav("/LecturerDashboard");
       } else {
-        console.log(`Unknown role: ${userSession.role}, defaulting to student`);
-        console.log('Navigating to /StudentDashboard');
+        // Default to student dashboard for unknown roles
         nav("/StudentDashboard");
       }
       
     } catch (err) {
-      console.error('=== LOGIN CATCH BLOCK ===');
-      console.error('Login error caught:', err);
+      console.error('Login error:', err);
       
       // Handle API error responses
       let errorMessage = "Login failed. Please check your credentials and try again.";
       
       if (err.response?.data) {
-        // Django REST Framework error format
-        if (typeof err.response.data === 'string') {
-          errorMessage = err.response.data;
-        } else if (err.response.data.detail) {
-          errorMessage = err.response.data.detail;
-        } else if (err.response.data.non_field_errors) {
-          errorMessage = err.response.data.non_field_errors[0];
-        } else if (err.response.data.error) {
-          errorMessage = err.response.data.error;
-        } else if (err.response.data.message) {
-          errorMessage = err.response.data.message;
+        const data = err.response.data;
+        if (typeof data === 'string') {
+          errorMessage = data;
+        } else if (data.detail) {
+          errorMessage = data.detail;
+        } else if (data.non_field_errors) {
+          errorMessage = data.non_field_errors[0];
+        } else if (data.error) {
+          errorMessage = data.error;
+        } else if (data.message) {
+          errorMessage = data.message;
         }
       } else if (err.message) {
         errorMessage = err.message;
       }
       
-      console.error('Error message to display:', errorMessage);
       setError(errorMessage);
     } finally {
-      console.log('Login attempt finished, setting loading to false');
       setIsLoading(false);
     }
   };
 
   const handleForgotPassword = () => {
-    console.log('Forgot password clicked');
     alert(`Password Reset
 
 To reset your password, please contact:
@@ -193,6 +165,7 @@ Or visit the UCT password reset portal.`);
                 className="uct-input"
                 required
                 autoComplete="username"
+                disabled={isLoading}
               />
             </div>
 
@@ -208,12 +181,14 @@ Or visit the UCT password reset portal.`);
                   className="uct-input uct-password-input"
                   required
                   autoComplete="current-password"
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="uct-password-toggle"
                   aria-label={showPassword ? "Hide password" : "Show password"}
+                  disabled={isLoading}
                 >
                   {showPassword ? '🙈' : '👁️'}
                 </button>
@@ -227,6 +202,7 @@ Or visit the UCT password reset portal.`);
                 checked={remember}
                 onChange={() => setRemember(!remember)}
                 className="uct-checkbox"
+                disabled={isLoading}
               />
               <label htmlFor="remember" className="uct-checkbox-label">
                 Remember my password
@@ -253,6 +229,7 @@ Or visit the UCT password reset portal.`);
                 type="button"
                 className="uct-forgot-link"
                 onClick={handleForgotPassword}
+                disabled={isLoading}
               >
                 Forgot Password?
               </button>
