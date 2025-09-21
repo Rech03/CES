@@ -5,7 +5,12 @@ import CoursesList from "../../Componets/Lacture/CoursesList";
 import NavBar from "../../Componets/Lacture/NavBar";
 import QuizTile from "../../Componets/Lacture/QuizTile";
 import SearchBar from "../../Componets/Lacture/SearchBar";
-import { getQuizzesForReview, lecturerSlides } from "../../api/ai-quiz";
+import { 
+  getQuizzesForReview, 
+  lecturerSlides, 
+  getAdaptiveQuiz,
+  studentAvailableSlides 
+} from "../../api/ai-quiz";
 import { getMyCourses } from "../../api/courses";
 import api from "../../api/client";
 import "./Dashboard.css";
@@ -21,37 +26,112 @@ function Dashboard() {
     loadDashboardData(); 
   }, []);
 
-  // Debug function to find AI quizzes
-  const findAIQuizzes = async () => {
-    console.log('=== SEARCHING FOR AI QUIZZES ===');
-    
-    const endpointsToTry = [
-      { name: 'getQuizzesForReview', fn: () => getQuizzesForReview() },
-      { name: 'lecturerSlides', fn: () => lecturerSlides() },
-      { name: 'direct slides API', fn: () => api.get('ai-quiz/lecturer/slides/') },
-      { name: 'direct quizzes API', fn: () => api.get('ai-quiz/lecturer/quizzes-for-review/') }
-    ];
-
-    for (const endpoint of endpointsToTry) {
-      try {
-        const response = await endpoint.fn();
-        console.log(`${endpoint.name}:`, response.data);
-        
-        if (response.data && (
-          Array.isArray(response.data) || 
-          response.data.results || 
-          response.data.slides ||
-          response.data.quizzes
-        )) {
-          console.log(`✅ Found data in ${endpoint.name}`);
-          return { endpoint: endpoint.name, data: response.data };
-        }
-      } catch (error) {
-        console.log(`❌ ${endpoint.name} failed:`, error.message);
-      }
+  // Function to get quiz details using the student API (which has the real quiz IDs)
+  const getQuizDetails = async (quizId) => {
+    try {
+      console.log(`Fetching quiz details for ID: ${quizId}`);
+      const response = await getAdaptiveQuiz(quizId);
+      console.log(`Quiz details for ${quizId}:`, response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to fetch quiz ${quizId}:`, error);
+      return null;
     }
+  };
+
+  // Function to get available quizzes from student perspective (these have real IDs)
+  const getAvailableQuizzes = async () => {
+    try {
+      console.log('Fetching available slides/quizzes...');
+      const response = await studentAvailableSlides();
+      console.log('Available slides response:', response.data);
+      
+      let slidesData = [];
+      if (Array.isArray(response.data)) {
+        slidesData = response.data;
+      } else if (response.data?.slides) {
+        slidesData = response.data.slides;
+      } else if (response.data?.results) {
+        slidesData = response.data.results;
+      }
+
+      // Extract quiz IDs from slides that have generated quizzes
+      const quizIds = slidesData
+        .filter(slide => slide.quiz_id || slide.adaptive_quiz_id || slide.generated_quiz_id)
+        .map(slide => slide.quiz_id || slide.adaptive_quiz_id || slide.generated_quiz_id)
+        .filter(Boolean);
+
+      console.log('Found quiz IDs:', quizIds);
+      return quizIds;
+    } catch (error) {
+      console.error('Error getting available quizzes:', error);
+      return [];
+    }
+  };
+
+  // Debug function to find AI quizzes using multiple approaches
+  const findAIQuizzes = async () => {
+    console.log('=== COMPREHENSIVE AI QUIZ SEARCH ===');
     
-    return null;
+    const allQuizData = [];
+
+    // Method 1: Get quizzes for review (lecturer perspective)
+    try {
+      console.log('Method 1: Getting quizzes for review...');
+      const reviewResponse = await getQuizzesForReview();
+      console.log('Quizzes for review:', reviewResponse.data);
+      
+      let reviewQuizzes = [];
+      if (Array.isArray(reviewResponse.data)) {
+        reviewQuizzes = reviewResponse.data;
+      } else if (reviewResponse.data?.results) {
+        reviewQuizzes = reviewResponse.data.results;
+      }
+      
+      reviewQuizzes.forEach(quiz => {
+        allQuizData.push({ ...quiz, _source: 'review' });
+      });
+    } catch (error) {
+      console.log('Method 1 failed:', error.message);
+    }
+
+    // Method 2: Get available quiz IDs and fetch details
+    try {
+      console.log('Method 2: Getting quiz IDs and fetching details...');
+      const quizIds = await getAvailableQuizzes();
+      
+      for (const quizId of quizIds) {
+        const quizDetails = await getQuizDetails(quizId);
+        if (quizDetails) {
+          allQuizData.push({ ...quizDetails, _source: 'adaptive', _realId: quizId });
+        }
+      }
+    } catch (error) {
+      console.log('Method 2 failed:', error.message);
+    }
+
+    // Method 3: Get lecturer slides
+    try {
+      console.log('Method 3: Getting lecturer slides...');
+      const slidesResponse = await lecturerSlides();
+      console.log('Lecturer slides:', slidesResponse.data);
+      
+      let slidesData = [];
+      if (Array.isArray(slidesResponse.data)) {
+        slidesData = slidesResponse.data;
+      } else if (slidesResponse.data?.slides) {
+        slidesData = slidesResponse.data.slides;
+      }
+      
+      slidesData.forEach(slide => {
+        allQuizData.push({ ...slide, _source: 'slides' });
+      });
+    } catch (error) {
+      console.log('Method 3 failed:', error.message);
+    }
+
+    console.log('All collected quiz data:', allQuizData);
+    return allQuizData;
   };
 
   const loadDashboardData = async () => {
@@ -74,85 +154,150 @@ function Dashboard() {
 
       setCourses(coursesData);
 
-      // Find and load AI quizzes
-      const quizResult = await findAIQuizzes();
+      // Find and load AI quizzes using comprehensive approach
+      const allQuizData = await findAIQuizzes();
       
-      if (!quizResult) {
-        console.log('No AI quiz endpoints returned data');
+      if (allQuizData.length === 0) {
+        console.log('No quiz data found from any method');
         setQuizzes([]);
         return;
       }
 
-      let aiQuizzesData = [];
-      
-      // Extract data based on structure
-      if (Array.isArray(quizResult.data)) {
-        aiQuizzesData = quizResult.data;
-      } else if (quizResult.data.results && Array.isArray(quizResult.data.results)) {
-        aiQuizzesData = quizResult.data.results;
-      } else if (quizResult.data.slides && Array.isArray(quizResult.data.slides)) {
-        aiQuizzesData = quizResult.data.slides;
-      } else if (quizResult.data.quizzes && Array.isArray(quizResult.data.quizzes)) {
-        aiQuizzesData = quizResult.data.quizzes;
-      }
-
-      console.log('Raw AI quiz data:', aiQuizzesData);
-
-      // Normalize AI quiz data structure to match QuizTile expectations
-      const normalizedQuizzes = aiQuizzesData.map(quiz => {
-        console.log('Processing quiz:', quiz);
+      // Normalize quiz data and prioritize real IDs from adaptive API
+      const normalizedQuizzes = allQuizData.map((quiz, index) => {
+        console.log(`Processing quiz ${index}:`, quiz);
         
-        // Handle different possible data structures
+        // Prioritize real quiz ID from adaptive API
+        let quizId = quiz._realId || // From adaptive API
+                     quiz.id || 
+                     quiz.quiz_id || 
+                     quiz.adaptive_quiz_id ||
+                     quiz.pk;
+
+        // If still no valid ID, generate one but log it
+        if (!quizId || String(quizId) === 'undefined' || String(quizId) === 'null') {
+          const timestamp = Date.now();
+          const random = Math.random().toString(36).substr(2, 9);
+          quizId = `generated_${quiz._source}_${timestamp}_${index}_${random}`;
+          console.warn(`Generated fallback ID for quiz "${quiz.title || 'Untitled'}": ${quizId}`);
+        } else {
+          console.log(`Using valid ID for quiz "${quiz.title || 'Untitled'}": ${quizId} (source: ${quiz._source})`);
+        }
+        
+        // Handle different possible data structures based on source
         const normalized = {
-          id: quiz.id,
-          title: quiz.title || quiz.slide_title || quiz.name || 'Untitled Quiz',
+          id: String(quizId), // Ensure ID is always a string
+          title: quiz.title || 
+                 quiz.slide_title || 
+                 quiz.name || 
+                 quiz.quiz_title ||
+                 'Untitled Quiz',
+          
           topic: {
-            name: quiz.topic?.name || quiz.topic_name || 'Unknown Topic',
+            name: quiz.topic?.name || 
+                  quiz.topic_name || 
+                  quiz.subject?.name ||
+                  'Unknown Topic',
             course: {
               code: quiz.topic?.course?.code || 
                     quiz.course?.code || 
                     quiz.course_code || 
+                    quiz.subject?.course?.code ||
                     'UNKNOWN',
               name: quiz.topic?.course?.name || 
                     quiz.course?.name || 
                     quiz.course_name || 
+                    quiz.subject?.course?.name ||
                     'Unknown Course'
             }
           },
+          
           questions_count: quiz.questions_count || 
                           quiz.total_questions || 
                           quiz.questions?.length || 
-                          0,
+                          (quiz.questions_generated ? 5 : 0),
+          
           total_points: quiz.total_points || 
                        quiz.points || 
                        quiz.questions?.reduce((sum, q) => sum + (q.points || 1), 0) || 
-                       0,
+                       (quiz.questions_count ? quiz.questions_count * 2 : 0),
+          
           created_at: quiz.created_at || 
                      quiz.date_created || 
                      quiz.uploaded_at || 
+                     quiz.upload_date ||
                      new Date().toISOString(),
+          
           is_live: quiz.is_live || 
                   quiz.published || 
                   quiz.is_published ||
                   quiz.status === 'published' || 
-                  false,
+                  (quiz._source === 'adaptive'), // Adaptive quizzes are likely live
+          
           difficulty: quiz.difficulty || 
                      quiz.level || 
                      quiz.metadata?.difficulty ||
                      'medium',
+          
           is_ai_generated: true,
+          
           // Additional metadata
-          status: quiz.status || (quiz.is_live ? 'published' : 'draft'),
+          status: quiz.status || 
+                 (quiz.is_live ? 'published' : 
+                  (quiz.questions_generated || quiz.questions_count > 0 ? 'ready' : 'draft')),
+          
           time_limit: quiz.time_limit,
-          metadata: quiz.metadata
+          metadata: quiz.metadata || {},
+          
+          // Source tracking
+          dataSource: quiz._source,
+          hasRealId: !!quiz._realId,
+          originalData: quiz
         };
 
-        console.log('Normalized quiz:', normalized);
+        console.log(`Normalized quiz: "${normalized.title}" with ID: ${normalized.id} (source: ${normalized.dataSource}, real ID: ${normalized.hasRealId})`);
         return normalized;
       });
 
-      console.log('Final normalized quizzes:', normalizedQuizzes);
-      setQuizzes(normalizedQuizzes);
+      // Remove duplicates (prefer entries with real IDs)
+      const uniqueQuizzes = normalizedQuizzes.reduce((acc, current) => {
+        const duplicate = acc.find(quiz => 
+          quiz.title === current.title || 
+          (quiz.id === current.id && quiz.id !== current.id) // Same actual quiz
+        );
+        
+        if (duplicate) {
+          // If current has real ID and duplicate doesn't, replace
+          if (current.hasRealId && !duplicate.hasRealId) {
+            const index = acc.indexOf(duplicate);
+            acc[index] = current;
+          }
+          // Otherwise keep the first one
+        } else {
+          acc.push(current);
+        }
+        return acc;
+      }, []);
+
+      console.log('Final unique quizzes with prioritized IDs:', uniqueQuizzes);
+      
+      // Validate all quizzes have valid IDs
+      const invalidQuizzes = uniqueQuizzes.filter(q => 
+        !q.id || q.id === 'undefined' || q.id === 'null' || String(q.id) === 'undefined'
+      );
+      
+      if (invalidQuizzes.length > 0) {
+        console.error('Some quizzes still have invalid IDs:', invalidQuizzes);
+      } else {
+        console.log(`✅ All ${uniqueQuizzes.length} quizzes have valid IDs`);
+        
+        // Log summary of ID sources
+        const realIdCount = uniqueQuizzes.filter(q => q.hasRealId).length;
+        const generatedIdCount = uniqueQuizzes.length - realIdCount;
+        console.log(`ID Summary: ${realIdCount} real IDs, ${generatedIdCount} generated IDs`);
+      }
+      
+      setQuizzes(uniqueQuizzes);
       
     } catch (err) {
       console.error('Error loading dashboard data:', err);
@@ -162,7 +307,6 @@ function Dashboard() {
                       'Failed to load dashboard data';
       setError(errorMsg);
       
-      // Set empty data on error
       setQuizzes([]);
     } finally {
       setLoading(false);
@@ -171,15 +315,12 @@ function Dashboard() {
 
   // Delete quiz handler - disabled for AI quizzes since no delete API exists
   const handleDeleteQuiz = async (quiz) => {
-    // For now, show an informative message instead of trying to delete
     setError('AI quizzes cannot be deleted directly. Use the moderation interface to reject quizzes if needed.');
-    
-    // Alternative: You could redirect to moderation instead
-    // window.location.href = `/moderate-quiz/${quiz.id}`;
   };
 
   // Update quiz status
   const handleStatusChange = (quizId, newStatus) => {
+    console.log(`Updating quiz ${quizId} status to ${newStatus}`);
     setQuizzes(prev =>
       prev.map(q => q.id === quizId
         ? { ...q, is_live: newStatus === 'published' || newStatus === 'live' }
@@ -196,23 +337,19 @@ function Dashboard() {
     q.topic?.course?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Sort quizzes by creation date (newest first)
+  // Sort quizzes by creation date (newest first), prioritizing real IDs
   const sortedQuizzes = filteredQuizzes.sort((a, b) => {
+    // First, prioritize quizzes with real IDs
+    if (a.hasRealId && !b.hasRealId) return -1;
+    if (!a.hasRealId && b.hasRealId) return 1;
+    
+    // Then sort by date
     const dateA = new Date(a.created_at || 0);
     const dateB = new Date(b.created_at || 0);
     return dateB - dateA;
   });
 
   const recentQuizzes = sortedQuizzes.slice(0, 8);
-
-  // Calculate stats
-  const stats = {
-    total: quizzes.length,
-    draft: quizzes.filter(q => !q.is_live && (q.questions_count || 0) === 0).length,
-    ready: quizzes.filter(q => !q.is_live && (q.questions_count || 0) > 0).length,
-    live: quizzes.filter(q => q.is_live).length,
-    aiGenerated: quizzes.length // All are AI generated
-  };
 
   return (
     <div className="dashboard-container">
@@ -263,8 +400,6 @@ function Dashboard() {
           </div>
         )}
 
-        {/* Dashboard Stats */}
-     
         <div className="quiz-header1">
           <div className="Title">
             {loading ? 'Loading...' : `AI Quiz List (${filteredQuizzes.length})`}
@@ -384,6 +519,23 @@ function Dashboard() {
           )}
         </div>
 
+        {/* Enhanced debug panel */}
+        {process.env.NODE_ENV === 'development' && (
+          <div style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            background: '#f8f9fa',
+            border: '1px solid #dee2e6',
+            borderRadius: '4px',
+            padding: '10px',
+            fontSize: '12px',
+            maxWidth: '350px',
+            zIndex: 1000
+          }}>
+            
+          </div>
+        )}
         
       </div>
 
@@ -410,42 +562,6 @@ function Dashboard() {
         .dashboard-container {
           min-height: 100vh;
           background: #f5f5f5;
-          font-family: 'Poppins', sans-serif;
-        }
-        
-        .dashboard-stats {
-          margin: 20px 0;
-          padding: 0 20px;
-        }
-        
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-          gap: 16px;
-          max-width: 800px;
-        }
-        
-        .stat-card {
-          background: white;
-          padding: 20px;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          text-align: center;
-          border-left: 4px solid #1935CA;
-        }
-        
-        .stat-number {
-          font-size: 28px;
-          font-weight: bold;
-          color: #333;
-          margin-bottom: 4px;
-          font-family: 'Poppins', sans-serif;
-        }
-        
-        .stat-label {
-          font-size: 14px;
-          color: #666;
-          font-weight: 500;
           font-family: 'Poppins', sans-serif;
         }
         
@@ -480,71 +596,7 @@ function Dashboard() {
           background: #219A52;
         }
         
-        .quick-actions {
-          margin: 40px 20px 20px;
-          padding: 20px;
-          background: white;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .quick-actions h3 {
-          margin: 0 0 16px 0;
-          color: #333;
-          font-size: 18px;
-          font-family: 'Poppins', sans-serif;
-        }
-        
-        .action-buttons {
-          display: flex;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-        
-        .action-btn {
-          padding: 10px 20px;
-          border: none;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          font-family: 'Poppins', sans-serif;
-        }
-        
-        .action-btn.primary {
-          background: #1935CA;
-          color: white;
-        }
-        
-        .action-btn.primary:hover:not(:disabled) {
-          background: #1527A3;
-        }
-        
-        .action-btn.secondary {
-          background: #f5f5f5;
-          color: #666;
-          border: 1px solid #ddd;
-        }
-        
-        .action-btn.secondary:hover:not(:disabled) {
-          background: #e0e0e0;
-        }
-        
-        .action-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-        
         @media (max-width: 768px) {
-          .dashboard-stats {
-            padding: 0 16px;
-          }
-          
-          .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-          
           .quiz-header1 {
             flex-direction: column;
             gap: 12px;
@@ -554,19 +606,6 @@ function Dashboard() {
           
           .header-actions {
             justify-content: center;
-          }
-          
-          .quick-actions {
-            margin: 20px 16px;
-          }
-          
-          .action-buttons {
-            flex-direction: column;
-          }
-          
-          .action-btn {
-            width: 100%;
-            text-align: center;
           }
         }
       `}</style>
