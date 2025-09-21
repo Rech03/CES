@@ -25,6 +25,9 @@ import QuizzAnalytics from "./Views/Lacture/QuizAnalytics";
 import AddTopic from './Componets/Lacture/AddTopic';
 import AddTopicPage from './Views/Lacture/AddTopicPage';
 
+// NEW: AI Quiz Moderation Component
+import QuizModeration from './Views/Lacture/QuizModeration';
+
 // Common Components
 import Login from './Views/LogIn/Login';
 import { logout } from './api/auth';
@@ -401,6 +404,43 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          
+          {/* NEW: Quiz Moderation Routes */}
+          <Route 
+            path="/moderate-quiz/:quizId" 
+            element={
+              <ProtectedRoute allowedRoles={['lecturer', 'teacher', 'instructor']}>
+                <QuizModeration />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/edit-quiz/:quizId" 
+            element={
+              <ProtectedRoute allowedRoles={['lecturer', 'teacher', 'instructor']}>
+                <QuizModeration />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* NEW: Individual Quiz Analytics Routes */}
+          <Route 
+            path="/quiz-analytics/:quizId" 
+            element={
+              <ProtectedRoute allowedRoles={['lecturer', 'teacher', 'instructor']}>
+                <QuizzAnalytics />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/quiz-results/:quizId" 
+            element={
+              <ProtectedRoute allowedRoles={['lecturer', 'teacher', 'instructor']}>
+                <QuizzAnalytics />
+              </ProtectedRoute>
+            } 
+          />
+          
           <Route 
             path="/AddTopic" 
             element={
