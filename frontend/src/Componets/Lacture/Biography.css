@@ -214,3 +214,14 @@ color: #696F79;
     top: 180px;
   }
 }
+/* Add this to your existing Biography.css to make room for all sections */
+
+.biography-container {
+  width: 700px;
+  height: 150px; /* Increased height to fit all sections */
+  position: relative;
+  background: transparent;
+  margin: 5px;
+  box-sizing: border-box;
+  animation: fadeInUp 0.6s ease-out;
+}
