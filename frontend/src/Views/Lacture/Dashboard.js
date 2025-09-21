@@ -417,7 +417,7 @@ function Dashboard() {
               className="create-quiz-btn"
               onClick={() => window.location.href = '/LecturerAIQuizzes'}
             >
-              + Create AI Quiz
+              + Create Quiz
             </button>
           </div>
         </div>
@@ -468,7 +468,7 @@ function Dashboard() {
                 marginBottom:'10px', 
                 fontSize:'18px' 
               }}>
-                {searchTerm ? 'No AI quizzes match your search' : 'No AI quizzes available'}
+                {searchTerm ? 'No AI quizzes match your search' : 'No quizzes available'}
               </h3>
               <p style={{ 
                 color:'#666', 
@@ -477,7 +477,7 @@ function Dashboard() {
               }}>
                 {searchTerm 
                   ? 'Try another term or clear your search.'
-                  : 'Upload slides to automatically generate AI quizzes with different difficulty levels.'
+                  : 'Upload slides to automatically generate quizzes with different difficulty levels.'
                 }
               </p>
               {searchTerm ? (
