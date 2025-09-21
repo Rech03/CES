@@ -187,11 +187,11 @@ def student_available_slides(request):
         is_active=True
     ).values_list('course_id', flat=True)
     
+    # Fix: Remove the problematic filter
     slides = LectureSlide.objects.filter(
         topic__course_id__in=enrolled_course_ids,
-        questions_generated=True,
-        adaptive_quizzes_status='published'
-    ).order_by('-created_at')
+        questions_generated=True
+    ).distinct().order_by('-created_at')
     
     slides_data = []
     
@@ -201,6 +201,10 @@ def student_available_slides(request):
             student, slide
         )
         
+        # Only include slides that have published quizzes
+        if not available_quizzes:
+            continue
+            
         quiz_access_data = []
         for quiz_info in available_quizzes:
             quiz_access_data.append({

@@ -21,10 +21,7 @@ function AIQuizzes() {
 
       </div>
       <div className="SideAI">
-        <div className="Rating">
-          <StarRating></StarRating>
-
-        </div>
+       
         <div className="List">
         <CoursesList></CoursesList>
         </div>

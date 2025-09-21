@@ -52,7 +52,7 @@ class Course(models.Model):
         """Get total AI quizzes across all topics"""
         from ai_quiz.models import AdaptiveQuiz
         return AdaptiveQuiz.objects.filter(
-            lecture_slide__topic__course=self,
+            lecture_slide__topic__course=self,  # Correct path: AdaptiveQuiz -> LectureSlide -> Topic -> Course
             is_active=True
         ).count()
     
@@ -104,10 +104,12 @@ class Topic(models.Model):
         unique_together = ('course', 'name')
     
     def get_quizzes_count(self):
-        """Get count of quizzes in topic"""
+        """Get count of AI quizzes in topic"""
         try:
             from ai_quiz.models import AdaptiveQuiz
-            return AdaptiveQuiz.objects.filter(topic=self).count()
+            return AdaptiveQuiz.objects.filter(
+                lecture_slide__topic=self  # Correct path: AdaptiveQuiz -> LectureSlide -> Topic
+            ).count()
         except ImportError:
             return 0
     

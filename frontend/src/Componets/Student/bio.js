@@ -1,16 +1,71 @@
+import { useState, useEffect } from 'react';
+import { getProfile } from '../../api/users';
 import "./bio.css";
 
-function Bio({ name = "Michael Clifford", avatar = "/ID.jpeg" }) {
+function Bio({ name, avatar }) {
+  const [profileData, setProfileData] = useState({
+    name: name || "Student",
+    avatar: avatar || "/ID.jpeg"
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      // Only fetch if no props provided
+      if (!name && !avatar) {
+        setLoading(true);
+        try {
+          const response = await getProfile();
+          const user = response.data;
+          
+          setProfileData({
+            name: user.full_name || 
+                  `${user.first_name || ''} ${user.last_name || ''}`.trim() || 
+                  user.username || 
+                  user.email?.split('@')[0] || 
+                  "Student",
+            avatar: user.profile_picture || user.avatar || "/ID.jpeg"
+          });
+        } catch (err) {
+          console.error('Error fetching profile:', err);
+          setError('Failed to load profile');
+          // Keep default values on error
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchProfile();
+  }, [name, avatar]);
+
+  if (loading) {
+    return (
+      <div className="bio-container">
+        <div className="bio-avatar skeleton"></div>
+        <div className="bio-name skeleton">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="bio-container">
       <img 
         className="bio-avatar"
-        src={avatar} 
-        alt={`${name}'s avatar`}
+        src={profileData.avatar} 
+        alt={`${profileData.name}'s avatar`}
+        onError={(e) => {
+          e.target.src = "/ID.jpeg"; // Fallback image
+        }}
       />
       <div className="bio-name">
-        {name}
+        {profileData.name}
       </div>
+      {error && (
+        <div className="bio-error">
+        </div>
+      )}
     </div>
   );
 }

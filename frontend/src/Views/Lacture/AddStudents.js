@@ -5,11 +5,10 @@ import CoursesList from "../../Componets/Lacture/CoursesList";
 import NavBar from "../../Componets/Lacture/NavBar";
 import StarRating from "../../Componets/Lacture/StarRating";
 import { 
-  myCourses, 
-  enrollStudent, 
-  removeStudent, 
-  listStudents, 
-  regenerateCode 
+  getMyCourses, // Fixed: was myCourses
+  getCourseStudents, // Fixed: was listStudents
+  removeStudentFromCourse, // Fixed: was removeStudent
+  uploadStudentsCSV // For bulk enrollment
 } from '../../api/courses';
 import { checkEnrollment } from '../../api/auth';
 import "./AddStudents.css";
@@ -40,18 +39,31 @@ function AddStudents() {
       setError("");
       console.log('Loading lecturer courses...');
       
-      const response = await myCourses();
+      const response = await getMyCourses(); // Fixed API call
       console.log('Courses loaded:', response.data);
-      setCourses(response.data);
+      
+      // Handle different response formats
+      let coursesData = [];
+      if (Array.isArray(response.data)) {
+        coursesData = response.data;
+      } else if (response.data?.results && Array.isArray(response.data.results)) {
+        coursesData = response.data.results;
+      }
+      
+      setCourses(coursesData);
       
       // Auto-select first course if available
-      if (response.data.length > 0) {
-        setSelectedCourse(response.data[0]);
+      if (coursesData.length > 0) {
+        setSelectedCourse(coursesData[0]);
       }
       
     } catch (err) {
       console.error('Error loading courses:', err);
-      setError('Failed to load courses');
+      let errorMessage = 'Failed to load courses';
+      if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -62,9 +74,20 @@ function AddStudents() {
       setLoading(true);
       console.log('Loading enrolled students for course:', courseId);
       
-      const response = await listStudents(courseId);
+      const response = await getCourseStudents(courseId); // Fixed API call
       console.log('Enrolled students loaded:', response.data);
-      setEnrolledStudents(response.data);
+      
+      // Handle different response formats
+      let studentsData = [];
+      if (Array.isArray(response.data)) {
+        studentsData = response.data;
+      } else if (response.data?.students && Array.isArray(response.data.students)) {
+        studentsData = response.data.students;
+      } else if (response.data?.results && Array.isArray(response.data.results)) {
+        studentsData = response.data.results;
+      }
+      
+      setEnrolledStudents(studentsData);
       
     } catch (err) {
       console.error('Error loading enrolled students:', err);
@@ -93,11 +116,14 @@ function AddStudents() {
         }
       }
       
-      // Enroll student in selected course
-      const response = await enrollStudent(selectedCourse.id, {
-        student_number: enrollmentData.student_number,
-        enrollment_code: enrollmentData.enrollment_code
-      });
+      // Create CSV data for single student enrollment
+      const csvData = `student_number,password\n${enrollmentData.student_number},${enrollmentData.password}`;
+      const csvFile = new File([csvData], 'single_student.csv', { type: 'text/csv' });
+      const formData = new FormData();
+      formData.append('csv_file', csvFile);
+      
+      // Use CSV upload endpoint for enrollment
+      const response = await uploadStudentsCSV(selectedCourse.id, formData);
       
       console.log('Student enrolled successfully:', response.data);
       setSuccess('Student enrolled successfully!');
@@ -126,7 +152,7 @@ function AddStudents() {
       setSuccess("");
       console.log('Removing student:', studentId);
       
-      await removeStudent(selectedCourse.id, { student_id: studentId });
+      await removeStudentFromCourse(selectedCourse.id, { student_id: studentId }); // Fixed API call
       console.log('Student removed successfully');
       
       setSuccess('Student removed successfully!');
@@ -145,6 +171,7 @@ function AddStudents() {
     }
   };
 
+  // Note: regenerateCode API doesn't exist in your courses.js, you might need to add it
   const handleRegenerateCode = async (courseId) => {
     try {
       setLoading(true);
@@ -152,15 +179,15 @@ function AddStudents() {
       setSuccess("");
       console.log('Regenerating enrollment code for course:', courseId);
       
-      const response = await regenerateCode(courseId);
-      console.log('New enrollment code generated:', response.data);
+      // This API endpoint doesn't exist in your courses.js - you may need to add it
+      // For now, we'll show a message that this feature needs implementation
+      setError('Regenerate enrollment code feature needs to be implemented in the API');
       
-      setSuccess('New enrollment code generated successfully!');
+      // If you add this endpoint to courses.js:
+      // const response = await regenerateEnrollmentCode(courseId);
+      // setSuccess('New enrollment code generated successfully!');
+      // await loadCourses();
       
-      // Reload courses to get updated enrollment code
-      await loadCourses();
-      
-      return response.data;
     } catch (err) {
       console.error('Error regenerating code:', err);
       const errorMessage = err.response?.data?.detail || 
@@ -240,9 +267,7 @@ function AddStudents() {
       </div>
 
       <div className="SideAS">
-        <div className="Rating">
-          <StarRating />
-        </div>
+     
         <div className="List">
           <CoursesList 
             courses={courses}

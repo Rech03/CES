@@ -1,110 +1,52 @@
 import React, { useState, useEffect } from 'react';
+import { getAttemptDetail } from '../../api/quizzes';
 import './QuizResultsDisplay.css';
 
-const QuizResultsDisplay = ({ quizId = 1 }) => {
-  const [resultsData, setResultsData] = useState(null);
+const QuizResultsDisplay = ({ quizId, attemptData }) => {
+  const [detailedResults, setDetailedResults] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Mock quiz results data - replace with actual API call
   useEffect(() => {
-    const mockResultsData = {
-      quizInfo: {
-        quizTitle: "JavaScript Fundamentals Quiz",
-        quizId: quizId,
-        dateTaken: "2024-09-10",
-        timeTaken: 420, // seconds
-        isRetake: false
-      },
-      answers: {
-        1: 1, // Selected choice ID
-        2: true,
-        3: "Variables store data that can change",
-        4: 2
-      },
-      questions: [
-        {
-          id: 1,
-          type: 'multiple_choice',
-          question: 'What is the correct way to declare a variable in JavaScript?',
-          choices: [
-            { id: 1, text: 'var myVariable;' },
-            { id: 2, text: 'variable myVariable;' },
-            { id: 3, text: 'v myVariable;' },
-            { id: 4, text: 'declare myVariable;' }
-          ]
-        },
-        {
-          id: 2,
-          type: 'true_false',
-          question: 'JavaScript is a case-sensitive programming language.'
-        },
-        {
-          id: 3,
-          type: 'short_answer',
-          question: 'Explain the difference between var and let in JavaScript.'
-        },
-        {
-          id: 4,
-          type: 'multiple_choice',
-          question: 'Which method is used to add an element to the end of an array?',
-          choices: [
-            { id: 1, text: 'append()' },
-            { id: 2, text: 'push()' },
-            { id: 3, text: 'add()' },
-            { id: 4, text: 'insert()' }
-          ]
-        }
-      ]
-    };
-
-    setTimeout(() => {
-      setResultsData(mockResultsData);
-      setLoading(false);
-    }, 1000);
-  }, [quizId]);
-
-  // Calculate results
-  const calculateResults = () => {
-    if (!resultsData) return null;
-
-    const { answers, questions } = resultsData;
-    let correctAnswers = 0;
-    let totalQuestions = questions.length;
-    
-    // Correct answers key
-    const correctAnswersKey = {
-      1: 1, // var myVariable;
-      2: true, // JavaScript is case-sensitive
-      3: "Variables store data that can change", // Sample answer
-      4: 2 // push()
-    };
-
-    questions.forEach(question => {
-      const userAnswer = answers[question.id];
-      const correctAnswer = correctAnswersKey[question.id];
-      
-      if (question.type === 'short_answer') {
-        if (userAnswer && userAnswer.toLowerCase().includes('var')) {
-          correctAnswers++;
+    const fetchDetailedResults = async () => {
+      if (attemptData?.id) {
+        try {
+          setLoading(true);
+          const attemptResponse = await getAttemptDetail(attemptData.id);
+          setDetailedResults(attemptResponse.data);
+        } catch (err) {
+          console.warn('Could not fetch detailed results:', err);
+          setError('Could not load detailed quiz results');
+        } finally {
+          setLoading(false);
         }
       } else {
-        if (userAnswer === correctAnswer) {
-          correctAnswers++;
-        }
+        // If no attempt ID, use the provided attempt data
+        setDetailedResults(attemptData);
+        setLoading(false);
       }
-    });
+    };
 
-    const percentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-    const passed = percentage >= 50;
+    fetchDetailedResults();
+  }, [attemptData]);
 
+  // Calculate results from the data
+  const calculateResults = () => {
+    if (!attemptData && !detailedResults) return null;
+
+    const data = detailedResults || attemptData;
+    
     return {
-      correctAnswers,
-      totalQuestions,
-      percentage,
-      passed,
-      timeUsed: resultsData.quizInfo.timeTaken || 0,
-      correctAnswersKey
+      correctAnswers: data.correct_answers || 0,
+      totalQuestions: data.total_questions || 0,
+      percentage: Math.round(data.score || 0),
+      passed: (data.score || 0) >= 50,
+      timeUsed: data.time_taken || 0,
+      status: data.status || 'completed',
+      attemptNumber: data.attempt_number || 1,
+      maxScore: data.max_score || 100,
+      questionResults: data.question_results || []
     };
   };
 
@@ -132,6 +74,7 @@ const QuizResultsDisplay = ({ quizId = 1 }) => {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown Date';
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
@@ -139,29 +82,29 @@ const QuizResultsDisplay = ({ quizId = 1 }) => {
     });
   };
 
-  const renderQuestionReview = (question, index) => {
-    const userAnswer = resultsData.answers[question.id];
-    const correctAnswer = results.correctAnswersKey[question.id];
-    const isCorrect = question.type === 'short_answer' 
-      ? userAnswer && userAnswer.toLowerCase().includes('var')
-      : userAnswer === correctAnswer;
-
+  const renderQuestionReview = (questionResult, index) => {
+    const isCorrect = questionResult.is_correct || false;
+    
     return (
-      <div key={question.id} className="question-review-compact">
+      <div key={questionResult.question_id || index} className="question-review-compact">
         <div className="question-header-compact">
           <span className="question-number-compact">Q{index + 1}</span>
           <span className={`result-indicator-compact ${isCorrect ? 'correct' : 'incorrect'}`}>
             {isCorrect ? '✓' : '✗'}
           </span>
+          {questionResult.points && (
+            <span className="question-points">{questionResult.points_earned || 0}/{questionResult.points} pts</span>
+          )}
         </div>
         
-        <div className="question-text-compact">{question.question}</div>
+        <div className="question-text-compact">{questionResult.question_text || `Question ${index + 1}`}</div>
         
-        {question.type === 'multiple_choice' && (
+        {/* Multiple Choice Questions */}
+        {questionResult.question_type === 'multiple_choice' && questionResult.choices && (
           <div className="choices-review-compact">
-            {question.choices.map((choice, choiceIndex) => {
-              const isSelected = userAnswer === choice.id;
-              const isCorrectChoice = correctAnswer === choice.id;
+            {questionResult.choices.map((choice, choiceIndex) => {
+              const isSelected = questionResult.selected_choice_id === choice.id;
+              const isCorrectChoice = choice.is_correct;
               
               return (
                 <div 
@@ -169,7 +112,7 @@ const QuizResultsDisplay = ({ quizId = 1 }) => {
                   className={`choice-review-compact ${isSelected ? 'selected' : ''} ${isCorrectChoice ? 'correct-answer' : ''}`}
                 >
                   <span className="choice-letter-compact">{String.fromCharCode(65 + choiceIndex)}</span>
-                  <span className="choice-text-compact">{choice.text}</span>
+                  <span className="choice-text-compact">{choice.choice_text}</span>
                   {isSelected && <span className="selected-mark-compact">Your</span>}
                   {isCorrectChoice && <span className="correct-mark-compact">✓</span>}
                 </div>
@@ -178,29 +121,38 @@ const QuizResultsDisplay = ({ quizId = 1 }) => {
           </div>
         )}
         
-        {question.type === 'true_false' && (
+        {/* True/False Questions */}
+        {questionResult.question_type === 'true_false' && (
           <div className="true-false-review-compact">
-            <div className={`tf-option-compact ${userAnswer === true ? 'selected' : ''} ${correctAnswer === true ? 'correct-answer' : ''}`}>
+            <div className={`tf-option-compact ${questionResult.answer_text === 'true' ? 'selected' : ''} ${questionResult.correct_answer === 'true' ? 'correct-answer' : ''}`}>
               <span>True</span>
-              {userAnswer === true && <span className="selected-mark-compact">Your</span>}
-              {correctAnswer === true && <span className="correct-mark-compact">✓</span>}
+              {questionResult.answer_text === 'true' && <span className="selected-mark-compact">Your</span>}
+              {questionResult.correct_answer === 'true' && <span className="correct-mark-compact">✓</span>}
             </div>
-            <div className={`tf-option-compact ${userAnswer === false ? 'selected' : ''} ${correctAnswer === false ? 'correct-answer' : ''}`}>
+            <div className={`tf-option-compact ${questionResult.answer_text === 'false' ? 'selected' : ''} ${questionResult.correct_answer === 'false' ? 'correct-answer' : ''}`}>
               <span>False</span>
-              {userAnswer === false && <span className="selected-mark-compact">Your</span>}
-              {correctAnswer === false && <span className="correct-mark-compact">✓</span>}
+              {questionResult.answer_text === 'false' && <span className="selected-mark-compact">Your</span>}
+              {questionResult.correct_answer === 'false' && <span className="correct-mark-compact">✓</span>}
             </div>
           </div>
         )}
         
-        {question.type === 'short_answer' && (
+        {/* Short Answer Questions */}
+        {questionResult.question_type === 'short_answer' && (
           <div className="short-answer-review-compact">
             <div className="user-answer-compact">
-              <strong>Your Answer:</strong> {userAnswer || 'No answer provided'}
+              <strong>Your Answer:</strong> {questionResult.answer_text || 'No answer provided'}
             </div>
-            <div className="sample-answer-compact">
-              <strong>Expected:</strong> Variables declared with 'var' are function-scoped, while 'let' is block-scoped.
-            </div>
+            {questionResult.model_answer && (
+              <div className="sample-answer-compact">
+                <strong>Model Answer:</strong> {questionResult.model_answer}
+              </div>
+            )}
+            {questionResult.feedback && (
+              <div className="answer-feedback">
+                <strong>Feedback:</strong> {questionResult.feedback}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -218,15 +170,18 @@ const QuizResultsDisplay = ({ quizId = 1 }) => {
     );
   }
 
-  if (!resultsData || !results) {
+  if (!results) {
     return (
       <div className="quiz-results-display">
         <div className="error-message">
           <p>Unable to load quiz results</p>
+          {error && <p className="error-details">{error}</p>}
         </div>
       </div>
     );
   }
+
+  const data = detailedResults || attemptData;
 
   return (
     <div className="quiz-results-display">
@@ -234,10 +189,13 @@ const QuizResultsDisplay = ({ quizId = 1 }) => {
       <div className="results-header-compact">
         <h2>Quiz Results</h2>
         <div className="quiz-info-compact">
-          <span className="quiz-title-compact">{resultsData.quizInfo.quizTitle}</span>
-          <span className="quiz-date-compact">{formatDate(resultsData.quizInfo.dateTaken)}</span>
-          {resultsData.quizInfo.isRetake && (
-            <span className="retake-badge-compact">Retake</span>
+          <span className="quiz-title-compact">{data.quiz_title || `Quiz ${quizId}`}</span>
+          <span className="quiz-date-compact">{formatDate(data.created_at)}</span>
+          {data.attempt_number > 1 && (
+            <span className="attempt-badge-compact">Attempt #{data.attempt_number}</span>
+          )}
+          {results.status !== 'completed' && (
+            <span className="status-badge">{results.status}</span>
           )}
         </div>
       </div>
@@ -273,6 +231,12 @@ const QuizResultsDisplay = ({ quizId = 1 }) => {
             </span>
             <span className="stat-label-display">Status</span>
           </div>
+          {results.maxScore && results.maxScore !== 100 && (
+            <div className="stat-compact">
+              <span className="stat-value-display">{results.correctAnswers * (results.maxScore / results.totalQuestions)}/{results.maxScore}</span>
+              <span className="stat-label-display">Points</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -281,18 +245,22 @@ const QuizResultsDisplay = ({ quizId = 1 }) => {
         <button 
           className="toggle-btn"
           onClick={() => setShowDetails(!showDetails)}
+          disabled={!results.questionResults || results.questionResults.length === 0}
         >
           {showDetails ? 'Hide Details' : 'View Question Details'}
+          {(!results.questionResults || results.questionResults.length === 0) && 
+            <span className="disabled-note"> (Not Available)</span>
+          }
         </button>
       </div>
 
       {/* Detailed Results */}
-      {showDetails && (
+      {showDetails && results.questionResults && results.questionResults.length > 0 && (
         <div className="detailed-results-compact">
           <h3>Question Review</h3>
           <div className="questions-review-compact">
-            {resultsData.questions.map((question, index) => 
-              renderQuestionReview(question, index)
+            {results.questionResults.map((questionResult, index) => 
+              renderQuestionReview(questionResult, index)
             )}
           </div>
         </div>
@@ -314,8 +282,28 @@ const QuizResultsDisplay = ({ quizId = 1 }) => {
           {results.percentage < 50 && (
             <p>📖 This topic needs more attention. Review the course materials and try again.</p>
           )}
+
+          {data.feedback && (
+            <div className="personalized-feedback">
+              <h4>Instructor Feedback</h4>
+              <p>{data.feedback}</p>
+            </div>
+          )}
+
+          {results.attemptNumber > 1 && (
+            <div className="attempt-info">
+              <p><strong>Attempt #{results.attemptNumber}</strong> - Your best score will be recorded.</p>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="error-message-small">
+          <p>Note: Some detailed information could not be loaded.</p>
+        </div>
+      )}
     </div>
   );
 };
