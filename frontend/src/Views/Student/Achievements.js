@@ -19,10 +19,7 @@ function Achievements() {
 
       {/* Side panel remains outside */}
       <div className="SideA">
-        
-        <div className="List">
           <CoursesList />
-        </div>
       </div>
       
       <div className="BoiA">
