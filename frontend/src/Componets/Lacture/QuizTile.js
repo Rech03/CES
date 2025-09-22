@@ -26,7 +26,9 @@ function QuizTile({
     time_limit = null,
     difficulty: difficultyRaw,
     level: levelRaw,
-    metadata
+    metadata,
+    dataSource, // Track where this quiz data came from
+    hasRealId // Track if this has a real quiz ID or generated one
   } = quiz || {};
 
   const courseCode = topic?.course?.code || "UNKNOWN";
@@ -72,18 +74,90 @@ function QuizTile({
 
   const handlePublish = async (e) => {
     e.stopPropagation(); // Prevent tile click
-    if (!id) return;
+    if (!id) {
+      setError('Cannot publish: No quiz ID available');
+      return;
+    }
+    
     setIsLoading(true); 
     setError('');
+    
     try {
-      // Optionally fetch moderation data first (to ensure server-side consistency)
-      await getQuizForModeration(id);
-      await publishQuiz(id, { review_notes: 'Publishing from Dashboard' });
-      onStatusChange && onStatusChange(id, 'published');
+      console.log('=== PUBLISHING QUIZ ===');
+      console.log('Quiz ID:', id);
+      console.log('Quiz data source:', dataSource);
+      console.log('Has real ID:', hasRealId);
+      console.log('Full quiz object:', quiz);
+
+      // First, get moderation data to ensure we have the latest quiz info
+      console.log('Fetching moderation data for quiz:', id);
+      const moderationResponse = await getQuizForModeration(id);
+      console.log('Moderation response:', moderationResponse.data);
+
+      // Publish the quiz - this should create a proper quiz ID if one doesn't exist
+      console.log('Publishing quiz with ID:', id);
+      const publishResponse = await publishQuiz(id, { 
+        review_notes: 'Publishing from Dashboard',
+        confirm_publish: true 
+      });
+      
+      console.log('Publish response:', publishResponse);
+      console.log('Publish response data:', publishResponse.data);
+
+      // Check if the publish response contains a new/proper quiz ID
+      let finalQuizId = id;
+      if (publishResponse.data) {
+        // Look for the actual quiz ID in the response
+        finalQuizId = publishResponse.data.quiz_id || 
+                      publishResponse.data.id || 
+                      publishResponse.data.adaptive_quiz_id ||
+                      id;
+        
+        console.log('Final quiz ID after publishing:', finalQuizId);
+        
+        // If we got a different/new quiz ID, this means the publish created a proper quiz
+        if (finalQuizId !== id) {
+          console.log('✅ Publishing created new quiz ID:', finalQuizId, 'from original:', id);
+        } else {
+          console.log('ℹ️ Publishing used existing quiz ID:', finalQuizId);
+        }
+      }
+
+      // Update the quiz status and notify parent component
+      if (onStatusChange) {
+        onStatusChange(finalQuizId, 'published', {
+          originalId: id,
+          newQuizId: finalQuizId,
+          publishedAt: new Date().toISOString()
+        });
+      }
+
+      // Show success with the proper quiz ID
+      console.log('✅ Quiz successfully published with ID:', finalQuizId);
+      
     } catch (err) {
       console.error('Error publishing quiz:', err);
+      console.error('Error details:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
+      
       const d = err.response?.data;
-      const msg = typeof d === 'string' ? d : (d?.detail || d?.message || d?.error || 'Failed to publish quiz');
+      let msg = 'Failed to publish quiz';
+      
+      if (typeof d === 'string') {
+        msg = d;
+      } else if (d?.detail) {
+        msg = d.detail;
+      } else if (d?.message) {
+        msg = d.message;
+      } else if (d?.error) {
+        msg = d.error;
+      } else if (err.message) {
+        msg = err.message;
+      }
+      
       setError(msg);
     } finally {
       setIsLoading(false);
@@ -97,6 +171,9 @@ function QuizTile({
     setIsLoading(true); 
     setError('');
     try {
+      // For AI quizzes, we might need to use a different delete endpoint
+      // or handle deletion differently since they're generated from slides
+      console.log('Attempting to delete quiz:', id);
       await deleteQuiz(id);
       onDelete && onDelete(quiz);
     } catch (err) {
@@ -127,6 +204,9 @@ function QuizTile({
     return '#64748b';
   };
 
+  // Show warning if this quiz has a generated/invalid ID
+  const hasValidId = hasRealId || (id && !id.toString().startsWith('generated_'));
+
   return (
     <div 
       className={`quiz-tile-container ${courseCode.toLowerCase()}`} 
@@ -139,6 +219,18 @@ function QuizTile({
       <div className="quiz-status-badge" style={{ backgroundColor: statusInfo.color }}>
         <div className="quiz-status-text">{statusInfo.text}</div>
       </div>
+
+      {/* Warning for invalid IDs */}
+      {!hasValidId && (
+        <div style={{
+          position: 'absolute', top: '45px', left: '16px', right: '16px',
+          background: '#FF9800', color: 'white', padding: '4px 8px',
+          borderRadius: '4px', fontSize: '10px', zIndex: 10,
+          textAlign: 'center'
+        }}>
+          ⚠️ Generated ID - Publish to create proper quiz
+        </div>
+      )}
 
       {/* Info */}
       <div className="quiz-info-section">
@@ -195,7 +287,7 @@ function QuizTile({
             disabled={isLoading}
             style={{ backgroundColor: '#0b5fff' }}
           >
-            {isLoading ? 'Publishing...' : 'Publish'}
+            {isLoading ? 'Publishing...' : hasValidId ? 'Publish' : 'Create & Publish'}
           </button>
         )}
 
@@ -228,6 +320,18 @@ function QuizTile({
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:20
         }}>
           <div>Loading...</div>
+        </div>
+      )}
+
+      {/* Debug info in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div style={{
+          position: 'absolute', bottom: '4px', left: '4px', right: '4px',
+          background: 'rgba(0,0,0,0.7)', color: 'white', padding: '2px 4px',
+          borderRadius: '2px', fontSize: '8px', zIndex: 1,
+          textAlign: 'center'
+        }}>
+          ID: {id} | Source: {dataSource} | Valid: {hasValidId ? 'Yes' : 'No'}
         </div>
       )}
     </div>

@@ -2,15 +2,15 @@
 import { useState, useEffect } from 'react';
 
 // PROFILE
-import { getProfile } from '../../api/users'; // users/profile/  :contentReference[oaicite:5]{index=5}
+import { getProfile } from '../../api/users'; // users/profile/
 
 // PRIMARY STATS
-import { getStats as getAchievementStats } from '../../api/achievements'; // achievements/stats/  :contentReference[oaicite:6]{index=6}
+import { getStats as getAchievementStats } from '../../api/achievements'; // achievements/stats/
 
 /** FALLBACKS (in order) **/
-import { studentDashboard as getStudentAnalyticsDashboard } from '../../api/analytics'; // analytics/student/dashboard/  :contentReference[oaicite:7]{index=7}
-import { getStudentDashboard as getCoursesStudentDashboard } from '../../api/courses'; // courses/student/dashboard/  :contentReference[oaicite:8]{index=8}
-import { getMyAttempts } from '../../api/quizzes'; // quizzes/student/my-attempts/  :contentReference[oaicite:9]{index=9}
+import { studentDashboard as getStudentAnalyticsDashboard } from '../../api/analytics'; // analytics/student/dashboard/
+import { getStudentDashboard as getCoursesStudentDashboard } from '../../api/courses'; // courses/student/dashboard/
+import { getMyAttempts } from '../../api/quizzes'; // quizzes/student/my-attempts/
 
 import './Biography.css';
 
@@ -51,15 +51,38 @@ function Biography({
 
           try {
             const { data: user } = await getProfile();
+            console.log('Profile API response:', user); // Debug log
+            
+            // Try multiple possible field names for the user's name
             userName =
               user?.full_name ||
+              user?.name ||
               `${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
               user?.username ||
               user?.email?.split("@")[0] ||
               "Student";
-            userTitle = user?.program || user?.course || user?.department || "Student";
-            userAvatar = user?.profile_picture || user?.avatar || "/ID.jpeg";
+            
+            // Try multiple possible field names for title/role
+            userTitle = 
+              user?.title ||
+              user?.role ||
+              user?.program || 
+              user?.course || 
+              user?.department ||
+              user?.user_type ||
+              "Student";
+            
+            // Try multiple possible field names for avatar
+            userAvatar = 
+              user?.profile_picture || 
+              user?.avatar || 
+              user?.photo ||
+              user?.image ||
+              "/ID.jpeg";
+              
+            console.log('Processed user data:', { userName, userTitle, userAvatar }); // Debug log
           } catch (e) {
+            console.error('Profile API error:', e); // Debug log
             // keep defaults if profile call fails
           }
 
@@ -134,7 +157,9 @@ function Biography({
                 ) ?? 0;
               }
 
-              // 5) Last resort: compute from quiz attempts
+              // 5) Last resort: Note that getMyAttempts is referenced but not provided in your API files
+              // So this fallback will be commented out until the quizzes API is available
+              /*
               if (
                 !stats.quizzesCompleted &&
                 !stats.correctAnswers &&
@@ -171,42 +196,9 @@ function Biography({
                   filledFrom = 'attempts';
                 }
               }
+              */
             } catch {
-              // Ignore; we'll keep defaults or compute from attempts if possible
-              try {
-                const { data } = await getMyAttempts();
-                const attempts = Array.isArray(data) ? data : data?.results || [];
-                if (attempts?.length) {
-                  const completedQuizIds = new Set();
-                  let totalCorrect = 0;
-
-                  attempts.forEach((attempt) => {
-                    const completed =
-                      attempt?.is_completed || attempt?.status === 'completed';
-                    if (completed) {
-                      completedQuizIds.add(attempt?.quiz ?? attempt?.quiz_id);
-
-                      if (typeof attempt?.correct_answers === 'number') {
-                        totalCorrect += attempt.correct_answers;
-                      } else if (
-                        typeof attempt?.score === 'number' &&
-                        typeof attempt?.total_questions === 'number'
-                      ) {
-                        totalCorrect += Math.round(
-                          (attempt.score / 100) * attempt.total_questions
-                        );
-                      }
-                    }
-                  });
-
-                  stats.quizzesCompleted = completedQuizIds.size;
-                  stats.correctAnswers = totalCorrect;
-                  stats.currentStreak = calculateStreak(attempts);
-                  filledFrom = 'attempts';
-                }
-              } catch {
-                // leave zeros
-              }
+              // Ignore; we'll keep defaults
             }
           }
 

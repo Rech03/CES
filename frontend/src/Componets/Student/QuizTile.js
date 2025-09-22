@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 function QuizTile({ 
   quizId,
   slideId, // Added for AI quiz tracking
-  title = "AI Generated Quiz",
+  title = "Generated Quiz",
   duration = "15 min",
   totalQuestions = "5",
   dueDate = "Self-paced",
@@ -161,6 +161,27 @@ function QuizTile({
       <div className="quiz-status-badge" style={{ backgroundColor: statusInfo.color }}>
         <div className="quiz-status-text">{statusInfo.text}</div>
       </div>
+
+      {/* Difficulty Badge */}
+      {difficulty && (
+        <div 
+          className="quiz-difficulty-badge" 
+          style={{ 
+            backgroundColor: getDifficultyColor(difficulty),
+            position: 'absolute',
+            top: '15px',
+            right: '15px',
+            padding: '4px 8px',
+            borderRadius: '6px',
+            fontSize: '10px',
+            fontWeight: '600',
+            color: 'white',
+            zIndex: 3
+          }}
+        >
+          {difficulty}
+        </div>
+      )}
 
       {/* Quiz Info */}
       <div className="quiz-info-section">

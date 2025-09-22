@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getAttemptDetail } from '../../api/quizzes';
-import { getQuizStatistics } from '../../api/analytics';
+import { getQuizExplanations } from '../../api/ai-quiz';
 import './QuizResultsPage.css';
 
 const QuizResultsPage = () => {
@@ -10,85 +9,85 @@ const QuizResultsPage = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [explanations, setExplanations] = useState(null);
   
-  // Get results data from navigation state
+  // Get results data from navigation state (from AI quiz submission)
   const resultsData = location.state || {
     answers: {},
     questions: [],
     timeUsed: 0,
     quizData: {},
-    isRetake: false
+    isRetake: false,
+    isAIQuiz: true
   };
 
-  const [detailedResults, setDetailedResults] = useState(null);
-
   useEffect(() => {
-    const fetchDetailedResults = async () => {
-      if (resultsData.attemptId) {
+    const fetchExplanations = async () => {
+      if (resultsData.attempt_id && resultsData.quizData?.quizId) {
         try {
-          const attemptResponse = await getAttemptDetail(resultsData.attemptId);
-          setDetailedResults(attemptResponse.data);
+          console.log('Fetching AI quiz explanations...');
+          const explanationsResponse = await getQuizExplanations(
+            resultsData.quizData.quizId,
+            resultsData.attempt_id
+          );
+          setExplanations(explanationsResponse.data);
         } catch (err) {
-          console.warn('Could not fetch detailed results:', err);
+          console.warn('Could not fetch explanations:', err);
         }
       }
       setLoading(false);
     };
 
-    fetchDetailedResults();
-  }, [resultsData.attemptId]);
+    fetchExplanations();
+  }, [resultsData.attempt_id, resultsData.quizData?.quizId]);
 
-  // Calculate results
+  // Calculate results from AI quiz response
   const calculateResults = () => {
-    const { answers, questions } = resultsData;
-    let correctAnswers = 0;
-    let totalQuestions = questions.length;
-    
-    // Use detailed results if available
-    if (detailedResults) {
+    // Use data from AI quiz submission response
+    if (resultsData.score !== undefined) {
       return {
-        correctAnswers: detailedResults.correct_answers || 0,
-        totalQuestions: detailedResults.total_questions || totalQuestions,
-        percentage: Math.round(detailedResults.score || 0),
-        passed: (detailedResults.score || 0) >= 50,
-        timeUsed: detailedResults.time_taken || resultsData.timeUsed || 0,
-        correctAnswersKey: detailedResults.question_results || {}
+        correctAnswers: resultsData.correct_answers || 0,
+        totalQuestions: resultsData.total_questions || resultsData.questions?.length || 0,
+        percentage: Math.round(resultsData.score || 0),
+        passed: (resultsData.score || 0) >= 50,
+        timeUsed: resultsData.time_taken || resultsData.timeUsed || 0,
+        feedback: resultsData.feedback || null,
+        level: resultsData.adaptive_level || null,
+        questionResults: resultsData.question_results || []
       };
     }
 
-    // Fallback calculation for demonstration
-    const correctAnswersKey = {
-      1: 1, // Multiple choice: first option
-      2: true, // True/False: true
-      3: 3 // Multiple choice: third option
-    };
+    // Fallback calculation if direct results not available
+    const { answers, questions } = resultsData;
+    let correctAnswers = 0;
+    const totalQuestions = questions.length;
 
+    // Simple calculation for demonstration
     questions.forEach(question => {
       const userAnswer = answers[question.id];
-      const correctAnswer = correctAnswersKey[question.id];
-      
-      if (question.type === 'short_answer') {
-        // Simple keyword matching for short answers
-        if (userAnswer && userAnswer.toLowerCase().includes('variable')) {
+      if (userAnswer !== undefined && userAnswer !== null && userAnswer !== '') {
+        // For demo purposes, assume some answers are correct
+        if (question.type === 'multiple_choice' && userAnswer === (question.choices?.[0]?.id || 1)) {
           correctAnswers++;
-        }
-      } else {
-        if (userAnswer === correctAnswer) {
+        } else if (question.type === 'true_false' && userAnswer === true) {
+          correctAnswers++;
+        } else if (question.type === 'short_answer' && userAnswer.length > 10) {
           correctAnswers++;
         }
       }
     });
 
     const percentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-    const passed = percentage >= 50;
 
     return {
       correctAnswers,
       totalQuestions,
       percentage,
-      passed,
+      passed: percentage >= 50,
       timeUsed: resultsData.timeUsed || 0,
-      correctAnswersKey
+      feedback: null,
+      level: 'Adaptive',
+      questionResults: []
     };
   };
 
@@ -109,6 +108,14 @@ const QuizResultsPage = () => {
     return 'F';
   };
 
+  const getPerformanceLevel = (percentage) => {
+    if (percentage >= 90) return 'Excellent';
+    if (percentage >= 80) return 'Very Good';
+    if (percentage >= 70) return 'Good';
+    if (percentage >= 60) return 'Average';
+    return 'Needs Improvement';
+  };
+
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -120,43 +127,27 @@ const QuizResultsPage = () => {
   };
 
   const handleRetakeQuiz = () => {
-    if (resultsData.quizData.isAIGenerated) {
-      navigate('/AIQuizCountdownPage', {
-        state: {
-          ...resultsData.quizData,
-          isRetake: true
-        }
-      });
-    } else {
-      navigate('/QuizCountdownPage', {
-        state: {
-          ...resultsData.quizData,
-          isRetake: true
-        }
-      });
-    }
+    navigate('/QuizCountdownPage', {
+      state: {
+        ...resultsData.quizData,
+        isRetake: true
+      }
+    });
+  };
+
+  const handleViewAnalytics = () => {
+    navigate('/QuizAnalyticsPage', {
+      state: {
+        quizId: resultsData.quizData?.quizId,
+        slideId: resultsData.quizData?.slideId
+      }
+    });
   };
 
   const renderQuestionReview = (question, index) => {
     const userAnswer = resultsData.answers[question.id];
-    let correctAnswer = null;
-    let isCorrect = false;
-
-    // Use detailed results if available
-    if (detailedResults && detailedResults.question_results) {
-      const questionResult = detailedResults.question_results.find(qr => qr.question_id === question.id);
-      if (questionResult) {
-        correctAnswer = questionResult.correct_answer;
-        isCorrect = questionResult.is_correct;
-      }
-    } else {
-      // Fallback logic
-      const correctAnswersKey = results.correctAnswersKey;
-      correctAnswer = correctAnswersKey[question.id];
-      isCorrect = question.type === 'short_answer' 
-        ? userAnswer && userAnswer.toLowerCase().includes('variable')
-        : userAnswer === correctAnswer;
-    }
+    const questionResult = results.questionResults.find(qr => qr.question_id === question.id);
+    const isCorrect = questionResult?.is_correct || false;
 
     return (
       <div key={question.id} className="question-review">
@@ -171,9 +162,9 @@ const QuizResultsPage = () => {
         
         {question.type === 'multiple_choice' && (
           <div className="choices-review">
-            {question.choices.map((choice, choiceIndex) => {
+            {question.choices?.map((choice, choiceIndex) => {
               const isSelected = userAnswer === choice.id;
-              const isCorrectChoice = correctAnswer === choice.id;
+              const isCorrectChoice = choice.is_correct;
               
               return (
                 <div 
@@ -181,7 +172,7 @@ const QuizResultsPage = () => {
                   className={`choice-review ${isSelected ? 'selected' : ''} ${isCorrectChoice ? 'correct-answer' : ''}`}
                 >
                   <span className="choice-letter">{String.fromCharCode(65 + choiceIndex)}</span>
-                  <span className="choice-text">{choice.text || choice.choice_text}</span>
+                  <span className="choice-text">{choice.text}</span>
                   {isSelected && <span className="selected-mark">Your Answer</span>}
                   {isCorrectChoice && <span className="correct-mark">Correct Answer</span>}
                 </div>
@@ -192,15 +183,15 @@ const QuizResultsPage = () => {
         
         {question.type === 'true_false' && (
           <div className="true-false-review">
-            <div className={`tf-option ${userAnswer === true ? 'selected' : ''} ${correctAnswer === true ? 'correct-answer' : ''}`}>
+            <div className={`tf-option ${userAnswer === true ? 'selected' : ''} ${question.correct_answer === true ? 'correct-answer' : ''}`}>
               <span>True</span>
               {userAnswer === true && <span className="selected-mark">Your Answer</span>}
-              {correctAnswer === true && <span className="correct-mark">Correct Answer</span>}
+              {question.correct_answer === true && <span className="correct-mark">Correct Answer</span>}
             </div>
-            <div className={`tf-option ${userAnswer === false ? 'selected' : ''} ${correctAnswer === false ? 'correct-answer' : ''}`}>
+            <div className={`tf-option ${userAnswer === false ? 'selected' : ''} ${question.correct_answer === false ? 'correct-answer' : ''}`}>
               <span>False</span>
               {userAnswer === false && <span className="selected-mark">Your Answer</span>}
-              {correctAnswer === false && <span className="correct-mark">Correct Answer</span>}
+              {question.correct_answer === false && <span className="correct-mark">Correct Answer</span>}
             </div>
           </div>
         )}
@@ -211,12 +202,20 @@ const QuizResultsPage = () => {
               <strong>Your Answer:</strong>
               <div className="answer-text">{userAnswer || 'No answer provided'}</div>
             </div>
-            {detailedResults?.model_answer && (
+            {question.model_answer && (
               <div className="sample-answer">
                 <strong>Model Answer:</strong>
-                <div className="answer-text">{detailedResults.model_answer}</div>
+                <div className="answer-text">{question.model_answer}</div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* AI Explanation */}
+        {question.explanation && (
+          <div className="ai-explanation">
+            <h5>Explanation:</h5>
+            <p>{question.explanation}</p>
           </div>
         )}
       </div>
@@ -228,7 +227,8 @@ const QuizResultsPage = () => {
       <div className="quiz-results-container">
         <div className="loading-content">
           <div className="spinner"></div>
-          <h2>Loading Results...</h2>
+          <h2>Processing Results...</h2>
+          <p>Analyzing your AI quiz performance...</p>
         </div>
       </div>
     );
@@ -239,13 +239,16 @@ const QuizResultsPage = () => {
       <div className="results-content">
         {/* Header */}
         <div className="results-header">
-          <h1>Quiz Results</h1>
-          <p className="quiz-title">{resultsData.quizData.quizTitle || resultsData.quizData.title}</p>
+          <h1>AI Quiz Results</h1>
+          <p className="quiz-title">
+            {resultsData.quizData?.quizTitle || resultsData.quizData?.title || 'AI Generated Quiz'}
+          </p>
           {resultsData.isRetake && (
             <div className="retake-badge">Retake Attempt</div>
           )}
-          {resultsData.quizData.isAIGenerated && (
-            <div className="ai-badge">AI Generated Quiz</div>
+          <div className="ai-badge-large">Adaptive AI Quiz</div>
+          {results.level && (
+            <div className="level-badge">Level: {results.level}</div>
           )}
         </div>
 
@@ -280,12 +283,47 @@ const QuizResultsPage = () => {
             <div className="stat-label">Time Used</div>
           </div>
           <div className="stat-item">
-            <div className="stat-value">
-              {results.percentage >= 80 ? 'Excellent' : 
-               results.percentage >= 70 ? 'Good' : 
-               results.percentage >= 50 ? 'Average' : 'Needs Improvement'}
-            </div>
+            <div className="stat-value">{getPerformanceLevel(results.percentage)}</div>
             <div className="stat-label">Performance</div>
+          </div>
+        </div>
+
+        {/* AI Adaptive Feedback */}
+        <div className="ai-feedback-section">
+          <h3>AI Adaptive Feedback</h3>
+          <div className="ai-feedback-content">
+            {results.feedback ? (
+              <p>{results.feedback}</p>
+            ) : (
+              <>
+                {results.percentage >= 80 && (
+                  <p>Excellent performance! The AI has noted your strong understanding and may present more challenging questions in future quizzes.</p>
+                )}
+                {results.percentage >= 70 && results.percentage < 80 && (
+                  <p>Good work! The AI system will continue to adapt question difficulty based on your performance patterns.</p>
+                )}
+                {results.percentage >= 50 && results.percentage < 70 && (
+                  <p>You're making progress! The AI will adjust to help reinforce key concepts you're learning.</p>
+                )}
+                {results.percentage < 50 && (
+                  <p>The AI system has identified areas for improvement and will adjust future questions to help strengthen your understanding.</p>
+                )}
+              </>
+            )}
+            
+            <div className="adaptive-info">
+              <h4>How Adaptive Learning Works:</h4>
+              <ul>
+                <li>Questions adapt to your skill level in real-time</li>
+                <li>Your performance influences future quiz difficulty</li>
+                <li>The system identifies knowledge gaps and provides targeted practice</li>
+                <li>Each attempt helps the AI better understand your learning needs</li>
+              </ul>
+            </div>
+
+            {resultsData.isRetake && (
+              <p><strong>Retake Note:</strong> This attempt helps the AI better understand your progress. Your highest score will be recorded.</p>
+            )}
           </div>
         </div>
 
@@ -294,8 +332,16 @@ const QuizResultsPage = () => {
           <button 
             className="view-details-btn"
             onClick={() => setShowDetails(!showDetails)}
+            disabled={!resultsData.questions || resultsData.questions.length === 0}
           >
-            {showDetails ? 'Hide Details' : 'View Detailed Results'}
+            {showDetails ? 'Hide Details' : 'View Question Details'}
+          </button>
+          
+          <button 
+            className="analytics-btn"
+            onClick={handleViewAnalytics}
+          >
+            View Analytics
           </button>
           
           <button 
@@ -314,7 +360,7 @@ const QuizResultsPage = () => {
         </div>
 
         {/* Detailed Results */}
-        {showDetails && (
+        {showDetails && resultsData.questions && resultsData.questions.length > 0 && (
           <div className="detailed-results">
             <h3>Question by Question Review</h3>
             <div className="questions-review">
@@ -324,40 +370,6 @@ const QuizResultsPage = () => {
             </div>
           </div>
         )}
-
-        {/* Performance Feedback */}
-        <div className="performance-feedback">
-          <h3>Performance Feedback</h3>
-          <div className="feedback-content">
-            {results.percentage >= 80 && (
-              <p>Excellent work! You demonstrate a strong understanding of the material.</p>
-            )}
-            {results.percentage >= 70 && results.percentage < 80 && (
-              <p>Good job! You have a solid grasp of most concepts with room for minor improvements.</p>
-            )}
-            {results.percentage >= 50 && results.percentage < 70 && (
-              <p>You're on the right track, but consider reviewing the material and practicing more.</p>
-            )}
-            {results.percentage < 50 && (
-              <p>This topic needs more attention. Review the course materials and consider seeking additional help.</p>
-            )}
-            
-            {resultsData.isRetake && (
-              <p><strong>Note:</strong> This was a retake attempt. Your highest score will be recorded.</p>
-            )}
-
-            {resultsData.quizData.isAIGenerated && (
-              <p><strong>AI Note:</strong> The difficulty of future AI quizzes will adapt based on your performance.</p>
-            )}
-
-            {detailedResults?.feedback && (
-              <div className="personalized-feedback">
-                <h4>Personalized Feedback</h4>
-                <p>{detailedResults.feedback}</p>
-              </div>
-            )}
-          </div>
-        </div>
 
         {error && (
           <div className="error-message">

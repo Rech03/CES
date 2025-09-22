@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { getQuiz } from '../../api/quizzes';
+import { getAdaptiveQuiz, checkQuizAccess } from '../../api/ai-quiz';
 import './QuizCountdownPage.css';
 
 const QuizCountdownPage = () => {
@@ -20,31 +20,49 @@ const QuizCountdownPage = () => {
   
   // Get quiz data from navigation state or URL params
   const quizData = location.state || {
-    quizId: searchParams.get('quizId') || 1,
+    quizId: searchParams.get('quizId'),
+    slideId: searchParams.get('slideId'),
     quizTitle: "Quiz",
     quizDuration: "15 minutes",
-    totalQuestions: 20,
+    totalQuestions: 5,
     difficulty: "Medium"
   };
+
+  // Debug logging
+  console.log('QuizCountdownPage - quizData received:', quizData);
+  console.log('QuizCountdownPage - quizId:', quizData.quizId);
 
   useEffect(() => {
     const fetchQuizDetails = async () => {
       setLoading(true);
       try {
-        if (!quizData.quizId) {
-          throw new Error('No quiz ID provided');
+        // Validate quiz ID first
+        if (!quizData.quizId || quizData.quizId === 'undefined' || quizData.quizId === 'null') {
+          throw new Error('No valid quiz ID provided. Please select a quiz from the dashboard.');
         }
 
-        // Fetch quiz details from API
-        const quizResponse = await getQuiz(quizData.quizId);
+        console.log('Fetching published quiz details for ID:', quizData.quizId);
+
+        // Check quiz access first
+        const accessResponse = await checkQuizAccess(quizData.quizId);
+        const canAccess = accessResponse.data?.can_access !== false;
+        
+        if (!canAccess) {
+          throw new Error('You do not have access to this quiz');
+        }
+
+        // Fetch published quiz details using the quiz ID from lecturer publishing
+        const quizResponse = await getAdaptiveQuiz(quizData.quizId);
         const fetchedQuizDetails = quizResponse.data;
 
+        console.log('Published quiz details:', fetchedQuizDetails);
         setQuizDetails(fetchedQuizDetails);
         
         // Check if quiz requires password (live quizzes or password-protected)
         const requiresPassword = fetchedQuizDetails.is_live || 
                                fetchedQuizDetails.password_protected || 
-                               fetchedQuizDetails.requires_password;
+                               fetchedQuizDetails.requires_password ||
+                               fetchedQuizDetails.password;
         
         setShowPasswordInput(requiresPassword);
         
@@ -54,15 +72,6 @@ const QuizCountdownPage = () => {
         }
 
         // Validate quiz availability
-        if (!fetchedQuizDetails.is_live && fetchedQuizDetails.due_date) {
-          const dueDate = new Date(fetchedQuizDetails.due_date);
-          const now = new Date();
-          
-          if (now > dueDate) {
-            throw new Error('This quiz is no longer available');
-          }
-        }
-
         if (fetchedQuizDetails.scheduled_start) {
           const startTime = new Date(fetchedQuizDetails.scheduled_start);
           const now = new Date();
@@ -72,12 +81,22 @@ const QuizCountdownPage = () => {
           }
         }
 
+        if (fetchedQuizDetails.due_date) {
+          const dueDate = new Date(fetchedQuizDetails.due_date);
+          const now = new Date();
+          
+          if (now > dueDate) {
+            throw new Error('This quiz is no longer available');
+          }
+        }
+
       } catch (err) {
         console.error('Error fetching quiz details:', err);
         setError(err.message || 'Failed to load quiz details');
         
         // For development, continue with provided data as fallback
         if (process.env.NODE_ENV === 'development') {
+          console.warn('Using fallback data in development mode');
           setIsPasswordVerified(true);
         }
       } finally {
@@ -107,22 +126,20 @@ const QuizCountdownPage = () => {
       return;
     }
 
-    // For live quizzes, the password is typically provided by the lecturer
-    // In a real implementation, you might verify this with the backend
     try {
-      // Simple validation - in production, this should be server-side
+      // For AI quizzes, password verification might be simpler
       if (quizDetails?.password && password !== quizDetails.password) {
         setPasswordError('Incorrect password. Please check with your lecturer.');
         setPassword('');
         return;
       }
       
-      // For live quizzes without explicit password, accept any reasonable input
+      // For live AI quizzes without explicit password, accept any reasonable input
       if (quizDetails?.is_live && password.length >= 3) {
         setIsPasswordVerified(true);
         setShowPasswordInput(false);
         setPasswordError('');
-      } else if (!quizDetails?.is_live || !quizDetails?.password) {
+      } else if (!quizDetails?.password) {
         // If no password is actually required, proceed
         setIsPasswordVerified(true);
         setShowPasswordInput(false);
@@ -138,14 +155,18 @@ const QuizCountdownPage = () => {
   };
 
   const handleStartQuiz = () => {
-    // Navigate to quiz interface with complete quiz data
+    // Navigate to AI quiz interface with complete quiz data
     const completeQuizData = {
       ...quizData,
       ...quizDetails,
       startTime: new Date().toISOString(),
       password: password || null,
-      quizId: quizData.quizId || quizDetails?.id
+      quizId: quizData.quizId,
+      slideId: quizData.slideId,
+      isAIQuiz: true // Flag to indicate this is an AI-generated quiz
     };
+
+    console.log('Starting AI quiz with data:', completeQuizData);
 
     navigate('/Quizinterface', {
       state: completeQuizData
@@ -160,16 +181,32 @@ const QuizCountdownPage = () => {
   const getQuizInfo = () => {
     const details = quizDetails || {};
     return {
-      title: details.title || quizData.quizTitle || 'Quiz',
+      title: details.title || 
+             details.slide_title ||
+             quizData.quizTitle || 
+             quizData.title || 
+             'Quiz',
       duration: details.time_limit ? `${details.time_limit} minutes` : 
                 quizData.quizDuration || '15 minutes',
-      totalQuestions: details.total_questions || quizData.totalQuestions || 20,
-      difficulty: details.difficulty || quizData.difficulty || 'Medium',
-      description: details.description || null,
+      totalQuestions: details.questions?.length ||
+                     details.total_questions || 
+                     details.questions_count ||
+                     quizData.totalQuestions || 
+                     5,
+    
+      description: details.description || 
+                  `This quiz is based on the topic: ${details.topic?.name || ' Class content'}`,
       timeLimit: details.time_limit || 15,
       isLive: details.is_live || quizData.isLive || false,
       dueDate: details.due_date,
-      course: details.topic?.course?.name || 'Course',
+      course: details.topic?.course?.name || 
+             details.course?.name ||
+             quizData.courseCode ||
+             'Course',
+      topic: details.topic?.name || 
+            details.topic_name ||
+            quizData.topicName ||
+            'Topic',
       maxAttempts: details.max_attempts || 3
     };
   };
@@ -184,14 +221,14 @@ const QuizCountdownPage = () => {
           <div className="loading-content">
             <div className="spinner"></div>
             <h2>Loading Quiz...</h2>
-            <p>Preparing quiz details...</p>
+            <p>Preparing AI quiz details...</p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (error && !quizDetails) {
+  if (error && !quizDetails && process.env.NODE_ENV !== 'development') {
     return (
       <div className="countdown-container">
         <div className="countdown-overlay"></div>
@@ -228,7 +265,7 @@ const QuizCountdownPage = () => {
           )}
           
           <div className="quiz-course">
-            <span>{quizInfo.course}</span>
+            <span>{quizInfo.course} - {quizInfo.topic}</span>
           </div>
           
           <div className="quiz-meta-info">
@@ -246,11 +283,9 @@ const QuizCountdownPage = () => {
             </div>
           </div>
 
-          {quizInfo.description && (
-            <div className="quiz-description">
-              <p>{quizInfo.description}</p>
-            </div>
-          )}
+          <div className="quiz-description">
+            <p>{quizInfo.description}</p>
+          </div>
 
           {quizInfo.dueDate && (
             <div className="quiz-due-date">
@@ -312,7 +347,7 @@ const QuizCountdownPage = () => {
                 <p className="ready-subtext">
                   {quizInfo.isLive ? 
                     'Click below to join the live quiz session' :
-                    'Click the button below to start your quiz'
+                    'Click the button below to start your adaptive quiz'
                   }
                 </p>
               </>
@@ -320,34 +355,12 @@ const QuizCountdownPage = () => {
           </div>
         )}
 
-        {/* Instructions */}
-        {isPasswordVerified && (
-          <div className="quiz-instructions">
-            <h3>Instructions:</h3>
-            <ul>
-              <li>Read each question carefully before answering</li>
-              <li>You can navigate between questions using the navigation buttons</li>
-              <li>Make sure to submit your quiz before time runs out</li>
-              <li>You cannot pause the quiz once it starts</li>
-              {quizData.isRetake && (
-                <li><strong>This is a retake attempt - your best score will be kept</strong></li>
-              )}
-              {quizInfo.isLive && (
-                <>
-                  <li><strong>This is a live quiz - all students are taking it simultaneously</strong></li>
-                  <li><strong>The quiz will automatically submit when the lecturer ends the session</strong></li>
-                </>
-              )}
-              <li>You have {quizInfo.maxAttempts} total attempts for this quiz</li>
-            </ul>
-          </div>
-        )}
-
+    
         <div className="countdown-actions">
           {isReady ? (
             <button className="start-quiz-btn" onClick={handleStartQuiz}>
               {quizData.isRetake ? 'Start Retake' : 
-               quizInfo.isLive ? 'Join Live Quiz' : 'Start Quiz Now'}
+               quizInfo.isLive ? 'Join Live Quiz' : 'Start Quiz'}
             </button>
           ) : null}
           
@@ -359,6 +372,12 @@ const QuizCountdownPage = () => {
         {error && quizDetails && (
           <div className="error-message">
             <small>Warning: {error}</small>
+          </div>
+        )}
+
+        {process.env.NODE_ENV === 'development' && error && (
+          <div className="dev-warning">
+            <small>Development Mode: Proceeding with fallback data</small>
           </div>
         )}
       </div>

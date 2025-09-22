@@ -68,8 +68,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-
-    margin-top: 200px;
     margin-left: 30px;
 }
 .Rating{

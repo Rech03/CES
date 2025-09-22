@@ -69,7 +69,7 @@ function Dashboard() {
     }
   };
 
-  // Debug function to find AI quizzes using multiple approaches
+  // Comprehensive function to find AI quizzes using multiple approaches
   const findAIQuizzes = async () => {
     console.log('=== COMPREHENSIVE AI QUIZ SEARCH ===');
     
@@ -163,25 +163,43 @@ function Dashboard() {
         return;
       }
 
-      // Normalize quiz data and prioritize real IDs from adaptive API
+      // Enhanced quiz processing with better ID handling
       const normalizedQuizzes = allQuizData.map((quiz, index) => {
         console.log(`Processing quiz ${index}:`, quiz);
         
-        // Prioritize real quiz ID from adaptive API
-        let quizId = quiz._realId || // From adaptive API
-                     quiz.id || 
-                     quiz.quiz_id || 
-                     quiz.adaptive_quiz_id ||
-                     quiz.pk;
+        // Prioritize PUBLISHED quiz IDs over slide IDs
+        let quizId = null;
+        let hasRealId = false;
+        let dataSource = quiz._source;
+        
+        // Check for real quiz IDs first (from published quizzes)
+        if (quiz._realId && quiz._realId !== quiz.slide_id) {
+          quizId = quiz._realId;
+          hasRealId = true;
+          dataSource = 'adaptive';
+          console.log('Using real adaptive quiz ID:', quizId);
+        } else if (quiz.quiz_id && quiz.quiz_id !== quiz.slide_id && quiz.quiz_id !== quiz.id) {
+          quizId = quiz.quiz_id;
+          hasRealId = true;
+          console.log('Using published quiz ID:', quizId);
+        } else if (quiz.adaptive_quiz_id && quiz.adaptive_quiz_id !== quiz.slide_id) {
+          quizId = quiz.adaptive_quiz_id;
+          hasRealId = true;
+          console.log('Using adaptive quiz ID:', quizId);
+        } else if (quiz.id) {
+          quizId = quiz.id;
+          hasRealId = false;
+          console.log('Using fallback ID (possibly slide ID):', quizId);
+        }
 
-        // If still no valid ID, generate one but log it
+        // If still no valid ID, generate one but mark it clearly
         if (!quizId || String(quizId) === 'undefined' || String(quizId) === 'null') {
           const timestamp = Date.now();
           const random = Math.random().toString(36).substr(2, 9);
           quizId = `generated_${quiz._source}_${timestamp}_${index}_${random}`;
+          hasRealId = false;
+          dataSource = 'generated';
           console.warn(`Generated fallback ID for quiz "${quiz.title || 'Untitled'}": ${quizId}`);
-        } else {
-          console.log(`Using valid ID for quiz "${quiz.title || 'Untitled'}": ${quizId} (source: ${quiz._source})`);
         }
         
         // Handle different possible data structures based on source
@@ -249,28 +267,40 @@ function Dashboard() {
           time_limit: quiz.time_limit,
           metadata: quiz.metadata || {},
           
-          // Source tracking
-          dataSource: quiz._source,
-          hasRealId: !!quiz._realId,
-          originalData: quiz
+          // IMPORTANT: Source tracking for better ID management
+          dataSource: dataSource,
+          hasRealId: hasRealId,
+          originalData: quiz,
+          slideId: quiz.slide_id || quiz.id, // Keep track of original slide ID
+          
+          // Publish tracking
+          publishedAt: quiz.published_at || quiz.date_published,
+          originalSlideId: quiz.slide_id
         };
 
         console.log(`Normalized quiz: "${normalized.title}" with ID: ${normalized.id} (source: ${normalized.dataSource}, real ID: ${normalized.hasRealId})`);
         return normalized;
       });
 
-      // Remove duplicates (prefer entries with real IDs)
+      // Remove duplicates with better logic for published vs unpublished
       const uniqueQuizzes = normalizedQuizzes.reduce((acc, current) => {
-        const duplicate = acc.find(quiz => 
-          quiz.title === current.title || 
-          (quiz.id === current.id && quiz.id !== current.id) // Same actual quiz
-        );
+        const duplicate = acc.find(quiz => {
+          // Check for same slide or same title
+          return (quiz.slideId && current.slideId && quiz.slideId === current.slideId) ||
+                 (quiz.title === current.title && quiz.topic?.course?.code === current.topic?.course?.code);
+        });
         
         if (duplicate) {
-          // If current has real ID and duplicate doesn't, replace
-          if (current.hasRealId && !duplicate.hasRealId) {
+          // Prefer published quizzes over draft ones
+          if (current.is_live && !duplicate.is_live) {
             const index = acc.indexOf(duplicate);
             acc[index] = current;
+            console.log('Replaced draft with published quiz:', current.title);
+          } else if (current.hasRealId && !duplicate.hasRealId) {
+            // Prefer real IDs over generated ones
+            const index = acc.indexOf(duplicate);
+            acc[index] = current;
+            console.log('Replaced generated ID with real ID:', current.title);
           }
           // Otherwise keep the first one
         } else {
@@ -281,20 +311,20 @@ function Dashboard() {
 
       console.log('Final unique quizzes with prioritized IDs:', uniqueQuizzes);
       
-      // Validate all quizzes have valid IDs
+      // Enhanced validation
+      const publishedQuizzes = uniqueQuizzes.filter(q => q.is_live && q.hasRealId);
+      const draftQuizzes = uniqueQuizzes.filter(q => !q.is_live);
       const invalidQuizzes = uniqueQuizzes.filter(q => 
         !q.id || q.id === 'undefined' || q.id === 'null' || String(q.id) === 'undefined'
       );
       
+      console.log(`Quiz Summary:`);
+      console.log(`- Published with real IDs: ${publishedQuizzes.length}`);
+      console.log(`- Draft quizzes: ${draftQuizzes.length}`);
+      console.log(`- Invalid IDs: ${invalidQuizzes.length}`);
+      
       if (invalidQuizzes.length > 0) {
         console.error('Some quizzes still have invalid IDs:', invalidQuizzes);
-      } else {
-        console.log(`✅ All ${uniqueQuizzes.length} quizzes have valid IDs`);
-        
-        // Log summary of ID sources
-        const realIdCount = uniqueQuizzes.filter(q => q.hasRealId).length;
-        const generatedIdCount = uniqueQuizzes.length - realIdCount;
-        console.log(`ID Summary: ${realIdCount} real IDs, ${generatedIdCount} generated IDs`);
       }
       
       setQuizzes(uniqueQuizzes);
@@ -318,15 +348,45 @@ function Dashboard() {
     setError('AI quizzes cannot be deleted directly. Use the moderation interface to reject quizzes if needed.');
   };
 
-  // Update quiz status
-  const handleStatusChange = (quizId, newStatus) => {
-    console.log(`Updating quiz ${quizId} status to ${newStatus}`);
-    setQuizzes(prev =>
-      prev.map(q => q.id === quizId
-        ? { ...q, is_live: newStatus === 'published' || newStatus === 'live' }
-        : q
-      )
-    );
+  // Enhanced status change handler with quiz ID updates
+  const handleStatusChange = (quizId, newStatus, publishData = null) => {
+    console.log('=== HANDLING STATUS CHANGE ===');
+    console.log('Original quiz ID:', quizId);
+    console.log('New status:', newStatus);
+    console.log('Publish data:', publishData);
+    
+    setQuizzes(prev => {
+      return prev.map(quiz => {
+        // Handle quiz ID updates from publishing
+        const isTargetQuiz = quiz.id === quizId || 
+                            (publishData?.originalId && quiz.id === publishData.originalId);
+        
+        if (isTargetQuiz) {
+          const updatedQuiz = {
+            ...quiz,
+            is_live: newStatus === 'published' || newStatus === 'live',
+            status: newStatus === 'published' ? 'published' : quiz.status
+          };
+
+          // If publishing created a new quiz ID, update it
+          if (publishData?.newQuizId && publishData.newQuizId !== quiz.id) {
+            console.log('Updating quiz ID from', quiz.id, 'to', publishData.newQuizId);
+            updatedQuiz.id = publishData.newQuizId;
+            updatedQuiz.hasRealId = true; // Mark as having a real ID now
+            updatedQuiz.dataSource = 'published'; // Update source
+            
+            // Add publish metadata
+            updatedQuiz.publishedAt = publishData.publishedAt;
+            updatedQuiz.originalSlideId = publishData.originalId;
+          }
+
+          console.log('Updated quiz:', updatedQuiz);
+          return updatedQuiz;
+        }
+        
+        return quiz;
+      });
+    });
   };
 
   // Filter quizzes based on search term
@@ -343,7 +403,11 @@ function Dashboard() {
     if (a.hasRealId && !b.hasRealId) return -1;
     if (!a.hasRealId && b.hasRealId) return 1;
     
-    // Then sort by date
+    // Then prioritize published quizzes
+    if (a.is_live && !b.is_live) return -1;
+    if (!a.is_live && b.is_live) return 1;
+    
+    // Finally sort by date
     const dateA = new Date(a.created_at || 0);
     const dateB = new Date(b.created_at || 0);
     return dateB - dateA;
@@ -519,7 +583,7 @@ function Dashboard() {
           )}
         </div>
 
-        {/* Enhanced debug panel */}
+        {/* Development debug panel */}
         {process.env.NODE_ENV === 'development' && (
           <div style={{
             position: 'fixed',
@@ -533,20 +597,22 @@ function Dashboard() {
             maxWidth: '350px',
             zIndex: 1000
           }}>
-            
+            <strong>Debug Info:</strong>
+            <div>Total Quizzes: {quizzes.length}</div>
+            <div>Published: {quizzes.filter(q => q.is_live).length}</div>
+            <div>With Real IDs: {quizzes.filter(q => q.hasRealId).length}</div>
+            <div>Ready to Publish: {quizzes.filter(q => !q.is_live && q.questions_count > 0).length}</div>
           </div>
         )}
         
       </div>
 
       <div className="SideD">
-      
-          <CoursesList 
-            courses={courses} 
-            loading={loading} 
-            onRefresh={loadDashboardData} 
-          />
-        
+        <CoursesList 
+          courses={courses} 
+          loading={loading} 
+          onRefresh={loadDashboardData} 
+        />
       </div>
 
       <div className="BoiD">
