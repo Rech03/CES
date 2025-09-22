@@ -461,7 +461,7 @@ function Dashboard() {
                 marginBottom:'20px', 
                 opacity:0.3 
               }}>
-                🤖
+                📚
               </div>
               <h3 style={{ 
                 color:'#333', 
@@ -540,13 +540,13 @@ function Dashboard() {
       </div>
 
       <div className="SideD">
-        <div className="List">
+      
           <CoursesList 
             courses={courses} 
             loading={loading} 
             onRefresh={loadDashboardData} 
           />
-        </div>
+        
       </div>
 
       <div className="BoiD">

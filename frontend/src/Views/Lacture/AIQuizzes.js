@@ -22,9 +22,9 @@ function AIQuizzes() {
       </div>
       <div className="SideAI">
        
-        <div className="List">
+        
         <CoursesList></CoursesList>
-        </div>
+        
       </div>
       <div className="BoiAI">
               <Bio></Bio>

@@ -643,7 +643,7 @@ function StudentAnalytics() {
 
       {/* Right rail */}
       <div className="SideST">
-        <div className="List">
+
           <CoursesList
             courses={courses}
             selectedCourse={courses.find(
@@ -651,7 +651,7 @@ function StudentAnalytics() {
             )}
             onCourseSelect={(course) => setSelectedCourseId(String(course.id))}
           />
-        </div>
+        
       </div>
 
       <div className="BoiST">

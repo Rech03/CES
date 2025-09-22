@@ -206,9 +206,9 @@ function QuizAnalytics() {
         <div className="Rating">
           <StarRating />
         </div>
-        <div className="List">
+        
           <CoursesList courses={courses} />
-        </div>
+        
       </div>
       
       <div className="BoiH">

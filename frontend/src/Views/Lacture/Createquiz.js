@@ -24,9 +24,9 @@ function Createquiz() {
       {/* Side panel remains outside */}
       <div className="SideCQ">
      
-        <div className="List">
+        
         <CoursesList></CoursesList>
-        </div>
+        
       </div>
       
       

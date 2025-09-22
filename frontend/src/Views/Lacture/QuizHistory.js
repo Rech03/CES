@@ -261,7 +261,7 @@ function QuizHistory() {
       </div>
 
       <div className="SideST">
-        <div className="List">
+        
           <CoursesList 
             courses={courses}
             selectedCourse={courses.find(c => c.id === parseInt(selectedCourse))}
@@ -269,7 +269,7 @@ function QuizHistory() {
             loading={loading}
             onRefresh={loadAIQuizHistory}
           />
-        </div>
+      
       </div>
 
       <div className="BoiST">
@@ -385,7 +385,7 @@ function QuizHistory() {
                 marginBottom: '20px',
                 opacity: 0.3
               }}>
-                🤖
+                📚
               </div>
               <h3 style={{
                 color: '#333',

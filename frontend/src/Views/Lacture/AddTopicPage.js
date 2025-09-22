@@ -3,15 +3,16 @@ import AddTopic from "../../Componets/Lacture/AddTopic";
 import Bio from "../../Componets/Lacture/bio";
 import CoursesList from "../../Componets/Lacture/CoursesList";
 import NavBar from "../../Componets/Lacture/NavBar";
-import StarRating from "../../Componets/Lacture/StarRating";
-import { getMyCourses, listTopics, deleteTopic } from "../../api/courses"; // Fixed: was myCourses
+import { getMyCourses, listTopics, deleteTopic } from "../../api/courses";
 import "./AddTopicPage.css";
 
 function AddTopicPage() {
   const [courses, setCourses] = useState([]);
   const [topics, setTopics] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   // Load initial data
   useEffect(() => {
@@ -24,21 +25,23 @@ function AddTopicPage() {
       setError("");
       console.log('Loading courses and topics...');
       
-      // Load courses and topics in parallel - using correct API calls
+      // Load courses and topics in parallel
       const [coursesResponse, topicsResponse] = await Promise.all([
-        getMyCourses(), // Fixed: was myCourses()
+        getMyCourses(),
         listTopics()
       ]);
       
       console.log('Courses response:', coursesResponse.data);
       console.log('Topics response:', topicsResponse.data);
       
-      // Handle different response formats for courses - getMyCourses returns direct array
+      // Handle different response formats for courses
       let coursesData = [];
       if (Array.isArray(coursesResponse.data)) {
         coursesData = coursesResponse.data;
       } else if (coursesResponse.data?.results && Array.isArray(coursesResponse.data.results)) {
         coursesData = coursesResponse.data.results;
+      } else if (coursesResponse.data?.courses && Array.isArray(coursesResponse.data.courses)) {
+        coursesData = coursesResponse.data.courses;
       }
       
       // Handle different response formats for topics
@@ -51,6 +54,11 @@ function AddTopicPage() {
       
       setCourses(coursesData);
       setTopics(topicsData);
+      
+      // Auto-select first course if available
+      if (coursesData.length > 0 && !selectedCourse) {
+        setSelectedCourse(coursesData[0]);
+      }
       
       console.log('Data loaded successfully');
       
@@ -94,9 +102,9 @@ function AddTopicPage() {
     
     // Add the new topic to the local state for immediate UI update
     setTopics(prev => [newTopic, ...prev]);
+    setSuccess('Topic created successfully!');
     
     // Optionally reload all data to ensure consistency
-    // This is useful if the server might modify the data or if you want to refresh course counts
     try {
       await loadData();
     } catch (err) {
@@ -119,9 +127,7 @@ function AddTopicPage() {
       
       // Remove from local state immediately for better UX
       setTopics(prev => prev.filter(topic => topic.id !== topicId));
-      
-      // Optionally reload courses to update topic counts in CoursesList
-      // await loadData();
+      setSuccess('Topic deleted successfully!');
       
     } catch (err) {
       console.error('Error deleting topic:', err);
@@ -166,7 +172,12 @@ function AddTopicPage() {
     await loadData();
   };
 
-  // Enhance topics with course information for display
+  const handleCourseSelect = (course) => {
+    console.log('Course selected for topics:', course);
+    setSelectedCourse(course);
+  };
+
+  // Enhanced topics with course information for display
   const enrichedTopics = topics.map(topic => {
     const course = courses.find(c => c.id === topic.course);
     return {
@@ -176,6 +187,22 @@ function AddTopicPage() {
     };
   });
 
+  // Filter topics by selected course if one is selected
+  const filteredTopics = selectedCourse 
+    ? enrichedTopics.filter(topic => topic.course === selectedCourse.id)
+    : enrichedTopics;
+
+  // Clear messages after 5 seconds
+  useEffect(() => {
+    if (error || success) {
+      const timer = setTimeout(() => {
+        setError("");
+        setSuccess("");
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, success]);
+
   return (
     <div>
       <div className="NavBar">
@@ -183,17 +210,19 @@ function AddTopicPage() {
       </div>
        
       <div className="SideT">
-
-        <div className="List">
+        
           <CoursesList 
             courses={courses}
+            selectedCourse={selectedCourse}
+            onCourseSelect={handleCourseSelect}
             loading={loading}
             onRefresh={handleRefresh}
-            showTopicCounts={true}
-            topics={topics}
+            title="Courses"
+            compact={true}
+            showStats={true}
             error={error}
           />
-        </div>
+        
       </div>
       
       <div className="BoiT">
@@ -201,6 +230,7 @@ function AddTopicPage() {
       </div>
       
       <div className="ContainerT">
+        {/* Messages */}
         {error && (
           <div className="error-message" style={{
             background: '#FEE2E2',
@@ -229,38 +259,111 @@ function AddTopicPage() {
             </button>
           </div>
         )}
+
+        {success && (
+          <div className="success-message" style={{
+            background: '#D1FAE5',
+            border: '1px solid #A7F3D0',
+            color: '#065F46',
+            padding: '0.75rem',
+            borderRadius: '0.375rem',
+            margin: '20px 5% 0 5%',
+            fontSize: '0.875rem'
+          }}>
+            {success}
+          </div>
+        )}
         
         <div className="AddTopicForm">
           <AddTopic 
             onTopicCreated={handleTopicCreated}
             loading={loading}
+            courses={courses}
+            selectedCourse={selectedCourse}
           />
         </div>
         
         {/* Topics List Section */}
         <div className="TopicsListSection">
-          <h3>Recent Topics ({enrichedTopics.length})</h3>
+          <div className="topics-header" style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px'
+          }}>
+            <h3>
+              {selectedCourse 
+                ? `Topics for ${selectedCourse.code} (${filteredTopics.length})`
+                : `All Topics (${enrichedTopics.length})`
+              }
+            </h3>
+            {selectedCourse && (
+              <button 
+                onClick={() => setSelectedCourse(null)}
+                className="clear-filter-btn"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #1935CA',
+                  color: '#1935CA',
+                  padding: '4px 12px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                Show All Topics
+              </button>
+            )}
+          </div>
+          
           {loading ? (
             <div className="loading-spinner">Loading topics...</div>
-          ) : enrichedTopics.length > 0 ? (
-            <div className="topics-grid">
-              {enrichedTopics.slice(0, 6).map(topic => (
-                <div key={topic.id} className="topic-card">
+          ) : filteredTopics.length > 0 ? (
+            <div className="topics-grid" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+              gap: '20px',
+              marginBottom: '20px'
+            }}>
+              {filteredTopics.slice(0, 6).map(topic => (
+                <div key={topic.id} className="topic-card" style={{
+                  background: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                }}>
                   <div className="topic-header">
-                    <h4>{topic.name}</h4>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '600' }}>
+                      {topic.name}
+                    </h4>
                   </div>
-                  <div className="topic-course">
+                  <div className="topic-course" style={{
+                    fontSize: '14px',
+                    color: '#6b7280',
+                    marginBottom: '8px'
+                  }}>
                     <strong>{topic.courseCode}</strong> - {topic.courseName}
                   </div>
                   <div className="topic-description">
                     {topic.description && (
-                      <p>{topic.description.length > 100 
-                        ? topic.description.substring(0, 100) + '...' 
-                        : topic.description}
+                      <p style={{
+                        fontSize: '14px',
+                        color: '#374151',
+                        lineHeight: '1.4',
+                        margin: '0 0 12px 0'
+                      }}>
+                        {topic.description.length > 100 
+                          ? topic.description.substring(0, 100) + '...' 
+                          : topic.description}
                       </p>
                     )}
                   </div>
-                  <div className="topic-meta">
+                  <div className="topic-meta" style={{
+                    fontSize: '12px',
+                    color: '#9ca3af',
+                    marginBottom: '12px'
+                  }}>
                     <span className="created-date">
                       {topic.created_at 
                         ? new Date(topic.created_at).toLocaleDateString()
@@ -272,21 +375,54 @@ function AddTopicPage() {
                     className="delete-topic-btn"
                     onClick={() => handleDeleteTopic(topic.id)}
                     disabled={loading}
+                    style={{
+                      background: '#fef2f2',
+                      border: '1px solid #fecaca',
+                      color: '#dc2626',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.background = '#dc2626';
+                      e.target.style.color = 'white';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.background = '#fef2f2';
+                      e.target.style.color = '#dc2626';
+                    }}
                   >
-                    Delete
+                    Delete Topic
                   </button>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="no-topics">
-              <p>No topics created yet. Create your first topic above!</p>
+            <div className="no-topics" style={{
+              textAlign: 'center',
+              padding: '40px 20px',
+              color: '#6b7280'
+            }}>
+              <p>
+                {selectedCourse 
+                  ? `No topics found for ${selectedCourse.code}. Create your first topic above!`
+                  : 'No topics created yet. Create your first topic above!'
+                }
+              </p>
             </div>
           )}
           
-          {enrichedTopics.length > 6 && (
-            <div className="view-all-topics">
-              <p>Showing 6 of {enrichedTopics.length} topics</p>
+          {filteredTopics.length > 6 && (
+            <div className="view-all-topics" style={{
+              textAlign: 'center',
+              padding: '20px',
+              color: '#6b7280',
+              fontSize: '14px'
+            }}>
+              <p>Showing 6 of {filteredTopics.length} topics</p>
             </div>
           )}
         </div>
