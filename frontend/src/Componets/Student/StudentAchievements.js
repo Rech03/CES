@@ -283,9 +283,7 @@ const StudentAchievements = ({ studentId = null }) => {
               style={{ width: `${getXPProgress()}%` }}
             ></div>
           </div>
-          <div className="xp-text">
-            {studentInfo.xp} / {studentInfo.xp + studentInfo.xpToNext} XP
-          </div>
+          
         </div>
       </div>
 
@@ -303,19 +301,19 @@ const StudentAchievements = ({ studentId = null }) => {
         <div className="stat-card">
           <span className="stat-value">{stats.perfectScores}</span>
           <span className="stat-label">Perfect Scores</span>
-          <div className="stat-icon">💯</div>
+          <div className="stat-icon"></div>
         </div>
 
         <div className="stat-card">
           <span className="stat-value">{stats.averageScore}%</span>
           <span className="stat-label">Average Score</span>
-          <div className="stat-icon">📊</div>
+          <div className="stat-icon"></div>
         </div>
 
         <div className="stat-card">
           <span className="stat-value">{stats.studyHours}h</span>
           <span className="stat-label">Study Time</span>
-          <div className="stat-icon">⏰</div>
+          <div className="stat-icon"></div>
         </div>
       </div>
 
