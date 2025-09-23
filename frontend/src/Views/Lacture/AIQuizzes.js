@@ -1,7 +1,6 @@
 import Bio from "../../Componets/Lacture/bio";
 import CoursesList from "../../Componets/Lacture/CoursesList";
 import NavBar from "../../Componets/Lacture/NavBar";
-import StarRating from "../../Componets/Lacture/StarRating";
 import UploadSlides from "../../Componets/Lacture/UploadSlides";
 import "./AIQuizzes.css";
 
