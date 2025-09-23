@@ -28,6 +28,8 @@ backend/media/
 backend/static_collected/
 backend/staticfiles/
 backend/gunicorn.conf.py
+backend/*/migrations/*
+backend/!*/migrations/__init__.py
 
 # Frontend specific (if using Node.js/React/etc)
 frontend/node_modules/
