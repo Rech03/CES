@@ -707,3 +707,188 @@ def get_quizzes_for_review(request):
         })
     
     return Response(quiz_data)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated, IsLecturerPermission])
+def get_lecturer_available_quizzes(request):
+    """
+    Get all quizzes for lecturer's courses with comprehensive management information
+    """
+    lecturer = request.user
+    course_id = request.query_params.get('course_id')
+    status_filter = request.query_params.get('status')  # draft, under_review, published, rejected
+    difficulty_filter = request.query_params.get('difficulty')  # easy, medium, hard
+    
+    try:
+        # Get lecturer's courses
+        from courses.models import Course
+        courses = Course.objects.filter(lecturer=lecturer, is_active=True)
+        
+        if course_id:
+            courses = courses.filter(id=course_id)
+        
+        # Get all quizzes from lecturer's courses
+        quizzes_query = AdaptiveQuiz.objects.filter(
+            lecture_slide__topic__course__in=courses
+        ).select_related(
+            'lecture_slide',
+            'lecture_slide__topic',
+            'lecture_slide__topic__course',
+            'reviewed_by'
+        )
+        
+        # Apply filters
+        if status_filter:
+            quizzes_query = quizzes_query.filter(status=status_filter)
+        
+        if difficulty_filter:
+            quizzes_query = quizzes_query.filter(difficulty=difficulty_filter)
+        
+        quizzes = quizzes_query.order_by(
+            'lecture_slide__topic__course__code',
+            'lecture_slide__title',
+            'difficulty'
+        )
+        
+        # Get student engagement statistics for these quizzes
+        quiz_ids = list(quizzes.values_list('id', flat=True))
+        
+        # Get progress statistics
+        progress_stats = StudentAdaptiveProgress.objects.filter(
+            adaptive_quiz_id__in=quiz_ids
+        ).values('adaptive_quiz_id').annotate(
+            total_students=Count('student', distinct=True),
+            total_attempts=Sum('attempts_count'),
+            completed_count=Count('id', filter=models.Q(completed=True)),
+            avg_score=Avg('best_score', filter=models.Q(completed=True))
+        )
+        
+        # Create lookup dictionary for progress stats
+        progress_lookup = {
+            stat['adaptive_quiz_id']: stat for stat in progress_stats
+        }
+        
+        # Group quizzes by slide
+        slides_data = {}
+        
+        for quiz in quizzes:
+            slide_id = quiz.lecture_slide.id
+            
+            if slide_id not in slides_data:
+                slides_data[slide_id] = {
+                    'slide_info': {
+                        'slide_id': slide_id,
+                        'title': quiz.lecture_slide.title,
+                        'topic_name': quiz.lecture_slide.topic.name,
+                        'course_code': quiz.lecture_slide.topic.course.code,
+                        'course_name': quiz.lecture_slide.topic.course.name,
+                        'course_id': quiz.lecture_slide.topic.course.id,
+                        'uploaded_at': quiz.lecture_slide.created_at,
+                        'has_extracted_text': bool(quiz.lecture_slide.extracted_text),
+                        'file_name': quiz.lecture_slide.slide_file.name if quiz.lecture_slide.slide_file else None
+                    },
+                    'quizzes': []
+                }
+            
+            # Get progress statistics for this quiz
+            stats = progress_lookup.get(quiz.id, {
+                'total_students': 0,
+                'total_attempts': 0,
+                'completed_count': 0,
+                'avg_score': 0
+            })
+            
+            quiz_data = {
+                'quiz_id': quiz.id,
+                'difficulty': quiz.difficulty,
+                'status': quiz.status,
+                'is_active': quiz.is_active,
+                'question_count': quiz.get_question_count(),
+                'created_at': quiz.created_at,
+                'reviewed_by': quiz.reviewed_by.get_full_name() if quiz.reviewed_by else None,
+                'reviewed_at': quiz.reviewed_at,
+                'review_notes': quiz.review_notes,
+                'engagement_stats': {
+                    'total_students_attempted': stats['total_students'],
+                    'total_attempts': stats['total_attempts'] or 0,
+                    'students_completed': stats['completed_count'],
+                    'completion_rate': (
+                        (stats['completed_count'] / stats['total_students'] * 100) 
+                        if stats['total_students'] > 0 else 0
+                    ),
+                    'average_score': round(stats['avg_score'] or 0, 1)
+                }
+            }
+            
+            slides_data[slide_id]['quizzes'].append(quiz_data)
+        
+        # Convert to list and add slide-level statistics
+        response_data = []
+        total_quizzes = 0
+        published_quizzes = 0
+        pending_review = 0
+        total_student_attempts = 0
+        
+        for slide_data in slides_data.values():
+            # Sort quizzes by difficulty
+            difficulty_order = {'easy': 1, 'medium': 2, 'hard': 3}
+            slide_data['quizzes'].sort(key=lambda x: difficulty_order.get(x['difficulty'], 4))
+            
+            # Calculate slide-level statistics
+            slide_total = len(slide_data['quizzes'])
+            slide_published = sum(1 for q in slide_data['quizzes'] if q['status'] == 'published')
+            slide_pending = sum(1 for q in slide_data['quizzes'] if q['status'] in ['draft', 'under_review'])
+            slide_attempts = sum(q['engagement_stats']['total_attempts'] for q in slide_data['quizzes'])
+            
+            slide_data['slide_info']['statistics'] = {
+                'total_quizzes': slide_total,
+                'published_quizzes': slide_published,
+                'pending_review': slide_pending,
+                'total_attempts': slide_attempts,
+                'publication_rate': (slide_published / slide_total * 100) if slide_total > 0 else 0
+            }
+            
+            total_quizzes += slide_total
+            published_quizzes += slide_published
+            pending_review += slide_pending
+            total_student_attempts += slide_attempts
+            
+            response_data.append(slide_data)
+        
+        # Sort slides by course and title
+        response_data.sort(key=lambda x: (
+            x['slide_info']['course_code'],
+            x['slide_info']['title']
+        ))
+        
+        # Overall statistics
+        summary_stats = {
+            'total_quizzes': total_quizzes,
+            'published_quizzes': published_quizzes,
+            'pending_review': pending_review,
+            'draft_quizzes': total_quizzes - published_quizzes,
+            'publication_rate': (published_quizzes / total_quizzes * 100) if total_quizzes > 0 else 0,
+            'total_slides': len(response_data),
+            'courses_count': len(set(slide['slide_info']['course_code'] for slide in response_data)),
+            'total_student_attempts': total_student_attempts
+        }
+        
+        # Status breakdown
+        status_breakdown = {}
+        for quiz in quizzes:
+            status = quiz.status
+            if status not in status_breakdown:
+                status_breakdown[status] = 0
+            status_breakdown[status] += 1
+        
+        return Response({
+            'summary': summary_stats,
+            'status_breakdown': status_breakdown,
+            'slides': response_data
+        })
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to fetch lecturer quizzes: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

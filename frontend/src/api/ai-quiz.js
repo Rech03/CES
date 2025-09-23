@@ -1,11 +1,12 @@
 import api from './client';
 
-// LECTURER ENDPOINTS - Slide Management
+// LECTURER ENDPOINTS
 export const uploadLectureSlide = (payload) => api.post('ai-quiz/lecturer/upload-slide/', payload); // FormData: { topic_id, title, slide_file }
 export const generateQuestions = (payload) => api.post('ai-quiz/lecturer/generate-questions/', payload); // { lecture_slide_id }
 export const lecturerSlides = () => api.get('ai-quiz/lecturer/slides/');
 export const deleteLectureSlide = (slideId) => api.delete(`ai-quiz/lecturer/slide/${slideId}/delete/`);
 export const regenerateQuestions = (slideId) => api.post(`ai-quiz/lecturer/slide/${slideId}/regenerate/`);
+export const getLecturerAvailableQuizzes = (params) => api.get('ai-quiz/lecturer/available-quizzes/', { params }); // { course_id?, status?, difficulty? }
 
 // QUIZ MODERATION ENDPOINTS
 export const getQuizzesForReview = () => api.get('ai-quiz/lecturer/quizzes-for-review/');

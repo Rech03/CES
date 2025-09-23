@@ -8,6 +8,7 @@ urlpatterns = [
     path('lecturer/slides/', views.lecturer_lecture_slides, name='lecturer_lecture_slides'),
     path('lecturer/slide/<int:slide_id>/delete/', views.delete_lecture_slide, name='delete_lecture_slide'),
     path('lecturer/slide/<int:slide_id>/regenerate/', views.regenerate_questions, name='regenerate_questions'),
+    path('lecturer/available-quizzes/', views.get_lecturer_available_quizzes, name='lecturer_available_quizzes'),
     
     # Student endpoints - quiz taking
     path('student/available-slides/', views.student_available_slides, name='student_available_slides'),
