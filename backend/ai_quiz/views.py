@@ -708,6 +708,275 @@ def get_quizzes_for_review(request):
     
     return Response(quiz_data)
 
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated, IsStudentPermission])
+def get_student_available_quizzes(request):
+    """
+    Get all available quizzes for student with comprehensive access and progress information
+    """
+    student = request.user
+    
+    try:
+        # Get enrolled courses
+        from courses.models import CourseEnrollment
+        
+        enrolled_course_ids = CourseEnrollment.objects.filter(
+            student=student,
+            is_active=True
+        ).values_list('course_id', flat=True)
+        
+        if not enrolled_course_ids:
+            return Response({
+                'message': 'No enrolled courses found',
+                'quizzes': []
+            })
+        
+        # Get all published quizzes from enrolled courses
+        available_quizzes = AdaptiveQuiz.objects.filter(
+            lecture_slide__topic__course_id__in=enrolled_course_ids,
+            status='published',
+            is_active=True
+        ).select_related(
+            'lecture_slide',
+            'lecture_slide__topic',
+            'lecture_slide__topic__course'
+        ).order_by(
+            'lecture_slide__topic__course__code',
+            'lecture_slide__title',
+            'difficulty'
+        )
+        
+        # Get student's progress for all these quizzes
+        student_progress = StudentAdaptiveProgress.objects.filter(
+            student=student,
+            adaptive_quiz__in=available_quizzes
+        ).select_related('adaptive_quiz')
+        
+        # Create progress lookup dictionary
+        progress_lookup = {
+            progress.adaptive_quiz.id: progress 
+            for progress in student_progress
+        }
+        
+        # Group quizzes by slide for easier processing
+        slides_data = {}
+        
+        for quiz in available_quizzes:
+            slide_id = quiz.lecture_slide.id
+            
+            if slide_id not in slides_data:
+                slides_data[slide_id] = {
+                    'slide_info': {
+                        'slide_id': slide_id,
+                        'title': quiz.lecture_slide.title,
+                        'topic_name': quiz.lecture_slide.topic.name,
+                        'course_code': quiz.lecture_slide.topic.course.code,
+                        'course_name': quiz.lecture_slide.topic.course.name,
+                        'created_at': quiz.lecture_slide.created_at
+                    },
+                    'quizzes': []
+                }
+            
+            # Get progress for this specific quiz
+            progress = progress_lookup.get(quiz.id)
+            
+            # Determine accessibility based on adaptive learning rules
+            accessible = True
+            access_reason = "Available"
+            
+            if quiz.difficulty == 'medium':
+                # Check if easy level is completed
+                easy_quiz = AdaptiveQuiz.objects.filter(
+                    lecture_slide=quiz.lecture_slide,
+                    difficulty='easy',
+                    status='published',
+                    is_active=True
+                ).first()
+                
+                if easy_quiz:
+                    easy_progress = progress_lookup.get(easy_quiz.id)
+                    if not easy_progress or not easy_progress.completed:
+                        accessible = False
+                        access_reason = "Complete Easy level first"
+            
+            elif quiz.difficulty == 'hard':
+                # Check if medium level is completed
+                medium_quiz = AdaptiveQuiz.objects.filter(
+                    lecture_slide=quiz.lecture_slide,
+                    difficulty='medium',
+                    status='published',
+                    is_active=True
+                ).first()
+                
+                if medium_quiz:
+                    medium_progress = progress_lookup.get(medium_quiz.id)
+                    if not medium_progress or not medium_progress.completed:
+                        accessible = False
+                        access_reason = "Complete Medium level first"
+            
+            # Determine status
+            if not progress:
+                status = "not_started"
+            elif progress.completed:
+                status = "completed"
+            else:
+                status = "in_progress"
+            
+            quiz_data = {
+                'quiz_id': quiz.id,
+                'difficulty': quiz.difficulty,
+                'accessible': accessible,
+                'access_reason': access_reason,
+                'status': status,
+                'question_count': quiz.get_question_count(),
+                'progress': {
+                    'attempts_count': progress.attempts_count if progress else 0,
+                    'best_score': progress.best_score if progress else None,
+                    'latest_score': progress.latest_score if progress else None,
+                    'completed': progress.completed if progress else False,
+                    'last_attempt_at': progress.last_attempt_at if progress else None
+                }
+            }
+            
+            slides_data[slide_id]['quizzes'].append(quiz_data)
+        
+        # Convert to list format and add summary statistics
+        response_data = []
+        total_quizzes = 0
+        completed_quizzes = 0
+        accessible_quizzes = 0
+        
+        for slide_data in slides_data.values():
+            # Sort quizzes by difficulty (easy, medium, hard)
+            difficulty_order = {'easy': 1, 'medium': 2, 'hard': 3}
+            slide_data['quizzes'].sort(key=lambda x: difficulty_order.get(x['difficulty'], 4))
+            
+            # Calculate slide-level statistics
+            slide_total = len(slide_data['quizzes'])
+            slide_completed = sum(1 for q in slide_data['quizzes'] if q['status'] == 'completed')
+            slide_accessible = sum(1 for q in slide_data['quizzes'] if q['accessible'])
+            
+            slide_data['slide_info']['statistics'] = {
+                'total_quizzes': slide_total,
+                'completed_quizzes': slide_completed,
+                'accessible_quizzes': slide_accessible,
+                'completion_rate': (slide_completed / slide_total * 100) if slide_total > 0 else 0
+            }
+            
+            total_quizzes += slide_total
+            completed_quizzes += slide_completed
+            accessible_quizzes += slide_accessible
+            
+            response_data.append(slide_data)
+        
+        # Sort slides by course code and title
+        response_data.sort(key=lambda x: (
+            x['slide_info']['course_code'],
+            x['slide_info']['title']
+        ))
+        
+        # Overall statistics
+        summary_stats = {
+            'total_quizzes': total_quizzes,
+            'completed_quizzes': completed_quizzes,
+            'accessible_quizzes': accessible_quizzes,
+            'overall_completion_rate': (completed_quizzes / total_quizzes * 100) if total_quizzes > 0 else 0,
+            'total_slides': len(response_data),
+            'courses_count': len(set(slide['slide_info']['course_code'] for slide in response_data))
+        }
+        
+        return Response({
+            'summary': summary_stats,
+            'slides': response_data
+        })
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to fetch available quizzes: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated, IsStudentPermission])
+def get_student_quiz_summary(request):
+    """
+    Get a condensed summary of student's quiz progress for dashboard
+    """
+    student = request.user
+    
+    try:
+        # Get recent quiz attempts (last 10)
+        recent_attempts = AdaptiveQuizAttempt.objects.filter(
+            progress__student=student
+        ).select_related(
+            'progress__adaptive_quiz__lecture_slide__topic__course'
+        ).order_by('-started_at')[:10]
+        
+        # Get overall progress statistics
+        all_progress = StudentAdaptiveProgress.objects.filter(
+            student=student
+        ).select_related('adaptive_quiz__lecture_slide__topic__course')
+        
+        # Calculate statistics by difficulty
+        difficulty_stats = {}
+        for difficulty in ['easy', 'medium', 'hard']:
+            difficulty_progress = all_progress.filter(adaptive_quiz__difficulty=difficulty)
+            difficulty_stats[difficulty] = {
+                'total': difficulty_progress.count(),
+                'completed': difficulty_progress.filter(completed=True).count(),
+                'average_score': difficulty_progress.filter(completed=True).aggregate(
+                    avg=Avg('best_score')
+                )['avg'] or 0,
+                'completion_rate': (
+                    difficulty_progress.filter(completed=True).count() / 
+                    difficulty_progress.count() * 100
+                ) if difficulty_progress.exists() else 0
+            }
+        
+        # Recent attempts data
+        recent_attempts_data = []
+        for attempt in recent_attempts:
+            recent_attempts_data.append({
+                'quiz_id': attempt.progress.adaptive_quiz.id,
+                'slide_title': attempt.progress.adaptive_quiz.lecture_slide.title,
+                'course_code': attempt.progress.adaptive_quiz.lecture_slide.topic.course.code,
+                'difficulty': attempt.progress.adaptive_quiz.difficulty,
+                'score': attempt.score,
+                'completed': attempt.completed,
+                'started_at': attempt.started_at,
+                'completed_at': attempt.completed_at
+            })
+        
+        # Overall statistics
+        overall_stats = {
+            'total_quizzes_attempted': all_progress.count(),
+            'total_quizzes_completed': all_progress.filter(completed=True).count(),
+            'overall_completion_rate': (
+                all_progress.filter(completed=True).count() / 
+                all_progress.count() * 100
+            ) if all_progress.exists() else 0,
+            'average_score': all_progress.filter(completed=True).aggregate(
+                avg=Avg('best_score')
+            )['avg'] or 0,
+            'total_attempts': all_progress.aggregate(
+                total=Sum('attempts_count')
+            )['total'] or 0
+        }
+        
+        return Response({
+            'overall_stats': overall_stats,
+            'difficulty_breakdown': difficulty_stats,
+            'recent_attempts': recent_attempts_data
+        })
+        
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to fetch quiz summary: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated, IsLecturerPermission])
 def get_lecturer_available_quizzes(request):
