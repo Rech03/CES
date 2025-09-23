@@ -105,7 +105,7 @@
   left: 70px;
   top: 30px;
   color: #696F79;
-  font-size: 14px;
+  font-size: 12px;
   font-family: Poppins, sans-serif;
   font-weight: 400;
   white-space: nowrap;
@@ -114,7 +114,7 @@
 /* Correct Answers Section */
 .students-section {
   position: absolute;
-  left: 450px;
+  left: 500px;
   top: 100px;
 }
 
@@ -165,7 +165,7 @@
   left: 70px;
   top: 30px;
   color: #696F79;
-  font-size: 14px;
+  font-size: 12px;
   font-family: Poppins, sans-serif;
   font-weight: 400;
   white-space: nowrap;

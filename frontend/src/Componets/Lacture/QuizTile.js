@@ -249,7 +249,7 @@ function QuizTile({
       {/* Difficulty chip (if present) */}
       {difficulty && (
         <div style={{
-          position:'absolute', top: '56px', right:'16px',
+          position:'absolute', top: '16px', right:'16px',
           background: colorForDifficulty(difficulty), color:'#fff',
           padding:'4px 8px', borderRadius:'12px', fontSize:'12px', fontWeight:600
         }}>
@@ -323,17 +323,7 @@ function QuizTile({
         </div>
       )}
 
-      {/* Debug info in development */}
-      {process.env.NODE_ENV === 'development' && (
-        <div style={{
-          position: 'absolute', bottom: '4px', left: '4px', right: '4px',
-          background: 'rgba(0,0,0,0.7)', color: 'white', padding: '2px 4px',
-          borderRadius: '2px', fontSize: '8px', zIndex: 1,
-          textAlign: 'center'
-        }}>
-          ID: {id} | Source: {dataSource} | Valid: {hasValidId ? 'Yes' : 'No'}
-        </div>
-      )}
+      
     </div>
   );
 }

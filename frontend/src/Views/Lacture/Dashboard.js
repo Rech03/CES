@@ -583,28 +583,7 @@ function Dashboard() {
           )}
         </div>
 
-        {/* Development debug panel */}
-        {process.env.NODE_ENV === 'development' && (
-          <div style={{
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            background: '#f8f9fa',
-            border: '1px solid #dee2e6',
-            borderRadius: '4px',
-            padding: '10px',
-            fontSize: '12px',
-            maxWidth: '350px',
-            zIndex: 1000
-          }}>
-            <strong>Debug Info:</strong>
-            <div>Total Quizzes: {quizzes.length}</div>
-            <div>Published: {quizzes.filter(q => q.is_live).length}</div>
-            <div>With Real IDs: {quizzes.filter(q => q.hasRealId).length}</div>
-            <div>Ready to Publish: {quizzes.filter(q => !q.is_live && q.questions_count > 0).length}</div>
-          </div>
-        )}
-        
+      
       </div>
 
       <div className="SideD">

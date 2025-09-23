@@ -165,9 +165,7 @@ function QuizAnalyticsPage() {
       </div>
 
       <div className="SideHA">
-        <div className="List">
           <CoursesList courses={courses} />
-        </div>
       </div>
 
       <div className="BoiHA">
