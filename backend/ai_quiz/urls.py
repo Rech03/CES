@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Lecturer endpoints - slide management
+    # Lecturer endpoints -- slide management
     path('lecturer/upload-slide/', views.upload_lecture_slide, name='upload_lecture_slide'),
     path('lecturer/generate-questions/', views.generate_adaptive_questions, name='generate_adaptive_questions'),
     path('lecturer/slides/', views.lecturer_lecture_slides, name='lecturer_lecture_slides'),
