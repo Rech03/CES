@@ -23,4 +23,8 @@ urlpatterns = [
     path('lecturer/quiz/<int:quiz_id>/update/', views.update_quiz_questions, name='update_quiz_questions'),
     path('lecturer/quiz/<int:quiz_id>/publish/', views.publish_quiz, name='publish_quiz'),
     path('lecturer/quizzes-for-review/', views.get_quizzes_for_review, name='get_quizzes_for_review'),
+
+    path('student/available-quizzes/', views.get_student_available_quizzes, name='student_available_quizzes'),
+    path('student/quiz-summary/', views.get_student_quiz_summary, name='student_quiz_summary'),
+    path('student/quiz-recommendations/', views.get_quiz_recommendations, name='student_quiz_recommendations'),
 ]
