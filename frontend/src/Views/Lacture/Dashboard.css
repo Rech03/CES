@@ -21,7 +21,6 @@
     position: absolute;
     margin-left: 86% ;
     margin-top: 7%;
-    padding-bottom: 30px;
 
 }
 .BoiD {
@@ -69,8 +68,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-
-    margin-top: 80px;
     margin-left: 30px;
 }
 .Rating{

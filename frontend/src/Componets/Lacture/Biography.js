@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { getProfile } from '../../api/auth';
 import { getDashboard } from '../../api/auth';
-import { listQuizzes } from '../../api/quizzes';
+import { getQuizzesForReview, lecturerSlides } from '../../api/ai-quiz';
 import { getMyCourses } from '../../api/courses';
+import api from '../../api/client';
 import './Biography.css';
 
 function Biography({ 
@@ -14,11 +15,17 @@ function Biography({
   StudentLabel = "Number of Students"
 }) {
   const [profileData, setProfileData] = useState({
-    name: name || "Simphiwe Cele",
-    title: title || "Bcs Computer Science and Business Computing Lecturer",
+    name: name || "Loading ....",
+    title: title || "Loading...",
     avatar: avatar || "/ID.jpeg",
     quizCount: quizCount || "27",
     studentCount: studentCount || "400"
+  });
+  const [stats, setStats] = useState({
+    total: 0,
+    draft: 0,
+    ready: 0,
+    live: 0
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -42,26 +49,92 @@ function Biography({
             console.warn('Dashboard not available, fetching individual stats');
           }
 
-          // Fetch quiz count
+          // Fetch AI quiz data and calculate stats
           let totalQuizzes = 0;
+          let quizStats = { total: 0, draft: 0, ready: 0, live: 0 };
+          
           try {
-            const quizzesResponse = await listQuizzes();
-            totalQuizzes = quizzesResponse.data.results ? 
-              quizzesResponse.data.results.length : 
-              (Array.isArray(quizzesResponse.data) ? quizzesResponse.data.length : 0);
+            // Try different AI quiz endpoints
+            const endpointsToTry = [
+              { name: 'getQuizzesForReview', fn: () => getQuizzesForReview() },
+              { name: 'lecturerSlides', fn: () => lecturerSlides() },
+              { name: 'direct slides API', fn: () => api.get('ai-quiz/lecturer/slides/') },
+              { name: 'direct quizzes API', fn: () => api.get('ai-quiz/lecturer/quizzes-for-review/') }
+            ];
+
+            for (const endpoint of endpointsToTry) {
+              try {
+                const response = await endpoint.fn();
+                
+                if (response.data && (
+                  Array.isArray(response.data) || 
+                  response.data.results || 
+                  response.data.slides ||
+                  response.data.quizzes
+                )) {
+                  let aiQuizzesData = [];
+                  
+                  // Extract data based on structure
+                  if (Array.isArray(response.data)) {
+                    aiQuizzesData = response.data;
+                  } else if (response.data.results && Array.isArray(response.data.results)) {
+                    aiQuizzesData = response.data.results;
+                  } else if (response.data.slides && Array.isArray(response.data.slides)) {
+                    aiQuizzesData = response.data.slides;
+                  } else if (response.data.quizzes && Array.isArray(response.data.quizzes)) {
+                    aiQuizzesData = response.data.quizzes;
+                  }
+
+                  // Calculate quiz statistics
+                  totalQuizzes = aiQuizzesData.length;
+                  
+                  const draft = aiQuizzesData.filter(q => 
+                    !q.is_live && !q.published && (q.questions_count || q.total_questions || 0) === 0
+                  ).length;
+                  
+                  const ready = aiQuizzesData.filter(q => 
+                    !q.is_live && !q.published && (q.questions_count || q.total_questions || 0) > 0
+                  ).length;
+                  
+                  const live = aiQuizzesData.filter(q => 
+                    q.is_live || q.published || q.status === 'published'
+                  ).length;
+
+                  quizStats = {
+                    total: totalQuizzes,
+                    draft,
+                    ready,
+                    live
+                  };
+                  
+                  console.log(`Biography: Found AI quiz data from ${endpoint.name}:`, quizStats);
+                  break; // Found data, stop trying other endpoints
+                }
+              } catch (error) {
+                console.log(`Biography: ${endpoint.name} failed:`, error.message);
+              }
+            }
           } catch (quizErr) {
-            console.warn('Could not fetch quiz count:', quizErr);
+            console.warn('Could not fetch AI quiz count:', quizErr);
           }
 
           // Fetch student count from courses
           let totalStudents = 0;
           try {
             const coursesResponse = await getMyCourses();
-            const courses = coursesResponse.data.results || coursesResponse.data || [];
+            let courses = [];
+            
+            if (coursesResponse.data?.courses && Array.isArray(coursesResponse.data.courses)) {
+              courses = coursesResponse.data.courses;
+            } else if (Array.isArray(coursesResponse.data)) {
+              courses = coursesResponse.data;
+            } else if (coursesResponse.data?.results && Array.isArray(coursesResponse.data.results)) {
+              courses = coursesResponse.data.results;
+            }
             
             // Sum up students from all courses
             totalStudents = courses.reduce((sum, course) => {
-              return sum + (course.student_count || course.enrolled_students || 0);
+              return sum + (course.student_count || course.enrolled_students || course.students?.length || 0);
             }, 0);
           } catch (courseErr) {
             console.warn('Could not fetch student count:', courseErr);
@@ -76,6 +149,8 @@ function Biography({
             studentCount: dashboardData?.total_students?.toString() || totalStudents.toString() || "0"
           });
 
+          setStats(quizStats);
+
         } catch (err) {
           console.error('Error fetching profile stats:', err);
           setError('Failed to load profile data');
@@ -88,29 +163,6 @@ function Biography({
     fetchProfileStats();
   }, [name, title, quizCount, studentCount]);
 
-  if (loading) {
-    return (
-      <div className="biography-container">
-        <div className="biography-avatar skeleton"></div>
-        <div className="biography-name skeleton">Loading...</div>
-        <div className="biography-title skeleton">Loading...</div>
-        <div className="quiz-section">
-          <div className="quiz-icon-container">
-            <div className="quiz-icon"></div>
-          </div>
-          <div className="quiz-count skeleton">--</div>
-          <div className="quiz-label">Quiz Created</div>
-        </div>
-        <div className="students-section">
-          <div className="students-icon-container">
-            <div className="students-icon"></div>
-          </div>
-          <div className="students-count skeleton">--</div>
-          <div className="students-label">{StudentLabel}</div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="biography-container">
@@ -134,23 +186,41 @@ function Biography({
         {profileData.title}
       </div>
       
-      {/* Quiz Created Section */}
-      <div className="quiz-section">
-        <div className="quiz-icon-container">
-          <div className="quiz-icon"></div>
-        </div>
-        <div className="quiz-count">{profileData.quizCount}</div>
-        <div className="quiz-label">Quiz Created</div>
-      </div>
+
       
-      {/* Students Section */}
-      <div className="students-section">
-        <div className="students-icon-container">
-          <div className="students-icon"></div>
-        </div>
-        <div className="students-count">{profileData.studentCount}</div>
-        <div className="students-label">{StudentLabel}</div>
-      </div>
+   <div className="quiz-section" style={{ top: '100px', left: '230px', width: '90px' }}>
+  <div className="quiz-icon-container" style={{ width: '50px', height: '50px' }}>
+    <div className="quiz-icon" style={{ width: '20px', height: '20px', background: '#1935CA' }}></div>
+  </div>
+  <div className="quiz-count" style={{ left: '70px', fontSize: '23px' }}>{stats.total}</div>
+  <div className="quiz-label" style={{ left: '60px', fontSize: '15px' }}>Total</div>
+</div>
+
+<div className="quiz-section" style={{ top: '100px', left: '380px', width: '90px' }}>
+  <div className="quiz-icon-container" style={{ width: '50px', height: '50px' }}>
+    <div className="quiz-icon" style={{ width: '20px', height: '20px', background: '#95A5A6' }}></div>
+  </div>
+  <div className="quiz-count" style={{ left: '70px', fontSize: '23px' }}>{stats.draft}</div>
+  <div className="quiz-label" style={{ left: '60px', fontSize: '15px' }}>Draft</div>
+</div>
+
+<div className="quiz-section" style={{ top: '100px', left: '530px', width: '90px' }}>
+  <div className="quiz-icon-container" style={{ width: '50px', height: '50px' }}>
+    <div className="quiz-icon" style={{ width: '20px', height: '20px', background: '#F39C12' }}></div>
+  </div>
+  <div className="quiz-count" style={{ left: '70px', fontSize: '23px' }}>{stats.ready}</div>
+  <div className="quiz-label" style={{ left: '60px', fontSize: '15px' }}>Ready</div>
+</div>
+
+<div className="quiz-section" style={{ top: '100px', left: '680px', width: '90px' }}>
+  <div className="quiz-icon-container" style={{ width: '50px', height: '50px' }}>
+    <div className="quiz-icon" style={{ width: '20px', height: '20px', background: '#27AE60' }}></div>
+  </div>
+  <div className="quiz-count" style={{ left: '70px', fontSize: '23px' }}>{stats.live}</div>
+  <div className="quiz-label" style={{ left: '60px', fontSize: '15px' }}>Published</div>
+</div>
+      
+    
       
       {error && (
         <div className="error-message">

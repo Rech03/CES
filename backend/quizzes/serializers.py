@@ -32,19 +32,65 @@ class QuestionSerializer(serializers.ModelSerializer):
 class QuestionCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating questions with choices"""
     choices = ChoiceSerializer(many=True, required=False)
+    quiz = serializers.PrimaryKeyRelatedField(queryset=Quiz.objects.all())
     
     class Meta:
         model = Question
         fields = [
+            'quiz',
             'question_text', 'question_type', 'points', 'order',
             'correct_answer_text', 'choices'
         ]
     
+    def validate(self, attrs):
+        """Custom validation for question creation"""
+        question_type = attrs.get('question_type', 'MCQ')
+        choices = attrs.get('choices', [])
+        correct_answer_text = attrs.get('correct_answer_text', '')
+        
+        # Validate based on question type
+        if question_type in ['MCQ', 'TF']:
+            if not choices:
+                raise serializers.ValidationError(
+                    f"{question_type} questions must have choices."
+                )
+            
+            # Check for correct answers in choices
+            correct_choices = [choice for choice in choices if choice.get('is_correct')]
+            if not correct_choices:
+                raise serializers.ValidationError(
+                    f"{question_type} questions must have at least one correct choice."
+                )
+            
+            # True/False should have exactly 2 choices
+            if question_type == 'TF' and len(choices) != 2:
+                raise serializers.ValidationError(
+                    "True/False questions must have exactly 2 choices."
+                )
+                
+        elif question_type == 'SA':
+            # Short answer questions should have correct_answer_text for reference
+            if not correct_answer_text.strip():
+                # This is just a warning - SA questions can be manually graded
+                pass
+        
+        return attrs
+    
     def create(self, validated_data):
         choices_data = validated_data.pop('choices', [])
+        
+        # Set default order if not provided
+        if 'order' not in validated_data or not validated_data['order']:
+            quiz = validated_data['quiz']
+            last_question = quiz.questions.order_by('-order').first()
+            validated_data['order'] = (last_question.order + 1) if last_question else 1
+        
         question = Question.objects.create(**validated_data)
         
-        for choice_data in choices_data:
+        # Create choices with proper ordering
+        for index, choice_data in enumerate(choices_data):
+            if 'order' not in choice_data:
+                choice_data['order'] = index + 1
             Choice.objects.create(question=question, **choice_data)
         
         return question

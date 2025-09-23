@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { startQuizAttempt, submitAnswer, submitQuizAttempt, getQuizQuestions } from '../../api/quizzes';
+import { 
+  getAdaptiveQuiz, 
+  submitAdaptiveQuiz 
+} from '../../api/ai-quiz';
 import MultipleChoiceQuestion from '../../Componets/Student/MultipleChoiceQuestion';
 import TrueFalseQuestion from '../../Componets/Student/TrueFalseQuestion';
 import ShortAnswerQuestion from '../../Componets/Student/ShortAnswerQuestion';
@@ -12,10 +15,12 @@ const QuizInterface = () => {
 
   // Get quiz data from navigation state
   const quizData = location.state || {
-    quizTitle: 'Quiz',
+    quizTitle: 'AI Quiz',
     quizDuration: '15 min',
-    totalQuestions: 20,
-    quizId: 1
+    totalQuestions: 5,
+    quizId: null,
+    slideId: null,
+    isAIQuiz: true
   };
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -28,7 +33,7 @@ const QuizInterface = () => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [attemptId, setAttemptId] = useState(null);
+  const [quizSession, setQuizSession] = useState(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState('');
 
   // Convert duration to seconds
@@ -44,69 +49,87 @@ const QuizInterface = () => {
   }
 
   useEffect(() => {
-    const initializeQuiz = async () => {
+    const initializeAIQuiz = async () => {
       setLoading(true);
       try {
-        if (!quizData.quizId && !quizData.id) {
+        if (!quizData.quizId) {
           throw new Error('No quiz ID provided');
         }
 
-        const actualQuizId = quizData.quizId || quizData.id;
-        
-        // Start quiz attempt
-        const attemptResponse = await startQuizAttempt({
-          quiz: actualQuizId,
-          password: quizData.password || null
-        });
-        
-        const quizAttemptId = attemptResponse.data.attempt_id || 
-                             attemptResponse.data.id || 
-                             attemptResponse.data.attempt?.id;
-        
-        if (!quizAttemptId) {
-          throw new Error('Failed to create quiz attempt');
+        console.log('Initializing AI quiz:', quizData.quizId);
+
+        // Fetch AI quiz details and questions
+        const quizResponse = await getAdaptiveQuiz(quizData.quizId);
+        const fetchedQuizData = quizResponse.data;
+
+        console.log('AI Quiz response:', fetchedQuizData);
+
+        // Extract questions from the response
+        let questionsData = [];
+        if (fetchedQuizData.questions && Array.isArray(fetchedQuizData.questions)) {
+          questionsData = fetchedQuizData.questions;
+        } else if (fetchedQuizData.adaptive_questions) {
+          questionsData = fetchedQuizData.adaptive_questions;
+        } else {
+          throw new Error('No questions found in the quiz response');
         }
-        
-        setAttemptId(quizAttemptId);
 
-        // Fetch quiz questions
-        const questionsResponse = await getQuizQuestions(actualQuizId);
-        const fetchedQuestions = questionsResponse.data.results || 
-                               questionsResponse.data || 
-                               [];
+        // Process questions into consistent format for AI quizzes
+        const processedQuestions = questionsData.map((q, index) => {
+          // Handle different possible question structures from AI quiz API
+          const questionData = {
+            id: q.id || q.question_id || index + 1,
+            type: q.question_type || q.type || 'multiple_choice',
+            question: q.question_text || q.text || q.question || `Question ${index + 1}`,
+            points: q.points || q.weight || 1,
+            order: q.order || index + 1,
+            explanation: q.explanation || null
+          };
 
-        // Process questions into consistent format
-        const processedQuestions = fetchedQuestions.map((q, index) => ({
-          id: q.id || index + 1,
-          type: q.question_type || q.type || 'multiple_choice',
-          question: q.question_text || q.text || q.question || `Question ${index + 1}`,
-          choices: q.choices?.map(choice => ({
-            id: choice.id,
-            text: choice.choice_text || choice.text || choice.answer_text
-          })) || [],
-          points: q.points || 1,
-          order: q.order || index + 1
-        }));
+          // Handle choices for multiple choice questions
+          if (questionData.type === 'multiple_choice' && q.choices) {
+            questionData.choices = q.choices.map((choice, choiceIndex) => ({
+              id: choice.id || choiceIndex + 1,
+              text: choice.choice_text || choice.text || choice.answer_text || `Option ${choiceIndex + 1}`,
+              is_correct: choice.is_correct || false
+            }));
+          }
+
+          // Handle true/false questions
+          if (questionData.type === 'true_false') {
+            questionData.correct_answer = q.correct_answer;
+          }
+
+          // Handle short answer questions
+          if (questionData.type === 'short_answer') {
+            questionData.model_answer = q.model_answer || q.sample_answer;
+          }
+
+          return questionData;
+        });
 
         if (processedQuestions.length === 0) {
-          throw new Error('No questions found for this quiz');
+          throw new Error('No valid questions found for this quiz');
         }
 
         setQuestions(processedQuestions);
+        setQuizSession(fetchedQuizData);
         
-        // Set timer based on quiz settings (convert minutes to seconds)
-        const timeLimit = (quizData.time_limit || quizData.duration || 15) * 60;
+        // Set timer based on quiz settings
+        const timeLimit = (fetchedQuizData.time_limit || quizData.time_limit || 15) * 60;
         setTimeRemaining(timeLimit);
 
+        console.log('AI Quiz initialized with', processedQuestions.length, 'questions');
+
       } catch (err) {
-        console.error('Error initializing quiz:', err);
+        console.error('Error initializing AI quiz:', err);
         setError(err.message || 'Failed to initialize quiz');
       } finally {
         setLoading(false);
       }
     };
 
-    initializeQuiz();
+    initializeAIQuiz();
   }, [quizData]);
 
   // Timer effect
@@ -136,26 +159,9 @@ const QuizInterface = () => {
       [currentQuestion.id]: answer
     }));
 
-    // Submit answer to API
-    if (attemptId) {
-      try {
-        setAutoSaveStatus('Saving...');
-        
-        await submitAnswer({
-          attempt_id: attemptId,
-          question: currentQuestion.id,
-          selected_choice: typeof answer === 'number' ? answer : null,
-          answer_text: typeof answer === 'string' ? answer : null
-        });
-        
-        setAutoSaveStatus('Saved');
-        setTimeout(() => setAutoSaveStatus(''), 2000);
-      } catch (err) {
-        console.warn('Failed to submit answer:', err);
-        setAutoSaveStatus('Error saving');
-        setTimeout(() => setAutoSaveStatus(''), 3000);
-      }
-    }
+    // Auto-save functionality for AI quizzes
+    setAutoSaveStatus('Saved locally');
+    setTimeout(() => setAutoSaveStatus(''), 2000);
   };
 
   const handleNextQuestion = () => {
@@ -181,29 +187,54 @@ const QuizInterface = () => {
     const timeUsed = getDurationInSeconds(quizData.time_limit || quizData.quizDuration) - timeRemaining;
 
     try {
-      if (attemptId) {
-        await submitQuizAttempt({
-          attempt_id: attemptId
-        });
-        console.log('Quiz submitted successfully');
-      }
-    } catch (submitErr) {
-      console.error('Error submitting quiz:', submitErr);
-    }
+      // Prepare answers for AI quiz submission using published quiz ID
+      const submissionData = {
+        adaptive_quiz_id: quizData.quizId, // Published quiz ID
+        slide_id: quizData.slideId, // Original slide ID for reference
+        answers: Object.entries(answers).map(([questionId, answer]) => {
+          const question = questions.find(q => q.id.toString() === questionId.toString());
+          
+          return {
+            question_id: parseInt(questionId),
+            question_type: question?.type || 'multiple_choice',
+            selected_choice_id: typeof answer === 'number' ? answer : null,
+            answer_text: typeof answer === 'string' ? answer : null,
+            is_true_false: question?.type === 'true_false' ? answer : null
+          };
+        }),
+        time_taken: timeUsed,
+        completed_at: new Date().toISOString()
+      };
 
-    // Navigate to results page
-    setTimeout(() => {
-      navigate('/QuizResultsPage', {
-        state: {
-          answers,
-          questions,
-          timeUsed,
-          quizData,
-          isRetake: quizData.isRetake || false,
-          attemptId
+      console.log('Submitting quiz with published ID:', submissionData);
+
+      const submitResponse = await submitAdaptiveQuiz(submissionData);
+      console.log('Quiz submission response:', submitResponse.data);
+
+      // Store submission result for results page
+      const submissionResult = {
+        ...submitResponse.data,
+        timeUsed,
+        questions,
+        answers,
+        quizData: {
+          ...quizData,
+          isAIQuiz: true
         }
-      });
-    }, 1500);
+      };
+
+      // Navigate to results page
+      setTimeout(() => {
+        navigate('/QuizResultsPage', {
+          state: submissionResult
+        });
+      }, 1500);
+
+    } catch (submitErr) {
+      console.error('Error submitting AI quiz:', submitErr);
+      setError('Failed to submit quiz. Please try again.');
+      setIsSubmitted(false);
+    }
   };
 
   const getAnsweredCount = () => {
@@ -219,8 +250,8 @@ const QuizInterface = () => {
       <div className="quiz-interface-container">
         <div className="loading-content">
           <div className="spinner"></div>
-          <h2>Loading Quiz...</h2>
-          <p>Preparing your questions...</p>
+          <h2>Loading AI Quiz...</h2>
+          <p>Preparing your adaptive questions...</p>
         </div>
       </div>
     );
@@ -245,7 +276,7 @@ const QuizInterface = () => {
       <div className="quiz-interface-container">
         <div className="no-questions-content">
           <h2>No Questions Available</h2>
-          <p>This quiz doesn't have any questions yet.</p>
+          <p>This AI quiz doesn't have any questions generated yet.</p>
           <button onClick={() => navigate(-1)} className="nav-btn">
             Go Back
           </button>
@@ -272,17 +303,23 @@ const QuizInterface = () => {
         return (
           <MultipleChoiceQuestion 
             {...questionProps} 
-            choices={currentQuestion.choices}
+            choices={currentQuestion.choices || []}
           />
         );
       case 'true_false':
-        return <TrueFalseQuestion {...questionProps} />;
+        return (
+          <TrueFalseQuestion 
+            {...questionProps}
+            correctAnswer={currentQuestion.correct_answer}
+          />
+        );
       case 'short_answer':
         return (
           <ShortAnswerQuestion 
             {...questionProps}
             autoSave={true}
             maxLength={500}
+            modelAnswer={currentQuestion.model_answer}
           />
         );
       default:
@@ -295,8 +332,8 @@ const QuizInterface = () => {
       <div className="quiz-submitted-container">
         <div className="submitted-content">
           <div className="success-icon">✅</div>
-          <h2>Quiz Submitted Successfully!</h2>
-          <p>Your answers have been recorded. Redirecting to results...</p>
+          <h2>AI Quiz Submitted Successfully!</h2>
+          <p>Your answers have been recorded and are being processed. Redirecting to results...</p>
           {quizData.isRetake && (
             <p><strong>Retake completed - your best score will be kept</strong></p>
           )}
@@ -306,6 +343,7 @@ const QuizInterface = () => {
           <div className="submission-summary">
             <p>Questions answered: {getAnsweredCount()}/{questions.length}</p>
             <p>Time used: {formatTime(getDurationInSeconds(quizData.time_limit || quizData.quizDuration) - timeRemaining)}</p>
+            <p>Quiz type: Adaptive AI Quiz</p>
           </div>
         </div>
       </div>
@@ -317,7 +355,10 @@ const QuizInterface = () => {
       {/* Quiz Header */}
       <div className="quiz-header">
         <div className="quiz-info">
-          <h1 className="quiz-title">{quizData.quizTitle || quizData.title}</h1>
+          <h1 className="quiz-title">
+            {quizData.quizTitle || quizData.title}
+            <span className="ai-badge">AI</span>
+          </h1>
           <div className="quiz-progress">
             <span>Question {currentQuestionIndex + 1} of {questions.length}</span>
             <span>•</span>
@@ -334,6 +375,8 @@ const QuizInterface = () => {
                 <span className="live-indicator">Live Quiz</span>
               </>
             )}
+            <span>•</span>
+            <span className="adaptive-indicator">Adaptive</span>
           </div>
           {autoSaveStatus && (
             <div className={`auto-save-status ${autoSaveStatus.includes('Error') ? 'error' : 'success'}`}>
@@ -387,7 +430,7 @@ const QuizInterface = () => {
               className="nav-btn submit-btn" 
               onClick={() => setShowSubmitModal(true)}
             >
-              {quizData.isRetake ? 'Submit Retake' : 'Submit Quiz'}
+              {quizData.isRetake ? 'Submit Retake' : 'Submit AI Quiz'}
             </button>
           ) : (
             <button className="nav-btn next-btn" onClick={handleNextQuestion}>
@@ -409,7 +452,7 @@ const QuizInterface = () => {
       {showSubmitModal && (
         <div className="modal-overlay">
           <div className="submit-modal">
-            <h3>{quizData.isRetake ? 'Submit Retake?' : 'Submit Quiz?'}</h3>
+            <h3>{quizData.isRetake ? 'Submit AI Quiz Retake?' : 'Submit AI Quiz?'}</h3>
             
             <div className="submission-summary">
               <p>You have answered <strong>{getAnsweredCount()}</strong> out of <strong>{questions.length}</strong> questions.</p>
@@ -427,7 +470,7 @@ const QuizInterface = () => {
               )}
             </div>
 
-            <p>Are you sure you want to submit your {quizData.isRetake ? 'retake' : 'quiz'}? This action cannot be undone.</p>
+            <p>Are you sure you want to submit your {quizData.isRetake ? 'retake' : 'adaptive quiz'}? This action cannot be undone.</p>
             
             {quizData.isRetake && (
               <p><strong>Note: Your best score will be kept regardless of this attempt.</strong></p>
@@ -435,13 +478,14 @@ const QuizInterface = () => {
             {quizData.isLive && (
               <p><strong>Note: This is a live quiz session.</strong></p>
             )}
+            <p><strong>AI Note: Your performance will influence future quiz difficulty.</strong></p>
 
             <div className="modal-actions">
               <button className="modal-btn cancel-btn" onClick={() => setShowSubmitModal(false)}>
                 Cancel
               </button>
               <button className="modal-btn confirm-btn" onClick={handleSubmitQuiz}>
-                {quizData.isRetake ? 'Submit Retake' : 'Submit Quiz'}
+                {quizData.isRetake ? 'Submit Retake' : 'Submit AI Quiz'}
               </button>
             </div>
           </div>

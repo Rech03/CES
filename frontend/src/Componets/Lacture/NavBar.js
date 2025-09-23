@@ -26,16 +26,8 @@ function NavBar() {
             Enroll Students
           </NavLink>
         </li>
-        <li>
-          <NavLink to="/Createquiz" className={({ isActive }) => isActive ? "active" : ""}>
-            Create New Quiz
-          </NavLink>
-        </li>
-        <li>
-          <NavLink to="/LecturerAIQuizzes" className={({ isActive }) => isActive ? "active" : ""}>
-            Create AI Quizzes
-          </NavLink>
-        </li>
+     
+       
         <li>
           <NavLink to="/StudentAnalytics" className={({ isActive }) => isActive ? "active" : ""}>
             Student Analysis

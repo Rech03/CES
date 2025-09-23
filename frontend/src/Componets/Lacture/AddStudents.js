@@ -17,10 +17,21 @@ function AddStudents({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Normalize courses response - same pattern as UploadSlides.js
+  const normalizeCourses = (data) => {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.courses)) return data.courses;
+    if (Array.isArray(data?.results)) return data.results;
+    if (data && typeof data === 'object') {
+      const arrayKey = Object.keys(data).find(key => Array.isArray(data[key]));
+      if (arrayKey) return data[arrayKey];
+    }
+    return [];
+  };
+
   // Load courses if not provided via props
   useEffect(() => {
     if (courses.length > 0) {
-      // Use courses from props
       setLocalCourses(courses);
       setIsLoadingCourses(false);
       if (selectedCourse) {
@@ -29,7 +40,6 @@ function AddStudents({
         setLocalSelectedCourse(courses[0]);
       }
     } else {
-      // Load courses from API
       loadCourses();
     }
   }, [courses, selectedCourse]);
@@ -39,56 +49,8 @@ function AddStudents({
     setError("");
     
     try {
-      console.log('Loading courses...');
       const response = await getMyCourses();
-      console.log('Courses API response:', response);
-      
-      let coursesData = [];
-      
-      // Handle different possible response formats
-      if (response.data) {
-        if (Array.isArray(response.data)) {
-          // Direct array response
-          coursesData = response.data;
-          console.log('Using direct array response');
-        } else if (response.data.results && Array.isArray(response.data.results)) {
-          // Paginated response
-          coursesData = response.data.results;
-          console.log('Using paginated response');
-        } else if (response.data.courses && Array.isArray(response.data.courses)) {
-          // Response with courses property
-          coursesData = response.data.courses;
-          console.log('Using courses property');
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          // Response with data property
-          coursesData = response.data.data;
-          console.log('Using data property');
-        } else {
-          // Try to find any array property in the response
-          console.log('Response data keys:', Object.keys(response.data));
-          const arrayProperty = Object.keys(response.data).find(key => 
-            Array.isArray(response.data[key])
-          );
-          
-          if (arrayProperty) {
-            coursesData = response.data[arrayProperty];
-            console.log(`Using array property: ${arrayProperty}`);
-          } else {
-            console.warn('No array found in response data:', response.data);
-            // If it's an object but not an array, try to convert or handle it
-            if (typeof response.data === 'object' && response.data !== null) {
-              // Maybe it's a single course object? Convert to array
-              if (response.data.id && response.data.name) {
-                coursesData = [response.data];
-                console.log('Converting single course object to array');
-              }
-            }
-          }
-        }
-      }
-      
-      console.log('Final courses data:', coursesData);
-      console.log('Courses count:', coursesData.length);
+      const coursesData = normalizeCourses(response?.data);
       
       setLocalCourses(coursesData);
       
@@ -102,28 +64,10 @@ function AddStudents({
       
     } catch (err) {
       console.error('Error loading courses:', err);
-      console.error('Error response:', err.response);
-      
-      let errorMessage = 'Failed to load courses';
-      
-      if (err.response?.data) {
-        const data = err.response.data;
-        if (typeof data === 'string') {
-          errorMessage = data;
-        } else if (data.detail) {
-          errorMessage = data.detail;
-        } else if (data.message) {
-          errorMessage = data.message;
-        } else if (data.error) {
-          errorMessage = data.error;
-        } else if (data.non_field_errors && Array.isArray(data.non_field_errors)) {
-          errorMessage = data.non_field_errors[0];
-        } else {
-          errorMessage = `Failed to load courses: ${JSON.stringify(data)}`;
-        }
-      } else if (err.message) {
-        errorMessage = `Failed to load courses: ${err.message}`;
-      }
+      const errorData = err.response?.data;
+      const errorMessage = typeof errorData === 'string' 
+        ? errorData 
+        : (errorData?.detail || errorData?.message || errorData?.error || 'Failed to load courses');
       
       setError(errorMessage);
       setLocalCourses([]);
@@ -142,8 +86,31 @@ function AddStudents({
     }
   };
 
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      // Validate file type
+      if (!selectedFile.name.toLowerCase().endsWith('.csv')) {
+        setError('Please select a CSV file.');
+        setFile(null);
+        return;
+      }
+      
+      // Validate file size (10MB limit)
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        setError('File size must be less than 10MB.');
+        setFile(null);
+        return;
+      }
+      
+      setFile(selectedFile);
+      setError('');
+    }
+  };
+
   const handleFileUpload = async (e) => {
     e.preventDefault();
+    
     if (!file) {
       setError("Please select a CSV file first");
       return;
@@ -159,130 +126,94 @@ function AddStudents({
     setSuccess("");
 
     try {
-      console.log(`Processing CSV file for course: ${localSelectedCourse.id}`);
-      console.log('Selected file:', file);
-
-      // Create FormData with the file
+      // Create FormData - same pattern as UploadSlides.js
       const formData = new FormData();
       formData.append('csv_file', file);
       
-      // Log FormData contents for debugging
-      console.log('FormData contents:');
-      for (let pair of formData.entries()) {
-        console.log(`${pair[0]}:`, pair[1]);
+      const response = await uploadStudentsCSV(localSelectedCourse.id, formData);
+      const result = response.data;
+      
+      // Handle success response - similar to UploadSlides success handling
+      let summaryMessage = `CSV Processing Complete for ${localSelectedCourse.code || localSelectedCourse.name}:\n\n`;
+      
+      // Handle different response formats
+      if (result.successful_enrollments !== undefined) {
+        summaryMessage += `✓ Successfully created and enrolled: ${result.successful_enrollments} students\n`;
       }
       
-      const response = await uploadStudentsCSV(localSelectedCourse.id, formData);
-      console.log('CSV upload response:', response);
-
-      // Handle response based on your API's response format
-      if (response.data) {
-        const result = response.data;
-        console.log('Upload result:', result);
-        
-        let summaryMessage = `CSV Processing Complete for ${localSelectedCourse.code || localSelectedCourse.name}:\n\n`;
-        
-        // Handle different possible response formats
-        if (result.successful_enrollments !== undefined) {
-          summaryMessage += `✓ Successfully created and enrolled: ${result.successful_enrollments} students\n`;
-        }
-        
-        if (result.already_enrolled !== undefined) {
-          summaryMessage += `⚠ Already enrolled: ${result.already_enrolled} students\n`;
-        }
-        
-        if (result.invalid_data !== undefined) {
-          summaryMessage += `✗ Invalid data: ${result.invalid_data} students\n`;
-        }
-        
-        if (result.duplicate_students !== undefined) {
-          summaryMessage += `⚠ Duplicate students: ${result.duplicate_students} students\n`;
-        }
-        
-        if (result.created !== undefined) {
-          summaryMessage += `✓ Students created: ${result.created}\n`;
-        }
-        
-        if (result.enrolled !== undefined) {
-          summaryMessage += `✓ Students enrolled: ${result.enrolled}\n`;
-        }
-        
-        if (result.failed !== undefined && result.failed > 0) {
-          summaryMessage += `✗ Failed: ${result.failed} students\n`;
-        }
-        
-        if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
-          summaryMessage += `\n✗ Errors (${result.errors.length}):\n${result.errors.join('\n')}`;
-        }
-        
-        if (result.details && Array.isArray(result.details)) {
-          summaryMessage += `\nDetails:\n${result.details.join('\n')}`;
-        }
-        
-        // Show success if any students were processed successfully
-        const hasSuccesses = (result.successful_enrollments || 0) > 0 || 
-                            (result.created || 0) > 0 || 
-                            (result.enrolled || 0) > 0;
-        
-        if (hasSuccesses || summaryMessage.includes('✓')) {
-          setSuccess(summaryMessage);
-        } else {
-          // If no clear successes, but no explicit errors, still show as success
-          setSuccess(summaryMessage || "CSV file processed successfully!");
-        }
-      } else {
-        setSuccess("CSV file processed successfully!");
+      if (result.already_enrolled !== undefined) {
+        summaryMessage += `⚠ Already enrolled: ${result.already_enrolled} students\n`;
       }
+      
+      if (result.invalid_data !== undefined) {
+        summaryMessage += `✗ Invalid data: ${result.invalid_data} students\n`;
+      }
+      
+      if (result.duplicate_students !== undefined) {
+        summaryMessage += `⚠ Duplicate students: ${result.duplicate_students} students\n`;
+      }
+      
+      if (result.created !== undefined) {
+        summaryMessage += `✓ Students created: ${result.created}\n`;
+      }
+      
+      if (result.enrolled !== undefined) {
+        summaryMessage += `✓ Students enrolled: ${result.enrolled}\n`;
+      }
+      
+      if (result.failed !== undefined && result.failed > 0) {
+        summaryMessage += `✗ Failed: ${result.failed} students\n`;
+      }
+      
+      if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
+        summaryMessage += `\nErrors:\n${result.errors.join('\n')}`;
+      }
+      
+      setSuccess(summaryMessage || "CSV file processed successfully!");
 
-      // Reset form on successful processing
+      // Reset form - same pattern as UploadSlides.js
       setFile(null);
-      e.target.reset();
+      const fileInput = document.getElementById('csvFile');
+      if (fileInput) fileInput.value = '';
+      
+      if (onEnrollStudent) {
+        onEnrollStudent(result);
+      }
       
     } catch (err) {
       console.error('Error uploading CSV file:', err);
-      console.error('Error response data:', err.response?.data);
-      console.error('Error status:', err.response?.status);
+      const errorData = err.response?.data;
       
       let errorMessage = "Error processing CSV file";
       
-      if (err.response?.data) {
-        const data = err.response.data;
-        console.log('Error data type:', typeof data);
-        console.log('Error data keys:', Object.keys(data || {}));
-        
-        if (typeof data === 'string') {
-          errorMessage = data;
-        } else if (data.detail) {
-          errorMessage = data.detail;
-        } else if (data.message) {
-          errorMessage = data.message;
-        } else if (data.error) {
-          errorMessage = data.error;
-        } else if (data.errors && Array.isArray(data.errors)) {
-          errorMessage = `Upload errors:\n${data.errors.join('\n')}`;
-        } else if (data.non_field_errors && Array.isArray(data.non_field_errors)) {
-          errorMessage = data.non_field_errors.join('\n');
-        } else if (data.csv_file && Array.isArray(data.csv_file)) {
-          errorMessage = `CSV file error: ${data.csv_file.join(', ')}`;
-        } else {
-          // Handle field-specific errors
-          const fieldErrors = [];
-          Object.entries(data).forEach(([field, messages]) => {
-            if (Array.isArray(messages)) {
-              fieldErrors.push(`${field}: ${messages.join(', ')}`);
-            } else if (typeof messages === 'string') {
-              fieldErrors.push(`${field}: ${messages}`);
-            }
-          });
-          
-          if (fieldErrors.length > 0) {
-            errorMessage = fieldErrors.join('\n');
-          } else {
-            errorMessage = `Upload failed: ${JSON.stringify(data)}`;
+      if (typeof errorData === 'string') {
+        errorMessage = errorData;
+      } else if (errorData?.detail) {
+        errorMessage = errorData.detail;
+      } else if (errorData?.message) {
+        errorMessage = errorData.message;
+      } else if (errorData?.error) {
+        errorMessage = errorData.error;
+      } else if (errorData?.errors && Array.isArray(errorData.errors)) {
+        errorMessage = `Upload errors:\n${errorData.errors.join('\n')}`;
+      } else if (errorData?.non_field_errors && Array.isArray(errorData.non_field_errors)) {
+        errorMessage = errorData.non_field_errors.join('\n');
+      } else if (errorData?.csv_file && Array.isArray(errorData.csv_file)) {
+        errorMessage = `CSV file error: ${errorData.csv_file.join(', ')}`;
+      } else if (errorData && typeof errorData === 'object') {
+        // Handle field-specific errors
+        const fieldErrors = [];
+        Object.entries(errorData).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            fieldErrors.push(`${field}: ${messages.join(', ')}`);
+          } else if (typeof messages === 'string') {
+            fieldErrors.push(`${field}: ${messages}`);
           }
+        });
+        
+        if (fieldErrors.length > 0) {
+          errorMessage = fieldErrors.join('\n');
         }
-      } else if (err.message) {
-        errorMessage = err.message;
       }
       
       setError(errorMessage);
@@ -292,6 +223,7 @@ function AddStudents({
   };
 
   const loading = externalLoading || isUploading;
+  const isFormDisabled = loading || isLoadingCourses;
 
   if (isLoadingCourses) {
     return (
@@ -320,6 +252,7 @@ function AddStudents({
               value={localSelectedCourse?.id || ""} 
               onChange={handleCourseChange}
               className="course-select-dropdown"
+              disabled={isFormDisabled}
             >
               <option value="">-- Select a Course --</option>
               {localCourses.map(course => (
@@ -337,7 +270,11 @@ function AddStudents({
         ) : (
           <div className="no-courses-message">
             <p>No courses available. Please create a course first using the "Create A Course" page.</p>
-            <button onClick={loadCourses} className="retry-btn">
+            <button 
+              onClick={loadCourses} 
+              className="retry-btn"
+              disabled={isFormDisabled}
+            >
               Retry Loading Courses
             </button>
           </div>
@@ -346,13 +283,13 @@ function AddStudents({
 
       {/* Error/Success Messages */}
       {error && (
-        <div className="error-message">
+        <div className="error-message" role="alert">
           <pre>{error}</pre>
         </div>
       )}
       
       {success && (
-        <div className="success-message">
+        <div className="success-message" role="alert">
           <pre>{success}</pre>
         </div>
       )}
@@ -383,9 +320,9 @@ function AddStudents({
                   id="csvFile"
                   type="file"
                   accept=".csv"
-                  onChange={(e) => setFile(e.target.files[0])}
+                  onChange={handleFileChange}
                   required
-                  disabled={loading}
+                  disabled={isFormDisabled}
                 />
                 {file && (
                   <div className="file-selected">
@@ -399,9 +336,16 @@ function AddStudents({
               <button 
                 type="submit" 
                 className={`upload-btn submit-btn ${loading ? 'loading' : ''}`}
-                disabled={loading || !file || !localSelectedCourse}
+                disabled={isFormDisabled || !file || !localSelectedCourse}
               >
-                {loading ? "Processing CSV..." : "Upload and Enroll Students"}
+                {loading ? (
+                  <>
+                    <span className="loading-spinner"></span>
+                    Processing CSV...
+                  </>
+                ) : (
+                  "Upload and Enroll Students"
+                )}
               </button>
             </form>
           </div>

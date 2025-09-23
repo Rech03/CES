@@ -1,278 +1,278 @@
 import { useState } from 'react';
-import { startLiveQuiz, stopLiveQuiz, deleteQuiz } from '../../api/quizzes';
+import { useNavigate } from 'react-router-dom';
 import './QuizTile.css';
 
-function QuizTile({ 
-  quiz, // Full quiz object from API
-  onPublish,
-  onEdit,
-  onViewResults,
-  onDelete,
+function PastQuizTile({ 
+  attempt, 
+  onRetake,
+  onViewDetails,
   onClick,
-  onStatusChange // Callback when quiz status changes
+  isAIQuiz = false // Flag to distinguish AI quizzes
 }) {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
 
-  // Extract data from quiz object with fallbacks
+  // Extract data from attempt object with fallbacks
   const {
     id,
+    quiz = {},
+    score = 0,
+    total_possible_score = 0,
+    is_completed = false,
+    started_at,
+    completed_at,
+    attempt_count = 1,
+    percentage = 0
+  } = attempt || {};
+
+  const {
     title = "Untitled Quiz",
     topic = {},
-    total_points = 0,
-    question_count = 0,
-    created_at,
-    is_live = false,
-    is_graded = false,
-    password_required = false,
-    time_limit = null
-  } = quiz || {};
+    total_questions = 0,
+    difficulty = "medium"
+  } = quiz;
 
   // Get course info from topic
   const courseCode = topic?.course?.code || "UNKNOWN";
   const courseName = topic?.course?.name || "Unknown Course";
+  const topicName = topic?.name || "Unknown Topic";
   
   // Format dates
   const formatDate = (dateString) => {
     if (!dateString) return "No date";
     try {
       const date = new Date(dateString);
-      return `Created: ${date.toLocaleDateString('en-GB', { 
+      return date.toLocaleDateString('en-GB', { 
         day: '2-digit', 
         month: 'short', 
-        year: 'numeric' 
-      })}`;
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     } catch {
       return "Invalid date";
     }
   };
 
-  // Determine quiz status
-  const getQuizStatus = () => {
-    if (is_live) return 'published';
-    if (question_count === 0) return 'draft';
-    return 'draft'; // Default to draft if not live
-  };
-
-  const status = getQuizStatus();
-
-  const getStatusInfo = (status) => {
-    switch(status) {
-      case 'draft': 
-        return { text: 'Draft', color: '#95A5A6' };
-      case 'published': 
-        return { text: 'Live', color: '#27AE60' };
-      case 'closed': 
-        return { text: 'Closed', color: '#E74C3C' };
-      default: 
-        return { text: 'Unknown', color: '#95A5A6' };
+  // Calculate percentage if not provided
+  const getPercentage = () => {
+    if (percentage) return percentage;
+    if (total_possible_score > 0) {
+      return Math.round((score / total_possible_score) * 100);
     }
+    return 0;
   };
 
-  const statusInfo = getStatusInfo(status);
+  // Get grade based on percentage
+  const getGrade = (percent) => {
+    if (percent >= 80) return { grade: 'A', color: '#10B981' };
+    if (percent >= 70) return { grade: 'B', color: '#F59E0B' };
+    if (percent >= 60) return { grade: 'C', color: '#EF4444' };
+    if (percent >= 50) return { grade: 'D', color: '#DC2626' };
+    return { grade: 'F', color: '#991B1B' };
+  };
 
-  // Handle publishing quiz (start live)
-  const handlePublish = async () => {
-    if (!id) return;
-    
-    setIsLoading(true);
-    setError('');
-    
-    try {
-      // Start live quiz - you might want to prompt for password
-      const payload = password_required ? { password: prompt('Enter quiz password:') || '' } : {};
-      await startLiveQuiz(id, payload);
-      
-      if (onPublish) {
-        await onPublish(quiz);
-      }
-      
-      if (onStatusChange) {
-        onStatusChange(id, 'published');
-      }
-      
-    } catch (err) {
-      console.error('Error publishing quiz:', err);
-      const errorMessage = err.response?.data?.detail || 
-                          err.response?.data?.message || 
-                          'Failed to publish quiz';
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
+  // Get difficulty color
+  const getDifficultyColor = (diff) => {
+    const d = (diff || '').toLowerCase();
+    if (d.includes('easy')) return '#22c55e';
+    if (d.includes('medium')) return '#f59e0b';
+    if (d.includes('hard')) return '#ef4444';
+    return '#64748b';
+  };
+
+  const percent = getPercentage();
+  const gradeInfo = getGrade(percent);
+  const attemptDate = completed_at || started_at;
+
+  // Handle click to view analytics
+  const handleClick = () => {
+    if (onClick) {
+      onClick(attempt);
+    } else {
+      // Navigate to quiz analytics page
+      navigate(`/quiz-analytics/${quiz.id}`);
     }
   };
 
-  // Handle closing quiz (stop live)
-  const handleClose = async () => {
-    if (!id) return;
-    
-    if (!window.confirm('Are you sure you want to close this quiz? Students will no longer be able to take it.')) {
-      return;
-    }
-    
-    setIsLoading(true);
-    setError('');
-    
-    try {
-      await stopLiveQuiz(id, {});
-      
-      if (onStatusChange) {
-        onStatusChange(id, 'closed');
-      }
-      
-    } catch (err) {
-      console.error('Error closing quiz:', err);
-      const errorMessage = err.response?.data?.detail || 
-                          err.response?.data?.message || 
-                          'Failed to close quiz';
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
+  // Handle retake action
+  const handleRetake = (e) => {
+    e.stopPropagation();
+    if (onRetake) {
+      onRetake(quiz);
+    } else if (isAIQuiz) {
+      navigate(`/take-ai-quiz/${quiz.id}`);
+    } else {
+      navigate(`/take-quiz/${quiz.id}`);
     }
   };
 
-  // Handle deleting quiz
-  const handleDelete = async () => {
-    if (!id) return;
-    
-    if (!window.confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
-      return;
-    }
-    
-    setIsLoading(true);
-    setError('');
-    
-    try {
-      await deleteQuiz(id);
-      
-      if (onDelete) {
-        await onDelete(quiz);
-      }
-      
-    } catch (err) {
-      console.error('Error deleting quiz:', err);
-      const errorMessage = err.response?.data?.detail || 
-                          err.response?.data?.message || 
-                          'Failed to delete quiz';
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
+  // Handle view details
+  const handleViewDetails = (e) => {
+    e.stopPropagation();
+    if (onViewDetails) {
+      onViewDetails(attempt);
+    } else {
+      navigate(`/quiz-analytics/${quiz.id}`);
     }
   };
 
   return (
-    <div className={`quiz-tile-container ${courseCode.toLowerCase()}`} onClick={onClick}>
+    <div 
+      className={`quiz-tile-container ${courseCode.toLowerCase()} ${isAIQuiz ? 'ai-quiz' : ''}`} 
+      onClick={handleClick}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="quiz-overlay"></div>
       
-      {/* Status Badge */}
-      <div className="quiz-status-badge" style={{ backgroundColor: statusInfo.color }}>
-        <div className="quiz-status-text">{statusInfo.text}</div>
-      </div>
+      {/* AI Quiz Badge */}
+      {isAIQuiz && (
+        <div className="ai-quiz-badge" style={{
+          position: 'absolute',
+          top: '8px',
+          left: '8px',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          padding: '4px 8px',
+          borderRadius: '12px',
+          fontSize: '10px',
+          fontWeight: '600',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          zIndex: 5
+        }}>
+          🤖 AI Generated
+        </div>
+      )}
 
-      {/* Duration Badge */}
-      <div className="quiz-duration-badge">
-        <div className="quiz-duration-text">
-          {time_limit ? `${time_limit} min` : 'No limit'}
+      {/* Status Badge */}
+      <div 
+        className="quiz-status-badge" 
+        style={{ 
+          backgroundColor: is_completed ? '#27AE60' : '#F39C12',
+          top: isAIQuiz ? '32px' : '8px'
+        }}
+      >
+        <div className="quiz-status-text">
+          {is_completed ? 'Completed' : 'In Progress'}
         </div>
       </div>
 
+      {/* Grade Badge */}
+      {is_completed && (
+        <div 
+          className="grade-badge" 
+          style={{
+            position: 'absolute',
+            top: '8px',
+            right: '8px',
+            backgroundColor: gradeInfo.color,
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: '20px',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            zIndex: 5
+          }}
+        >
+          {gradeInfo.grade}
+        </div>
+      )}
+
       {/* Quiz Info */}
-      <div className="quiz-info-section">
-        <div className="quiz-creation-date">{formatDate(created_at)}</div>
+      <div className="quiz-info-section" style={{ top: isAIQuiz ? '60px' : '40px' }}>
+        <div className="quiz-creation-date">
+          {is_completed ? `Completed: ${formatDate(attemptDate)}` : `Started: ${formatDate(attemptDate)}`}
+        </div>
         <div className="quiz-stats-mini">
-          <span className="quiz-questions">{question_count} Questions</span>
-          <span className="quiz-points">{total_points} Points</span>
-          {password_required && <span className="quiz-protected">🔒 Protected</span>}
+          <span className="quiz-questions">{total_questions} Questions</span>
+          {is_completed && (
+            <>
+              <span className="quiz-score">{score}/{total_possible_score} ({percent}%)</span>
+              {attempt_count > 1 && (
+                <span className="attempt-count">Attempt #{attempt_count}</span>
+              )}
+            </>
+          )}
         </div>
       </div>
 
       {/* Title Container */}
       <div className="quiz-title-containerNew">
         <div className="quiz-title-text">{title}</div>
-        <div className="quiz-course-info">{courseCode} - {topic?.name || 'No Topic'}</div>
+        <div className="quiz-course-info">{courseCode} - {topicName}</div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="quiz-error" style={{
+      {/* Difficulty Badge (for AI quizzes) */}
+      {isAIQuiz && difficulty && (
+        <div style={{
           position: 'absolute',
           bottom: '80px',
+          right: '16px',
+          background: getDifficultyColor(difficulty),
+          color: 'white',
+          padding: '4px 8px',
+          borderRadius: '12px',
+          fontSize: '12px',
+          fontWeight: '600'
+        }}>
+          {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+        </div>
+      )}
+
+      {/* Progress Bar (for incomplete attempts) */}
+      {!is_completed && (
+        <div style={{
+          position: 'absolute',
+          bottom: '50px',
           left: '16px',
           right: '16px',
-          background: '#FF5252',
-          color: 'white',
-          padding: '8px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          zIndex: 10
+          background: 'rgba(255,255,255,0.3)',
+          borderRadius: '10px',
+          height: '6px',
+          overflow: 'hidden'
         }}>
-          {error}
+          <div style={{
+            background: '#1976D2',
+            height: '100%',
+            width: `${percent}%`,
+            borderRadius: '10px',
+            transition: 'width 0.3s ease'
+          }}></div>
         </div>
       )}
 
       {/* Action Buttons */}
       <div className="quiz-actions">
-        {status === 'draft' && question_count > 0 && (
-          <button 
-            className="action-btn publish-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePublish();
-            }}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Publishing...' : 'Publish'}
-          </button>
-        )}
-        
-        {status === 'published' && (
-          <button 
-            className="action-btn results-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onViewResults && onViewResults(quiz);
-            }}
-            disabled={isLoading}
-          >
-            Results
-          </button>
-        )}
-
         <button 
-          className="action-btn edit-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit && onEdit(quiz);
-          }}
+          className="action-btn results-btn"
+          onClick={handleViewDetails}
           disabled={isLoading}
+          style={{ backgroundColor: '#1976D2' }}
         >
-          Edit
+          View Analytics
         </button>
 
-        {status === 'published' && (
+        {is_completed && (
           <button 
-            className="action-btn close-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClose();
-            }}
+            className="action-btn retake-btn"
+            onClick={handleRetake}
             disabled={isLoading}
+            style={{ backgroundColor: '#27AE60' }}
           >
-            {isLoading ? 'Closing...' : 'Close'}
+            Retake Quiz
           </button>
         )}
 
-        {status === 'draft' && (
+        {!is_completed && (
           <button 
-            className="action-btn delete-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete();
-            }}
+            className="action-btn continue-btn"
+            onClick={handleRetake}
             disabled={isLoading}
-            style={{ backgroundColor: '#E74C3C' }}
+            style={{ backgroundColor: '#F39C12' }}
           >
-            {isLoading ? 'Deleting...' : 'Delete'}
+            Continue Quiz
           </button>
         )}
       </div>
@@ -298,4 +298,4 @@ function QuizTile({
   );
 }
 
-export default QuizTile;
+export default PastQuizTile;

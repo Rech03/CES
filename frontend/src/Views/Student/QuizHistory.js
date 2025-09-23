@@ -18,9 +18,9 @@ function QuizHistory() {
     
       
       <div className="SideH">
-        <div className="List">
+        
                 <CoursesList></CoursesList>
-                </div>
+                
       </div>
       <div className="BoiH">
         <Bio></Bio>
