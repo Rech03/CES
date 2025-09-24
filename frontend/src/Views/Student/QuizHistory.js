@@ -17,7 +17,7 @@ function QuizHistory() {
             </div>
     
       
-      <div className="SideH">
+      <div className="SideAI">
         
                 <CoursesList></CoursesList>
                 

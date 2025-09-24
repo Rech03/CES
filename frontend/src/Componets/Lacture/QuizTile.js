@@ -28,7 +28,10 @@ function QuizTile({
     level: levelRaw,
     metadata,
     dataSource, // Track where this quiz data came from
-    hasRealId // Track if this has a real quiz ID or generated one
+    hasRealId, // Track if this has a real quiz ID or generated one
+    slideId, // Original slide ID
+    adaptiveQuizId, // Real adaptive quiz ID if exists
+    quizId // Real quiz ID if exists
   } = quiz || {};
 
   const courseCode = topic?.course?.code || "UNKNOWN";
@@ -47,6 +50,12 @@ function QuizTile({
     } catch { return "Invalid date"; }
   };
 
+  // Determine the correct ID to use for operations
+  const getOperationalId = () => {
+    // Priority: adaptiveQuizId > quizId > slideId > id
+    return adaptiveQuizId || quizId || slideId || id;
+  };
+
   // Status: draft (no questions), ready (has questions), live (published), closed (not used here)
   const getQuizStatus = () => {
     if (is_live) return 'live';
@@ -63,18 +72,24 @@ function QuizTile({
   }[status] || { text: 'Unknown', color: '#95A5A6' };
 
   const handleTileClick = () => {
+    const operationalId = getOperationalId();
+    
     if (status === 'draft' || status === 'ready') {
       // Navigate to moderation/edit page
-      navigate(`/moderate-quiz/${id}`);
+      navigate(`/moderate-quiz/${operationalId}`);
     } else if (status === 'live') {
-      // Navigate to analytics/results
-      navigate(`/quiz-analytics/${id}`);
+      // Navigate to analytics/results - use the correct published quiz ID
+      const analyticsId = adaptiveQuizId || quizId || operationalId;
+      navigate(`/quiz-analytics/${analyticsId}`);
     }
   };
 
   const handlePublish = async (e) => {
     e.stopPropagation(); // Prevent tile click
-    if (!id) {
+    
+    const operationalId = getOperationalId();
+    
+    if (!operationalId) {
       setError('Cannot publish: No quiz ID available');
       return;
     }
@@ -85,18 +100,21 @@ function QuizTile({
     try {
       console.log('=== PUBLISHING QUIZ ===');
       console.log('Quiz ID:', id);
+      console.log('Operational ID (for API):', operationalId);
+      console.log('Slide ID:', slideId);
       console.log('Quiz data source:', dataSource);
       console.log('Has real ID:', hasRealId);
-      console.log('Full quiz object:', quiz);
+      console.log('Adaptive Quiz ID:', adaptiveQuizId);
+      console.log('Quiz ID:', quizId);
 
       // First, get moderation data to ensure we have the latest quiz info
-      console.log('Fetching moderation data for quiz:', id);
-      const moderationResponse = await getQuizForModeration(id);
+      console.log('Fetching moderation data for quiz:', operationalId);
+      const moderationResponse = await getQuizForModeration(operationalId);
       console.log('Moderation response:', moderationResponse.data);
 
-      // Publish the quiz - this should create a proper quiz ID if one doesn't exist
-      console.log('Publishing quiz with ID:', id);
-      const publishResponse = await publishQuiz(id, { 
+      // Publish the quiz - this should return the proper adaptive quiz ID
+      console.log('Publishing quiz with ID:', operationalId);
+      const publishResponse = await publishQuiz(operationalId, { 
         review_notes: 'Publishing from Dashboard',
         confirm_publish: true 
       });
@@ -104,36 +122,37 @@ function QuizTile({
       console.log('Publish response:', publishResponse);
       console.log('Publish response data:', publishResponse.data);
 
-      // Check if the publish response contains a new/proper quiz ID
-      let finalQuizId = id;
+      // Extract the correct quiz ID from publish response
+      let finalAdaptiveQuizId = null;
+      let finalQuizId = null;
+      
       if (publishResponse.data) {
-        // Look for the actual quiz ID in the response
+        // Look for adaptive quiz ID in various possible fields
+        finalAdaptiveQuizId = publishResponse.data.adaptive_quiz_id || 
+                              publishResponse.data.quiz_id ||
+                              publishResponse.data.id;
+        
+        // Also look for a separate quiz_id field if it exists
         finalQuizId = publishResponse.data.quiz_id || 
-                      publishResponse.data.id || 
-                      publishResponse.data.adaptive_quiz_id ||
-                      id;
+                      publishResponse.data.id;
         
-        console.log('Final quiz ID after publishing:', finalQuizId);
-        
-        // If we got a different/new quiz ID, this means the publish created a proper quiz
-        if (finalQuizId !== id) {
-          console.log('✅ Publishing created new quiz ID:', finalQuizId, 'from original:', id);
-        } else {
-          console.log('ℹ️ Publishing used existing quiz ID:', finalQuizId);
-        }
+        console.log('Extracted adaptive quiz ID:', finalAdaptiveQuizId);
+        console.log('Extracted quiz ID:', finalQuizId);
       }
 
-      // Update the quiz status and notify parent component
+      // Update the quiz status and notify parent component with the correct IDs
       if (onStatusChange) {
-        onStatusChange(finalQuizId, 'published', {
+        onStatusChange(id, 'published', {
           originalId: id,
+          originalSlideId: slideId,
+          newAdaptiveQuizId: finalAdaptiveQuizId,
           newQuizId: finalQuizId,
-          publishedAt: new Date().toISOString()
+          publishedAt: new Date().toISOString(),
+          operationalId: operationalId
         });
       }
 
-      // Show success with the proper quiz ID
-      console.log('✅ Quiz successfully published with ID:', finalQuizId);
+      console.log('✅ Quiz successfully published with adaptive ID:', finalAdaptiveQuizId);
       
     } catch (err) {
       console.error('Error publishing quiz:', err);
@@ -166,15 +185,18 @@ function QuizTile({
 
   const handleDelete = async (e) => {
     e.stopPropagation(); // Prevent tile click
-    if (!id || status === 'live') return;
+    
+    const operationalId = getOperationalId();
+    
+    if (!operationalId || status === 'live') return;
     if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
+    
     setIsLoading(true); 
     setError('');
+    
     try {
-      // For AI quizzes, we might need to use a different delete endpoint
-      // or handle deletion differently since they're generated from slides
-      console.log('Attempting to delete quiz:', id);
-      await deleteQuiz(id);
+      console.log('Attempting to delete quiz with operational ID:', operationalId);
+      await deleteQuiz(operationalId);
       onDelete && onDelete(quiz);
     } catch (err) {
       console.error('Error deleting quiz:', err);
@@ -188,12 +210,15 @@ function QuizTile({
 
   const handleEdit = (e) => {
     e.stopPropagation(); // Prevent tile click
-    navigate(`/moderate-quiz/${id}`);
+    const operationalId = getOperationalId();
+    navigate(`/moderate-quiz/${operationalId}`);
   };
 
   const handleViewResults = (e) => {
     e.stopPropagation(); // Prevent tile click
-    navigate(`/quiz-analytics/${id}`);
+    // Use the published quiz ID for analytics
+    const analyticsId = adaptiveQuizId || quizId || getOperationalId();
+    navigate(`/quiz-analytics/${analyticsId}`);
   };
 
   const colorForDifficulty = (diff) => {
@@ -204,8 +229,9 @@ function QuizTile({
     return '#64748b';
   };
 
-  // Show warning if this quiz has a generated/invalid ID
-  const hasValidId = hasRealId || (id && !id.toString().startsWith('generated_'));
+  // Show warning if this quiz doesn't have a proper published ID
+  const hasValidPublishedId = is_live && (adaptiveQuizId || quizId);
+  const needsProperPublishing = !is_live && !hasRealId;
 
   return (
     <div 
@@ -220,17 +246,7 @@ function QuizTile({
         <div className="quiz-status-text">{statusInfo.text}</div>
       </div>
 
-      {/* Warning for invalid IDs */}
-      {!hasValidId && (
-        <div style={{
-          position: 'absolute', top: '45px', left: '16px', right: '16px',
-          background: '#FF9800', color: 'white', padding: '4px 8px',
-          borderRadius: '4px', fontSize: '10px', zIndex: 10,
-          textAlign: 'center'
-        }}>
-          ⚠️ Generated ID - Publish to create proper quiz
-        </div>
-      )}
+    
 
       {/* Info */}
       <div className="quiz-info-section">
@@ -249,7 +265,7 @@ function QuizTile({
       {/* Difficulty chip (if present) */}
       {difficulty && (
         <div style={{
-          position:'absolute', top: '56px', right:'16px',
+          position:'absolute', top: '16px', right:'16px',
           background: colorForDifficulty(difficulty), color:'#fff',
           padding:'4px 8px', borderRadius:'12px', fontSize:'12px', fontWeight:600
         }}>
@@ -287,7 +303,7 @@ function QuizTile({
             disabled={isLoading}
             style={{ backgroundColor: '#0b5fff' }}
           >
-            {isLoading ? 'Publishing...' : hasValidId ? 'Publish' : 'Create & Publish'}
+            {isLoading ? 'Publishing...' : 'Publish Quiz'}
           </button>
         )}
 
@@ -320,18 +336,6 @@ function QuizTile({
           display:'flex', alignItems:'center', justifyContent:'center', zIndex:20
         }}>
           <div>Loading...</div>
-        </div>
-      )}
-
-      {/* Debug info in development */}
-      {process.env.NODE_ENV === 'development' && (
-        <div style={{
-          position: 'absolute', bottom: '4px', left: '4px', right: '4px',
-          background: 'rgba(0,0,0,0.7)', color: 'white', padding: '2px 4px',
-          borderRadius: '2px', fontSize: '8px', zIndex: 1,
-          textAlign: 'center'
-        }}>
-          ID: {id} | Source: {dataSource} | Valid: {hasValidId ? 'Yes' : 'No'}
         </div>
       )}
     </div>

@@ -162,26 +162,7 @@ function QuizTile({
         <div className="quiz-status-text">{statusInfo.text}</div>
       </div>
 
-      {/* Difficulty Badge */}
-      {difficulty && (
-        <div 
-          className="quiz-difficulty-badge" 
-          style={{ 
-            backgroundColor: getDifficultyColor(difficulty),
-            position: 'absolute',
-            top: '15px',
-            right: '15px',
-            padding: '4px 8px',
-            borderRadius: '6px',
-            fontSize: '10px',
-            fontWeight: '600',
-            color: 'white',
-            zIndex: 3
-          }}
-        >
-          {difficulty}
-        </div>
-      )}
+      
 
       {/* Quiz Info */}
       <div className="quiz-info-section">
