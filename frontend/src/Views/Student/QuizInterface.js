@@ -333,6 +333,43 @@ const QuizInterface = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRemaining, isSubmitted, loading, fatalError, gateInfo]);
 
+  // -------- helpers for submit ----------
+  const indexToLetter = (idx) => String.fromCharCode(65 + idx); // 0 -> 'A'
+
+  const mcqAnswerToLetter = (question, value) => {
+    const choices = question?.choices || [];
+    if (choices.length === 0) return null;
+
+    // Already a letter? accept A-Z
+    if (typeof value === 'string' && /^[A-Z]$/.test(value.trim().toUpperCase())) {
+      return value.trim().toUpperCase();
+    }
+
+    // If user stored the text itself
+    if (typeof value === 'string') {
+      const byText = choices.findIndex(c => (c.text || '').trim() === value.trim());
+      if (byText >= 0) return indexToLetter(byText);
+    }
+
+    // If we have an id (number or string)
+    let id = null;
+    if (typeof value === 'number' || typeof value === 'string') {
+      const n = Number(value);
+      if (Number.isFinite(n)) id = n;
+    } else if (value && typeof value === 'object' && 'id' in value) {
+      const n = Number(value.id);
+      if (Number.isFinite(n)) id = n;
+    }
+
+    if (id != null) {
+      const idx = choices.findIndex(c => String(c.id) === String(id));
+      if (idx >= 0) return indexToLetter(idx);
+    }
+
+    // Fallback: pick first as last resort (but better to send null and let server handle)
+    return null;
+  };
+
   // -------- handlers ----------
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
@@ -364,47 +401,25 @@ const QuizInterface = () => {
         Number(quizIdFromStorage);
 
       if (!adaptiveQuizId || Number.isNaN(adaptiveQuizId)) {
-        console.error('Missing adaptive_quiz_id at submit time', { quizEnv, quizIdFromQuery, quizIdFromStorage });
         setIsSubmitted(false);
         setFatalError('Cannot submit: missing quiz id. Please reopen the quiz from the dashboard.');
         return;
       }
 
-      // Build answers: ALWAYS include question_type to satisfy strict validators
-      const answersPayload = Object.entries(answers).map(([questionId, value]) => {
-        const q = questions.find(qq => String(qq.id) === String(questionId));
-        const qt = q?.type || 'multiple_choice';
-
-        if (qt === 'multiple_choice') {
-          let choiceId = null;
-          if (typeof value === 'number' || typeof value === 'string') {
-            const n = Number(value);
-            choiceId = Number.isFinite(n) ? n : null;
-          } else if (value && typeof value === 'object' && 'id' in value) {
-            const n = Number(value.id);
-            choiceId = Number.isFinite(n) ? n : null;
-          }
-          return {
-            question_id: Number(questionId),
-            question_type: 'multiple_choice',
-            selected_choice_id: choiceId
-          };
+      // Backend expects:
+      // answers: { "<question_id>": "A" | "B" | ... | "True" | "False" | "<text>" }
+      const answersDict = {};
+      Object.entries(answers).forEach(([qidStr, value]) => {
+        const q = questions.find(qq => String(qq.id) === String(qidStr));
+        if (!q) return;
+        if (q.type === 'multiple_choice') {
+          const letter = mcqAnswerToLetter(q, value);
+          if (letter) answersDict[qidStr] = letter;       // e.g., "A"
+        } else if (q.type === 'true_false') {
+          answersDict[qidStr] = value ? 'True' : 'False';  // strings, not booleans
+        } else {
+          answersDict[qidStr] = value != null ? String(value) : '';
         }
-
-        if (qt === 'true_false') {
-          return {
-            question_id: Number(questionId),
-            question_type: 'true_false',
-            answer: !!value
-          };
-        }
-
-        // short_answer
-        return {
-          question_id: Number(questionId),
-          question_type: 'short_answer',
-          answer_text: value != null ? String(value) : ''
-        };
       });
 
       const payload = {
@@ -412,28 +427,24 @@ const QuizInterface = () => {
         slide_id:
           quizEnv.slideId ??
           (slideIdFromQuery ? Number(slideIdFromQuery) : (slideIdFromStorage ? Number(slideIdFromStorage) : null)),
-        answers: answersPayload
+        answers: answersDict
       };
-
-      // console.debug('Submitting quiz payload:', JSON.stringify(payload, null, 2));
 
       const submitResp = await submitAdaptiveQuiz(payload);
 
       const submissionResult = {
         ...submitResp.data,
         questions,
-        answers,
+        answers, // keep raw for review
         quizData: { ...quizEnv, isAIQuiz: true, quizId: adaptiveQuizId }
       };
 
       navigate('/QuizResultsPage', { state: submissionResult });
     } catch (err) {
-      console.error('Error submitting quiz:', err);
       const serverMsg =
         err?.response?.data?.error ||
         err?.response?.data?.detail ||
         (typeof err?.response?.data === 'string' ? err.response.data : null) ||
-        // If the backend returned field-level errors (DRF style), show first helpful key
         (() => {
           const d = err?.response?.data;
           if (d && typeof d === 'object') {
@@ -508,8 +519,6 @@ const QuizInterface = () => {
       <div className="quiz-interface-container">
         <div className="no-questions-content">
           <h2>No Questions Available</h2>
-          <p>This quiz doesn't have any questions yet.</p>
-          <button onClick={() => navigate(-1)} className="nav-btn">Go Back</button>
         </div>
       </div>
     );

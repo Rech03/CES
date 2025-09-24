@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
-// ❌ Removed: '../../api/quizzes'
-import { studentAdaptiveProgress, getProgressAnalytics } from '../../api/ai-quiz';
+// ✅ Use only student endpoints
+import { studentAdaptiveProgress } from '../../api/ai-quiz';
 import { getMyCourses } from '../../api/courses';
 
 import Bio from "../../Componets/Student/bio";
@@ -20,28 +20,48 @@ function QuizAnalyticsPage() {
   const [selectedAttempt, setSelectedAttempt] = useState(null);
   const [quizStatistics, setQuizStatistics] = useState(null);
 
+  const toNum = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
+
   // Normalize attempt objects into the shape we need
   const normalizeAttempt = (a) => ({
-    id: a.id,
+    id: a.id ?? a.attempt_id ?? a.progress_id ?? a.pk ?? Math.random(),
     quiz_id: a.adaptive_quiz_id || a.quiz_id || a.quiz || a.quizId,
     slide_id: a.slide_id || a.lecture_slide_id || null,
     quiz_title: a.quiz_title || a.title || `Quiz ${a.adaptive_quiz_id || a.quiz_id || a.id}`,
-    score: a.score ?? a.percentage ?? 0,
+    score: toNum(a.score ?? a.percentage, 0),
     is_completed: a.is_completed ?? a.status === 'completed' ?? true,
     created_at: a.created_at || a.date_created || a.submitted_at || new Date().toISOString(),
-    time_taken: a.time_taken ?? 0,
-    correct_answers: a.correct_answers ?? 0,
-    total_questions: a.total_questions ?? 0,
-    status: a.status || (a.is_completed ? 'completed' : 'in_progress'),
-    attempt_number: a.attempt_number || 1,
+    time_taken: toNum(a.time_taken, 0),
+    correct_answers: toNum(a.correct_answers, 0),
+    total_questions: toNum(a.total_questions, 0),
+    status: a.status || ((a.is_completed ?? true) ? 'completed' : 'in_progress'),
+    attempt_number: toNum(a.attempt_number, 1),
   });
+
+  // Client-side class stats per quiz
+  const computeClassStatsForQuiz = (attempts, quizId) => {
+    const scoped = attempts.filter(a => a.quiz_id === quizId && a.is_completed);
+    if (scoped.length === 0) return null;
+    const scores = scoped.map(a => toNum(a.score, 0));
+    const average = scores.reduce((s, v) => s + v, 0) / scores.length;
+    const highest = Math.max(...scores);
+    const passes = scoped.filter(a => toNum(a.score, 0) >= 50).length;
+    const passRate = (passes / scoped.length) * 100;
+
+    return {
+      average_score: average,
+      total_attempts: scoped.length,
+      pass_rate: passRate,
+      highest_score: highest
+    };
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       try {
-        // ✅ Get student attempts/progress from AI-Quiz service
+        // ✅ Get student attempts/progress
         const { data: progress } = await studentAdaptiveProgress();
 
         const attemptsRaw =
@@ -58,6 +78,7 @@ function QuizAnalyticsPage() {
           )[0];
           setSelectedQuizId(mostRecent.quiz_id);
           setSelectedAttempt(mostRecent);
+          setQuizStatistics(computeClassStatsForQuiz(processed, mostRecent.quiz_id));
         }
 
         // Sidebar courses
@@ -65,7 +86,7 @@ function QuizAnalyticsPage() {
           const { data: coursesResp } = await getMyCourses();
           const fetchedCourses = Array.isArray(coursesResp)
             ? coursesResp
-            : coursesResp?.results || [];
+            : coursesResp?.courses || coursesResp?.results || [];
           setCourses(fetchedCourses);
         } catch (e) {
           console.warn('getMyCourses failed:', e);
@@ -81,31 +102,14 @@ function QuizAnalyticsPage() {
     fetchData();
   }, []);
 
-  // Class/aggregate stats for the selected quiz
+  // Re-compute stats when selection changes
   useEffect(() => {
-    const fetchStats = async () => {
-      if (!selectedQuizId) {
-        setQuizStatistics(null);
-        return;
-      }
-      try {
-        // We don’t have a dedicated "quiz stats" endpoint,
-        // so we use progress analytics as an aggregate (server can scope by quiz if supported).
-        const { data: stats } = await getProgressAnalytics({ quiz_id: selectedQuizId });
-        setQuizStatistics({
-          average_score: stats?.average_score ?? null,
-          total_attempts: stats?.total_attempts ?? null,
-          pass_rate: stats?.pass_rate ?? null,
-          highest_score: stats?.highest_score ?? null,
-        });
-      } catch (e) {
-        console.warn('getProgressAnalytics failed for quiz scope:', e);
-        setQuizStatistics(null);
-      }
-    };
-
-    fetchStats();
-  }, [selectedQuizId]);
+    if (!selectedQuizId) {
+      setQuizStatistics(null);
+      return;
+    }
+    setQuizStatistics(computeClassStatsForQuiz(quizAttempts, selectedQuizId));
+  }, [selectedQuizId, quizAttempts]);
 
   const handleQuizSelect = (attempt) => {
     setSelectedQuizId(attempt.quiz_id);
@@ -189,9 +193,7 @@ function QuizAnalyticsPage() {
                 return (
                   <div
                     key={group.quiz_id}
-                    className={`quiz-attempt-item ${
-                      selectedQuizId === group.quiz_id ? 'selected' : ''
-                    }`}
+                    className={`quiz-attempt-item ${selectedQuizId === group.quiz_id ? 'selected' : ''}`}
                     onClick={() => handleQuizSelect(bestAttempt)}
                   >
                     <div className="attempt-header">
@@ -215,9 +217,7 @@ function QuizAnalyticsPage() {
                           .map((attempt) => (
                             <div
                               key={attempt.id}
-                              className={`attempt-detail ${
-                                attempt.id === selectedAttempt?.id ? 'active' : ''
-                              }`}
+                              className={`attempt-detail ${attempt.id === selectedAttempt?.id ? 'active' : ''}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleQuizSelect(attempt);

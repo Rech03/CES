@@ -669,7 +669,7 @@ function Dashboard() {
         
         .dashboard-container {
           min-height: 100vh;
-          background: #f5f5f5;
+          
           font-family: 'Poppins', sans-serif;
         }
         
