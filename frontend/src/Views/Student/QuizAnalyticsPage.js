@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
-import { getMyAttempts, getQuizStatistics } from '../../api/quizzes';
+
+// ❌ Removed: '../../api/quizzes'
+import { studentAdaptiveProgress, getProgressAnalytics } from '../../api/ai-quiz';
 import { getMyCourses } from '../../api/courses';
+
 import Bio from "../../Componets/Student/bio";
 import CoursesList from "../../Componets/Student/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
@@ -17,70 +20,58 @@ function QuizAnalyticsPage() {
   const [selectedAttempt, setSelectedAttempt] = useState(null);
   const [quizStatistics, setQuizStatistics] = useState(null);
 
+  // Normalize attempt objects into the shape we need
+  const normalizeAttempt = (a) => ({
+    id: a.id,
+    quiz_id: a.adaptive_quiz_id || a.quiz_id || a.quiz || a.quizId,
+    slide_id: a.slide_id || a.lecture_slide_id || null,
+    quiz_title: a.quiz_title || a.title || `Quiz ${a.adaptive_quiz_id || a.quiz_id || a.id}`,
+    score: a.score ?? a.percentage ?? 0,
+    is_completed: a.is_completed ?? a.status === 'completed' ?? true,
+    created_at: a.created_at || a.date_created || a.submitted_at || new Date().toISOString(),
+    time_taken: a.time_taken ?? 0,
+    correct_answers: a.correct_answers ?? 0,
+    total_questions: a.total_questions ?? 0,
+    status: a.status || (a.is_completed ? 'completed' : 'in_progress'),
+    attempt_number: a.attempt_number || 1,
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setError(null);
       try {
-        // Fetch all quiz attempts for the student
-        const attemptsResponse = await getMyAttempts();
-        const attempts = Array.isArray(attemptsResponse.data) 
-          ? attemptsResponse.data 
-          : attemptsResponse.data?.results || [];
+        // ✅ Get student attempts/progress from AI-Quiz service
+        const { data: progress } = await studentAdaptiveProgress();
 
-        // Process attempts data
-        const processedAttempts = attempts.map(attempt => ({
-          id: attempt.id,
-          quiz_id: attempt.quiz || attempt.quiz_id,
-          quiz_title: attempt.quiz_title || `Quiz ${attempt.quiz || attempt.quiz_id}`,
-          score: attempt.score || 0,
-          is_completed: attempt.is_completed || attempt.status === 'completed',
-          created_at: attempt.created_at || attempt.date_created || new Date().toISOString(),
-          time_taken: attempt.time_taken || 0,
-          correct_answers: attempt.correct_answers || 0,
-          total_questions: attempt.total_questions || 0,
-          status: attempt.status || (attempt.is_completed ? 'completed' : 'in_progress'),
-          attempt_number: attempt.attempt_number || 1
-        }));
+        const attemptsRaw =
+          Array.isArray(progress) ? progress : progress?.attempts || progress?.recent_attempts || [];
 
-        setQuizAttempts(processedAttempts);
+        const processed = (attemptsRaw || []).map(normalizeAttempt).filter(a => a.quiz_id);
+        setQuizAttempts(processed);
 
-        // Filter completed attempts and group by quiz
-        const completedAttempts = processedAttempts.filter(attempt => attempt.is_completed);
-        
-        if (completedAttempts.length > 0) {
-          // Get unique quizzes with their best attempts
-          const quizGroups = {};
-          completedAttempts.forEach(attempt => {
-            const quizId = attempt.quiz_id;
-            if (!quizGroups[quizId] || attempt.score > quizGroups[quizId].score) {
-              quizGroups[quizId] = attempt;
-            }
-          });
-
-          // Set the most recent quiz as default selection
-          const mostRecentQuiz = Object.values(quizGroups).sort((a, b) => 
-            new Date(b.created_at) - new Date(a.created_at)
+        // Pick most recent completed as default
+        const completed = processed.filter(a => a.is_completed);
+        if (completed.length > 0) {
+          const mostRecent = [...completed].sort(
+            (a, b) => new Date(b.created_at) - new Date(a.created_at)
           )[0];
-          
-          if (mostRecentQuiz) {
-            setSelectedQuizId(mostRecentQuiz.quiz_id);
-            setSelectedAttempt(mostRecentQuiz);
-          }
+          setSelectedQuizId(mostRecent.quiz_id);
+          setSelectedAttempt(mostRecent);
         }
 
-        // Fetch courses for sidebar
+        // Sidebar courses
         try {
-          const coursesResponse = await getMyCourses();
-          const fetchedCourses = Array.isArray(coursesResponse.data)
-            ? coursesResponse.data
-            : coursesResponse.data?.results || [];
+          const { data: coursesResp } = await getMyCourses();
+          const fetchedCourses = Array.isArray(coursesResp)
+            ? coursesResp
+            : coursesResp?.results || [];
           setCourses(fetchedCourses);
-        } catch (courseErr) {
-          console.warn('Could not fetch courses:', courseErr);
+        } catch (e) {
+          console.warn('getMyCourses failed:', e);
         }
-
-      } catch (err) {
-        console.error('Error fetching quiz analytics data:', err);
+      } catch (e) {
+        console.error(e);
         setError('Failed to load quiz analytics data');
       } finally {
         setLoading(false);
@@ -90,21 +81,30 @@ function QuizAnalyticsPage() {
     fetchData();
   }, []);
 
-  // Fetch quiz statistics when a quiz is selected
+  // Class/aggregate stats for the selected quiz
   useEffect(() => {
-    const fetchQuizStatistics = async () => {
-      if (selectedQuizId) {
-        try {
-          const statsResponse = await getQuizStatistics(selectedQuizId);
-          setQuizStatistics(statsResponse.data);
-        } catch (err) {
-          console.warn('Could not fetch quiz statistics:', err);
-          setQuizStatistics(null);
-        }
+    const fetchStats = async () => {
+      if (!selectedQuizId) {
+        setQuizStatistics(null);
+        return;
+      }
+      try {
+        // We don’t have a dedicated "quiz stats" endpoint,
+        // so we use progress analytics as an aggregate (server can scope by quiz if supported).
+        const { data: stats } = await getProgressAnalytics({ quiz_id: selectedQuizId });
+        setQuizStatistics({
+          average_score: stats?.average_score ?? null,
+          total_attempts: stats?.total_attempts ?? null,
+          pass_rate: stats?.pass_rate ?? null,
+          highest_score: stats?.highest_score ?? null,
+        });
+      } catch (e) {
+        console.warn('getProgressAnalytics failed for quiz scope:', e);
+        setQuizStatistics(null);
       }
     };
 
-    fetchQuizStatistics();
+    fetchStats();
   }, [selectedQuizId]);
 
   const handleQuizSelect = (attempt) => {
@@ -112,33 +112,30 @@ function QuizAnalyticsPage() {
     setSelectedAttempt(attempt);
   };
 
-  // Group attempts by quiz for display
   const getQuizGroups = () => {
     const groups = {};
-    const completedAttempts = quizAttempts.filter(attempt => attempt.is_completed);
-    
-    completedAttempts.forEach(attempt => {
-      const quizId = attempt.quiz_id;
-      if (!groups[quizId]) {
-        groups[quizId] = {
-          quiz_id: quizId,
-          quiz_title: attempt.quiz_title,
+    const completed = quizAttempts.filter((a) => a.is_completed);
+
+    completed.forEach((a) => {
+      const qid = a.quiz_id;
+      if (!groups[qid]) {
+        groups[qid] = {
+          quiz_id: qid,
+          quiz_title: a.quiz_title,
           attempts: [],
           best_score: 0,
-          latest_attempt: attempt.created_at
+          latest_attempt: a.created_at,
         };
       }
-      
-      groups[quizId].attempts.push(attempt);
-      groups[quizId].best_score = Math.max(groups[quizId].best_score, attempt.score);
-      
-      if (new Date(attempt.created_at) > new Date(groups[quizId].latest_attempt)) {
-        groups[quizId].latest_attempt = attempt.created_at;
+      groups[qid].attempts.push(a);
+      groups[qid].best_score = Math.max(groups[qid].best_score, a.score ?? 0);
+      if (new Date(a.created_at) > new Date(groups[qid].latest_attempt)) {
+        groups[qid].latest_attempt = a.created_at;
       }
     });
 
-    return Object.values(groups).sort((a, b) => 
-      new Date(b.latest_attempt) - new Date(a.latest_attempt)
+    return Object.values(groups).sort(
+      (a, b) => new Date(b.latest_attempt) - new Date(a.latest_attempt)
     );
   };
 
@@ -165,7 +162,7 @@ function QuizAnalyticsPage() {
       </div>
 
       <div className="SideHA">
-          <CoursesList courses={courses} />
+        <CoursesList courses={courses} />
       </div>
 
       <div className="BoiHA">
@@ -180,61 +177,59 @@ function QuizAnalyticsPage() {
           </div>
         )}
 
-        {/* Quiz Selection Panel */}
+        {/* Quiz Selection */}
         {quizGroups.length > 0 ? (
           <div className="quiz-selection-panel">
             <h3>Select Quiz to Analyze</h3>
             <div className="quiz-attempts-list">
-              {quizGroups.map((quizGroup, index) => {
-                const bestAttempt = quizGroup.attempts.reduce((best, current) => 
-                  current.score > best.score ? current : best
+              {quizGroups.map((group) => {
+                const bestAttempt = group.attempts.reduce((best, cur) =>
+                  (cur.score ?? 0) > (best.score ?? 0) ? cur : best
                 );
-                
                 return (
                   <div
-                    key={quizGroup.quiz_id}
+                    key={group.quiz_id}
                     className={`quiz-attempt-item ${
-                      selectedQuizId === quizGroup.quiz_id ? 'selected' : ''
+                      selectedQuizId === group.quiz_id ? 'selected' : ''
                     }`}
                     onClick={() => handleQuizSelect(bestAttempt)}
                   >
                     <div className="attempt-header">
-                      <div className="attempt-title">{quizGroup.quiz_title}</div>
+                      <div className="attempt-title">{group.quiz_title}</div>
                       <div className="attempt-count">
-                        {quizGroup.attempts.length} attempt{quizGroup.attempts.length !== 1 ? 's' : ''}
+                        {group.attempts.length} attempt{group.attempts.length !== 1 ? 's' : ''}
                       </div>
                     </div>
                     <div className="attempt-meta">
-                      <span className="attempt-score">
-                        Best Score: {quizGroup.best_score}%
-                      </span>
+                      <span className="attempt-score">Best Score: {group.best_score}%</span>
                       <span className="attempt-date">
-                        Latest: {new Date(quizGroup.latest_attempt).toLocaleDateString()}
+                        Latest: {new Date(group.latest_attempt).toLocaleDateString()}
                       </span>
                     </div>
-                    
-                    {/* Show all attempts for this quiz */}
-                    {selectedQuizId === quizGroup.quiz_id && quizGroup.attempts.length > 1 && (
+                    {selectedQuizId === group.quiz_id && group.attempts.length > 1 && (
                       <div className="attempts-breakdown">
                         <h4>All Attempts:</h4>
-                        {quizGroup.attempts
+                        {group.attempts
+                          .slice()
                           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                          .map((attempt, attemptIndex) => (
-                          <div 
-                            key={attempt.id}
-                            className={`attempt-detail ${attempt.id === selectedAttempt?.id ? 'active' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleQuizSelect(attempt);
-                            }}
-                          >
-                            <span className="attempt-number">Attempt #{attempt.attempt_number}</span>
-                            <span className="attempt-score-detail">{attempt.score}%</span>
-                            <span className="attempt-date-detail">
-                              {new Date(attempt.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        ))}
+                          .map((attempt) => (
+                            <div
+                              key={attempt.id}
+                              className={`attempt-detail ${
+                                attempt.id === selectedAttempt?.id ? 'active' : ''
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuizSelect(attempt);
+                              }}
+                            >
+                              <span className="attempt-number">Attempt #{attempt.attempt_number}</span>
+                              <span className="attempt-score-detail">{attempt.score}%</span>
+                              <span className="attempt-date-detail">
+                                {new Date(attempt.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          ))}
                       </div>
                     )}
                   </div>
@@ -249,51 +244,39 @@ function QuizAnalyticsPage() {
           </div>
         )}
 
-        {/* Quiz Statistics Summary */}
+        {/* Class Stats */}
         {quizStatistics && (
           <div className="quiz-statistics-summary">
             <h3>Class Statistics</h3>
             <div className="stats-grid">
               <div className="stat-card">
-                <div className="stat-value">{quizStatistics.average_score?.toFixed(1) || 'N/A'}%</div>
+                <div className="stat-value">
+                  {quizStatistics.average_score != null ? quizStatistics.average_score.toFixed(1) : 'N/A'}%
+                </div>
                 <div className="stat-label">Class Average</div>
               </div>
               <div className="stat-card">
-                <div className="stat-value">{quizStatistics.total_attempts || 0}</div>
+                <div className="stat-value">{quizStatistics.total_attempts ?? 0}</div>
                 <div className="stat-label">Total Attempts</div>
               </div>
               <div className="stat-card">
-                <div className="stat-value">{quizStatistics.pass_rate?.toFixed(1) || 'N/A'}%</div>
+                <div className="stat-value">
+                  {quizStatistics.pass_rate != null ? quizStatistics.pass_rate.toFixed(1) : 'N/A'}%
+                </div>
                 <div className="stat-label">Pass Rate</div>
               </div>
               <div className="stat-card">
-                <div className="stat-value">{quizStatistics.highest_score || 'N/A'}%</div>
+                <div className="stat-value">{quizStatistics.highest_score ?? 'N/A'}%</div>
                 <div className="stat-label">Highest Score</div>
               </div>
             </div>
-            
-            {selectedAttempt && (
-              <div className="performance-comparison">
-                <h4>Your Performance</h4>
-                <p>
-                  You scored <strong>{selectedAttempt.score}%</strong>, which is{' '}
-                  {selectedAttempt.score > (quizStatistics.average_score || 0) ? 
-                    <span className="above-average">above</span> : 
-                    <span className="below-average">below</span>
-                  } the class average of {quizStatistics.average_score?.toFixed(1) || 'N/A'}%.
-                </p>
-              </div>
-            )}
           </div>
         )}
 
-        {/* Detailed Results Display */}
+        {/* Detailed Results */}
         <div className="QuizResultsWrapper">
           {selectedQuizId && selectedAttempt ? (
-            <QuizResultsDisplay 
-              quizId={selectedQuizId} 
-              attemptData={selectedAttempt}
-            />
+            <QuizResultsDisplay quizId={selectedQuizId} attemptData={selectedAttempt} />
           ) : quizGroups.length > 0 ? (
             <div className="no-quiz-selected">
               <h3>Select a Quiz</h3>

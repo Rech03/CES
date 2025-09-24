@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { 
-  studentAvailableSlides, 
-  getAdaptiveQuiz, 
-  studentAdaptiveProgress,
-  checkQuizAccess 
+import { useNavigate } from 'react-router-dom';
+
+import {
+  getStudentAvailableQuizzes,   // ✅ use student-visible quizzes
+  // getAdaptiveQuiz,            // not needed to list; we derive title from slide/topic/difficulty
+  studentAdaptiveProgress       // optional; not required but can be useful later
 } from '../../api/ai-quiz';
+
 import { getMyCourses } from '../../api/courses';
-import { getDashboard } from '../../api/auth';
+
 import Bio from "../../Componets/Lacture/bio";
 import Biography from "../../Componets/Student/Biography";
 import CoursesList from "../../Componets/Student/CoursesList";
@@ -16,9 +18,10 @@ import SearchBar from "../../Componets/Student/SearchBar";
 import "./Dashboard.css";
 
 function Dashboard() {
+  const navigate = useNavigate();
+
   const [quizzes, setQuizzes] = useState([]);
   const [courses, setCourses] = useState([]);
-  const [userProgress, setUserProgress] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,291 +29,178 @@ function Dashboard() {
   const [debugInfo, setDebugInfo] = useState('');
 
   useEffect(() => {
-    fetchStudentDashboardData();
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchStudentDashboardData = async () => {
+  // Flatten the /available-quizzes/ response (slides[*].quizzes[*] → flat list)
+  const flattenAvailableQuizzes = (data) => {
+    const out = [];
+    const slides = Array.isArray(data?.slides) ? data.slides : [];
+    for (const s of slides) {
+      const info = s?.slide_info || {};
+      const qs = Array.isArray(s?.quizzes) ? s.quizzes : [];
+      for (const q of qs) {
+        out.push({
+          quiz_id: q.quiz_id,
+          difficulty: q.difficulty,
+          accessible: !!q.accessible,
+          access_reason: q.access_reason,
+          status: q.status,
+          question_count: q.question_count,
+          progress: q.progress || {},
+          // carry slide context
+          slide_id: info.slide_id,
+          slide_title: info.title,
+          topic_name: info.topic_name,
+          course_code: info.course_code,
+          course_name: info.course_name,
+          created_at: info.created_at,
+        });
+      }
+    }
+    // Also handle any (unlikely) flat shapes {results:[]}/{quizzes:[]}
+    const flat = [];
+    if (Array.isArray(data)) flat.push(...data);
+    if (Array.isArray(data?.results)) flat.push(...data.results);
+    if (Array.isArray(data?.quizzes)) flat.push(...data.quizzes);
+    // If any flat items exist with quiz_id, bring them in
+    for (const q of flat) {
+      if (q && (q.quiz_id || q.id)) {
+        out.push({
+          quiz_id: q.quiz_id || q.id,
+          difficulty: q.difficulty || 'medium',
+          accessible: q.accessible ?? true,
+          access_reason: q.access_reason || 'Available',
+          status: q.status || 'in_progress',
+          question_count: q.question_count || q.total_questions || 5,
+          progress: q.progress || {},
+          slide_id: q.slide_id || null,
+          slide_title: q.slide_title || q.title || 'Quiz',
+          topic_name: q.topic_name || 'Topic',
+          course_code: (q.course_code || 'default'),
+          course_name: q.course_name || '',
+          created_at: q.created_at || null,
+        });
+      }
+    }
+    return out;
+  };
+
+  const buildCards = (flat) => {
+    // Show only accessible quizzes (available to student)
+    const onlyAccessible = flat.filter(q => q.accessible);
+
+    return onlyAccessible.map((item) => {
+      const attempts = item.progress?.attempts_count ?? 0;
+      const bestScore = item.progress?.best_score;
+      const bestScoreTxt = bestScore != null ? `${Math.round(bestScore)}%` : null;
+
+      const status = item.progress?.completed
+        ? 'completed'
+        : (item.accessible ? 'available' : 'locked');
+
+      const titleFromContext =
+        (item.topic_name ? `${item.topic_name}` : (item.course_code || 'Quiz')) +
+        ` • ${String(item.difficulty || '').toUpperCase() || 'LEVEL'}`;
+
+      return {
+        adaptiveQuizId: item.quiz_id,
+        slideId: item.slide_id ?? null,
+        title: titleFromContext,
+        duration: '15 min', // not in payload; use sensible default
+        totalQuestions: item.question_count || 5,
+        dueDate: 'Self-paced',
+        status,
+        courseCode: (item.course_code || 'default').toLowerCase(),
+        topicName: item.topic_name || item.slide_title || 'Topic',
+        difficulty: item.difficulty || 'medium',
+        attempts: `${attempts}/3`, // max not provided; show 3 as default cap
+        bestScore: bestScoreTxt,
+        isLive: false,
+        canAccess: true,
+        createdAt: item.created_at || null,
+      };
+    }).sort((a, b) => {
+      // Simple sort: available first, then recent
+      const pr = { available: 0, completed: 1, locked: 2, missed: 3 };
+      const pa = pr[a.status] ?? 99, pb = pr[b.status] ?? 99;
+      if (pa !== pb) return pa - pb;
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+  };
+
+  const fetchData = async () => {
     setLoading(true);
     setError(null);
-    setDebugInfo('Starting to fetch data...');
-    
+    setDebugInfo('Fetching available quizzes...');
+
     try {
-      console.log('=== STUDENT DASHBOARD DEBUG ===');
-      console.log('Starting API calls...');
-      
-      // First, let's see what APIs are actually returning
-      setDebugInfo('Fetching available slides...');
-      console.log('Calling studentAvailableSlides()...');
-      const slidesResponse = await studentAvailableSlides();
-      console.log('studentAvailableSlides response:', slidesResponse);
-      
-      setDebugInfo('Fetching courses...');
-      console.log('Calling getMyCourses()...');
-      const coursesResponse = await getMyCourses();
-      console.log('getMyCourses response:', coursesResponse);
-      
-      setDebugInfo('Fetching student progress...');
-      console.log('Calling studentAdaptiveProgress()...');
-      const progressResponse = await studentAdaptiveProgress();
-      console.log('studentAdaptiveProgress response:', progressResponse);
+      // 1) Authoritative list
+      const avqResp = await getStudentAvailableQuizzes();
+      const flat = flattenAvailableQuizzes(avqResp.data);
+      const cards = buildCards(flat);
+      setQuizzes(cards);
 
-      // Process courses first
-      const fetchedCourses = Array.isArray(coursesResponse.data)
-        ? coursesResponse.data
-        : coursesResponse.data?.courses || coursesResponse.data?.results || [];
-
-      console.log('Processed courses:', fetchedCourses);
-      setCourses(fetchedCourses);
-
-      // Process slides/quizzes
-      let slidesData = [];
-      if (Array.isArray(slidesResponse.data)) {
-        slidesData = slidesResponse.data;
-      } else if (slidesResponse.data?.slides) {
-        slidesData = slidesResponse.data.slides;
-      } else if (slidesResponse.data?.results) {
-        slidesData = slidesResponse.data.results;
-      } else {
-        console.warn('Unexpected slides response format:', slidesResponse.data);
+      // 2) Optional sidebar courses
+      try {
+        const coursesResp = await getMyCourses();
+        const fetchedCourses = Array.isArray(coursesResp.data)
+          ? coursesResp.data
+          : (coursesResp.data?.courses || coursesResp.data?.results || []);
+        setCourses(fetchedCourses);
+      } catch (e) {
+        console.warn('getMyCourses failed:', e);
       }
 
-      console.log('Raw slides data:', slidesData);
-      console.log('Number of slides found:', slidesData.length);
-
-      // Process user progress
-      let progressData = [];
-      if (Array.isArray(progressResponse.data)) {
-        progressData = progressResponse.data;
-      } else if (progressResponse.data?.progress) {
-        progressData = progressResponse.data.progress;
-      } else if (progressResponse.data?.results) {
-        progressData = progressResponse.data.results;
-      }
-
-      console.log('Raw progress data:', progressData);
-      setUserProgress(progressData);
-
-      // Create progress lookup map
-      const progressBySlide = {};
-      progressData.forEach(progress => {
-        const slideId = progress.lecture_slide || progress.slide_id || progress.id;
-        if (slideId) {
-          progressBySlide[slideId] = progress;
-        }
-      });
-
-      console.log('Progress lookup map:', progressBySlide);
-
-      // Filter slides that have generated quizzes
-      // Let's be more permissive to see what we get
-      const potentialQuizSlides = slidesData.filter(slide => {
-        console.log('Checking slide:', slide);
-        
-        // Check for various indicators that this slide has a quiz
-        const hasQuestions = slide.questions_generated || 
-                           slide.questions_count > 0 || 
-                           slide.total_questions > 0 ||
-                           slide.has_quiz ||
-                           slide.quiz_id ||
-                           slide.adaptive_quiz_id ||
-                           slide.generated_quiz_id;
-        
-        const isPublished = slide.is_published || 
-                           slide.status === 'published' || 
-                           slide.is_live ||
-                           slide.published;
-        
-        console.log(`Slide "${slide.title || slide.slide_title}":`, {
-          hasQuestions,
-          isPublished,
-          questions_generated: slide.questions_generated,
-          questions_count: slide.questions_count,
-          is_published: slide.is_published,
-          status: slide.status,
-          is_live: slide.is_live
-        });
-        
-        return hasQuestions; // For now, let's show any slide with questions, regardless of publish status
-      });
-
-      console.log('Potential quiz slides:', potentialQuizSlides);
-      setDebugInfo(`Found ${potentialQuizSlides.length} potential quiz slides`);
-
-      // If no quiz slides found, let's still process regular slides for debugging
-      const slidesToProcess = potentialQuizSlides.length > 0 ? potentialQuizSlides : slidesData.slice(0, 5);
-      
-      console.log('Processing slides:', slidesToProcess);
-
-      // Process each slide into quiz format
-      const processedQuizzes = await Promise.all(slidesToProcess.map(async (slide, index) => {
-        try {
-          console.log(`Processing slide ${index + 1}:`, slide);
-          
-          // Try to get quiz ID from various possible fields
-          const quizId = slide.quiz_id || 
-                        slide.adaptive_quiz_id || 
-                        slide.generated_quiz_id ||
-                        slide.id; // Fallback to slide ID
-          
-          console.log(`Quiz ID for slide "${slide.title}": ${quizId}`);
-
-          let quizDetails = null;
-          let canAccess = true;
-
-          // Only try to fetch quiz details if we have a proper quiz ID
-          if (quizId && quizId !== slide.id) {
-            try {
-              console.log(`Fetching quiz details for ID: ${quizId}`);
-              const [accessResponse, detailsResponse] = await Promise.all([
-                checkQuizAccess(quizId).catch(() => ({ data: { can_access: true } })),
-                getAdaptiveQuiz(quizId).catch(err => {
-                  console.warn(`Could not fetch quiz details for ${quizId}:`, err);
-                  return null;
-                })
-              ]);
-
-              canAccess = accessResponse.data?.can_access !== false;
-              quizDetails = detailsResponse;
-              
-              console.log(`Access and details for ${quizId}:`, { canAccess, quizDetails: !!quizDetails });
-            } catch (error) {
-              console.warn(`Error fetching quiz data for ${quizId}:`, error);
-            }
-          }
-
-          const progress = progressBySlide[slide.id];
-          console.log(`Progress for slide ${slide.id}:`, progress);
-
-          // Determine quiz status
-          let status = 'available';
-          let attempts = '0/3';
-          let bestScore = null;
-
-          if (progress) {
-            const attemptCount = progress.attempts_count || progress.total_attempts || 0;
-            const maxAttempts = slide.max_attempts || progress.max_attempts || 3;
-            attempts = `${attemptCount}/${maxAttempts}`;
-
-            if (progress.best_score !== null && progress.best_score !== undefined) {
-              bestScore = `${Math.round(progress.best_score)}%`;
-              status = 'completed';
-            } else if (progress.is_completed) {
-              status = 'completed';
-              bestScore = progress.final_score ? `${Math.round(progress.final_score)}%` : 'Completed';
-            } else if (attemptCount >= maxAttempts) {
-              status = 'missed';
-            }
-          }
-
-          if (!canAccess) {
-            status = 'locked';
-          }
-
-          const processedQuiz = {
-            id: quizId,
-            slideId: slide.id,
-            title: slide.title || slide.slide_title || 'Generated Quiz',
-            duration: slide.time_limit ? `${slide.time_limit} min` : '15 min',
-            course: slide.topic?.course?.name || slide.course?.name || 'Unknown Course',
-            courseId: slide.topic?.course?.id || slide.course?.id,
-            courseCode: (slide.topic?.course?.code || slide.course?.code || 'default').toLowerCase(),
-            topicName: slide.topic?.name || slide.topic_name || 'Unknown Topic',
-            difficulty: slide.difficulty || slide.level || slide.difficulty_level || 'Medium',
-            totalQuestions: slide.questions_count || 
-                           slide.total_questions || 
-                           quizDetails?.data?.questions?.length || 
-                           5,
-            isLive: slide.is_live || slide.live || false,
-            dueDate: slide.due_date ? `Due: ${new Date(slide.due_date).toLocaleDateString()}` : 'Self-paced',
-            attempts: attempts,
-            maxAttempts: slide.max_attempts || 3,
-            bestScore: bestScore,
-            status: status,
-            progress: progress,
-            canAccess: canAccess,
-            createdAt: slide.created_at || slide.uploaded_at || slide.date_created,
-            
-            // Debug info
-            _debug: {
-              originalSlide: slide,
-              hasQuizId: !!slide.quiz_id,
-              hasAdaptiveId: !!slide.adaptive_quiz_id,
-              hasGeneratedId: !!slide.generated_quiz_id,
-              questionsGenerated: slide.questions_generated,
-              isPublished: slide.is_published,
-              processedQuizId: quizId
-            }
-          };
-
-          console.log(`Processed quiz:`, processedQuiz);
-          return processedQuiz;
-
-        } catch (error) {
-          console.error(`Error processing slide ${slide.id}:`, error);
-          return null;
-        }
-      }));
-
-      const validQuizzes = processedQuizzes.filter(quiz => quiz !== null);
-      console.log('Valid processed quizzes:', validQuizzes);
-
-      // Sort quizzes
-      const sortedQuizzes = validQuizzes.sort((a, b) => {
-        // Live quizzes first
-        if (a.isLive && !b.isLive) return -1;
-        if (!a.isLive && b.isLive) return 1;
-        
-        // Then by status priority
-        const statusPriority = { available: 0, completed: 1, missed: 2, locked: 3 };
-        const aPriority = statusPriority[a.status] || 99;
-        const bPriority = statusPriority[b.status] || 99;
-        if (aPriority !== bPriority) return aPriority - bPriority;
-        
-        // Finally by creation date
-        const dateA = new Date(a.createdAt || 0);
-        const dateB = new Date(b.createdAt || 0);
-        return dateB - dateA;
-      });
-
-      setQuizzes(sortedQuizzes);
-      setDebugInfo(`Successfully loaded ${sortedQuizzes.length} quizzes`);
-      console.log('Final sorted quizzes:', sortedQuizzes);
-
+      setDebugInfo(`Accessible quizzes: ${cards.length}`);
     } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      setError(`Failed to load dashboard data: ${err.message}`);
+      console.error(err);
+      setError(`Failed to load quizzes: ${err.message}`);
       setDebugInfo(`Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Filter quizzes based on search term
   const filteredQuizzes = quizzes.filter(quiz =>
     quiz.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    quiz.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    quiz.courseCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
     quiz.topicName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Show accessible quizzes
-  const accessibleQuizzes = filteredQuizzes.filter(quiz => 
-    quiz.canAccess && ['available', 'completed'].includes(quiz.status)
-  );
+  const quizzesToShow = showAllQuizzes ? filteredQuizzes : filteredQuizzes.slice(0, 6);
 
-  const quizzesToShow = showAllQuizzes ? accessibleQuizzes : accessibleQuizzes.slice(0, 6);
-
-  const handleViewAll = () => {
-    setShowAllQuizzes(!showAllQuizzes);
-  };
+  const handleViewAll = () => setShowAllQuizzes(!showAllQuizzes);
 
   const handleStartQuiz = (quiz) => {
-    console.log('Starting quiz:', quiz);
-    window.location.href = `/QuizCountdownPage?quizId=${quiz.id}&slideId=${quiz.slideId}`;
+    if (!quiz?.adaptiveQuizId) return;
+
+    // Save for fallback
+    localStorage.setItem('last_quiz_id', String(quiz.adaptiveQuizId));
+    if (quiz.slideId != null) localStorage.setItem('last_slide_id', String(quiz.slideId));
+
+    // Navigate with state and deep-link fallback
+    navigate('/QuizInterface', {
+      state: {
+        quizTitle: quiz.title,
+        quizDuration: quiz.duration,
+        totalQuestions: quiz.totalQuestions,
+        quizId: quiz.adaptiveQuizId,
+        slideId: quiz.slideId ?? null,
+        isAIQuiz: true,
+        isLive: !!quiz.isLive
+      }
+    });
+    window.history.replaceState(
+      {},
+      '',
+      `/QuizInterface?quizId=${quiz.adaptiveQuizId}${quiz.slideId ? `&slideId=${quiz.slideId}` : ''}`
+    );
   };
 
   const handleViewResults = (quiz) => {
-    console.log('Viewing results for quiz:', quiz);
-    window.location.href = `/QuizAnalyticsPage?quizId=${quiz.id}&slideId=${quiz.slideId}`;
+    window.location.href = `/QuizAnalyticsPage?quizId=${quiz.adaptiveQuizId}${quiz.slideId ? `&slideId=${quiz.slideId}` : ''}`;
   };
 
   if (loading) {
@@ -335,39 +225,42 @@ function Dashboard() {
       <div className="NavBar">
         <NavBar />
       </div>
+
       <div className="SeachBar">
-        <SearchBar 
+        <SearchBar
           value={searchTerm}
           onChange={setSearchTerm}
           placeholder="Search quizzes by title, course, or topic..."
         />
       </div>
-      
+
       <div className="ContainerD">
         <div className="Boigraphy">
           <Biography />
         </div>
 
-        {/* Error Message */}
         {error && (
-          <div className="error-message" style={{
-            background: '#FEE2E2', 
-            border: '1px solid #FECACA', 
-            color: '#DC2626',
-            padding: '12px', 
-            borderRadius: '6px', 
-            marginBottom: '20px', 
-            fontSize: '14px'
-          }}>
+          <div
+            className="error-message"
+            style={{
+              background: '#FEE2E2',
+              border: '1px solid #FECACA',
+              color: '#DC2626',
+              padding: '12px',
+              borderRadius: '6px',
+              marginBottom: '20px',
+              fontSize: '14px'
+            }}
+          >
             {error}
-            <button 
-              onClick={() => setError(null)} 
+            <button
+              onClick={() => setError(null)}
               style={{
                 marginLeft: '10px',
-                background: 'none', 
-                border: 'none', 
+                background: 'none',
+                border: 'none',
                 color: '#DC2626',
-                cursor: 'pointer', 
+                cursor: 'pointer',
                 fontWeight: 'bold'
               }}
             >
@@ -376,17 +269,16 @@ function Dashboard() {
           </div>
         )}
 
-       
         <div className="quiz-header1">
           <div className="Title">
             Available Quizzes
             {searchTerm && (
               <span className="search-results">
-                ({accessibleQuizzes.length} result{accessibleQuizzes.length !== 1 ? 's' : ''})
+                ({filteredQuizzes.length} result{filteredQuizzes.length !== 1 ? 's' : ''})
               </span>
             )}
           </div>
-          {accessibleQuizzes.length > 6 && (
+          {filteredQuizzes.length > 6 && (
             <div className="More" onClick={handleViewAll} style={{ cursor: 'pointer' }}>
               {showAllQuizzes ? 'Show Less' : 'View All'}
             </div>
@@ -397,8 +289,8 @@ function Dashboard() {
           {quizzesToShow.length > 0 ? (
             quizzesToShow.map(quiz => (
               <QuizTile
-                key={`quiz_${quiz.id}_${quiz.slideId}`}
-                quizId={quiz.id}
+                key={`quiz_${quiz.adaptiveQuizId}_${quiz.slideId ?? 'na'}`}
+                quizId={quiz.adaptiveQuizId}
                 slideId={quiz.slideId}
                 title={quiz.title}
                 duration={quiz.duration}
@@ -411,76 +303,34 @@ function Dashboard() {
                 attempts={quiz.attempts}
                 bestScore={quiz.bestScore}
                 isLive={quiz.isLive}
-                canAccess={quiz.canAccess}
+                canAccess={true}
                 onStartQuiz={() => handleStartQuiz(quiz)}
                 onViewResults={() => handleViewResults(quiz)}
-                onClick={() => {
-                  if (quiz.status === 'available' && quiz.canAccess) {
-                    handleStartQuiz(quiz);
-                  } else if (quiz.status === 'completed') {
-                    handleViewResults(quiz);
-                  }
-                }}
+                onClick={() => handleStartQuiz(quiz)}
               />
             ))
           ) : (
-            <div className="no-quizzes" style={{ 
-              gridColumn: '1 / -1', 
-              textAlign: 'center', 
-              padding: '40px 20px' 
-            }}>
-              <div style={{
-                fontSize: '48px',
-                marginBottom: '20px',
-                opacity: 0.3
-              }}>
-                📚
-              </div>
-              {searchTerm ? (
-                <>
-                  <h3 style={{ color: '#333', marginBottom: '10px', fontSize: '18px' }}>
-                    No quizzes found matching "{searchTerm}"
-                  </h3>
-                  <p style={{ color: '#666', marginBottom: '20px' }}>
-                    Try adjusting your search terms or browse all available quizzes.
-                  </p>
-                  <button 
-                    onClick={() => setSearchTerm('')}
-                    style={{
-                      background: 'transparent',
-                      color: '#1935CA',
-                      border: '1px solid #1935CA',
-                      padding: '12px 24px',
-                      borderRadius: '6px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Clear Search
-                  </button>
-                </>
-              ) : (
-                <>
-                  <h3 style={{ color: '#333', marginBottom: '10px', fontSize: '18px' }}>
-                    No quizzes available yet
-                  </h3>
-                  <p style={{ color: '#666', marginBottom: '20px' }}>
-                    Your lecturers haven't published any quizzes yet. Check back later!
-                  </p>
-                  <button 
-                    onClick={fetchStudentDashboardData}
-                    style={{
-                      background: '#27AE60',
-                      color: 'white',
-                      border: 'none',
-                      padding: '12px 24px',
-                      borderRadius: '6px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Refresh
-                  </button>
-                </>
-              )}
+            <div className="no-quizzes" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px 20px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '20px', opacity: 0.3 }}>📚</div>
+              <h3 style={{ color: '#333', marginBottom: '10px', fontSize: '18px' }}>
+                No accessible quizzes right now
+              </h3>
+              <p style={{ color: '#666', marginBottom: '20px' }}>
+                Your lecturers haven’t made any quizzes available yet. Check back later!
+              </p>
+              <button
+                onClick={fetchData}
+                style={{
+                  background: '#27AE60',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 24px',
+                  borderRadius: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                Refresh
+              </button>
             </div>
           )}
         </div>
@@ -489,7 +339,7 @@ function Dashboard() {
       <div className="SideD">
         <CoursesList courses={courses} />
       </div>
-      
+
       <div className="BoiD">
         <Bio />
       </div>

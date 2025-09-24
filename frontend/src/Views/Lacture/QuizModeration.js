@@ -25,6 +25,7 @@ const QuizModeration = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  const [isPublishedQuiz, setIsPublishedQuiz] = useState(false);
 
   // Debug logging to track the quizId issue
   useEffect(() => {
@@ -80,41 +81,78 @@ const QuizModeration = () => {
     }
 
     try {
-      console.log('Making API call to getQuizForModeration with ID:', quizId);
+      console.log('Making API call to load quiz with ID:', quizId);
       
-      // Only use the moderation API for lecturers (avoid 403 errors from student API)
-      const moderationResponse = await getQuizForModeration(quizId);
-      const finalQuizData = moderationResponse.data;
+      let finalQuizData = null;
+      let quizSource = 'unknown';
       
-      console.log('Moderation API response:', finalQuizData);
-      console.log('Full API response structure:', JSON.stringify(finalQuizData, null, 2));
-      
-      if (!finalQuizData) {
-        throw new Error('No quiz data available from moderation API');
+      // Try moderation API first (for unpublished quizzes)
+      try {
+        console.log('Trying moderation API...');
+        const moderationResponse = await getQuizForModeration(quizId);
+        finalQuizData = moderationResponse.data;
+        quizSource = 'moderation';
+        setIsPublishedQuiz(false);
+        console.log('Successfully loaded from moderation API:', finalQuizData);
+      } catch (moderationError) {
+        console.log('Moderation API failed, trying adaptive quiz API...', moderationError.message);
+        
+        // If moderation fails, try adaptive quiz API (for published quizzes)
+        try {
+          const adaptiveResponse = await getAdaptiveQuiz(quizId);
+          finalQuizData = adaptiveResponse.data;
+          quizSource = 'adaptive';
+          setIsPublishedQuiz(true);
+          console.log('Successfully loaded from adaptive API:', finalQuizData);
+        } catch (adaptiveError) {
+          console.log('Both APIs failed:', adaptiveError.message);
+          throw new Error(`Unable to load quiz data. Moderation API: ${moderationError.message}, Adaptive API: ${adaptiveError.message}`);
+        }
       }
       
-      // Extract course and topic information with better fallback logic
+      console.log('Final quiz data loaded from', quizSource, ':', finalQuizData);
+      
+      if (!finalQuizData) {
+        throw new Error('No quiz data available from any API');
+      }
+      
+      // Extract course and topic information with enhanced logic
       let courseInfo = { code: 'Unknown Course', name: 'Unknown Course' };
       let topicInfo = { name: 'Unknown Topic' };
       
-      // DEBUG: Log all possible fields that might contain course/topic info
-      console.log('=== DEBUGGING COURSE/TOPIC EXTRACTION ===');
-      console.log('finalQuizData.title:', finalQuizData.title);
-      console.log('finalQuizData.topic:', finalQuizData.topic);
-      console.log('finalQuizData.subject:', finalQuizData.subject);
-      console.log('finalQuizData.course:', finalQuizData.course);
-      console.log('finalQuizData.course_id:', finalQuizData.course_id);
-      console.log('finalQuizData.topic_id:', finalQuizData.topic_id);
-      console.log('All quiz data keys:', Object.keys(finalQuizData));
+      // Try structured data first
+      if (finalQuizData.topic) {
+        topicInfo = {
+          name: finalQuizData.topic.name || finalQuizData.topic_name || 'Unknown Topic'
+        };
+        
+        if (finalQuizData.topic.course) {
+          courseInfo = {
+            code: finalQuizData.topic.course.code || 'UNKNOWN',
+            name: finalQuizData.topic.course.name || 'Unknown Course'
+          };
+        }
+      } else if (finalQuizData.subject) {
+        topicInfo = {
+          name: finalQuizData.subject.name || 'Unknown Topic'
+        };
+        
+        if (finalQuizData.subject.course) {
+          courseInfo = {
+            code: finalQuizData.subject.course.code || 'UNKNOWN',
+            name: finalQuizData.subject.course.name || 'Unknown Course'
+          };
+        }
+      }
       
-      // AGGRESSIVE EXTRACTION: Use title as primary source since API might not have course/topic fields
-      if (finalQuizData.title) {
+      // FALLBACK: Extract from title if structured data not available
+      if ((courseInfo.code === 'UNKNOWN' || topicInfo.name === 'Unknown Topic') && finalQuizData.title) {
         const title = finalQuizData.title;
         console.log('Extracting from title:', title);
         
         // Pattern 1: Extract course code (letters + numbers at start)
         const courseCodeMatch = title.match(/^([A-Z]{2,6}\d{1,4})/);
-        if (courseCodeMatch) {
+        if (courseCodeMatch && courseInfo.code === 'UNKNOWN') {
           const detectedCode = courseCodeMatch[1];
           courseInfo = { 
             code: detectedCode, 
@@ -138,78 +176,103 @@ const QuizModeration = () => {
         }
         
         // Pattern 2: Extract topic name from title
-        let topicName = title;
-        
-        // Remove course code from beginning
-        topicName = topicName.replace(/^[A-Z]{2,6}\d{1,4}[\s\-_]*/, '');
-        
-        // Remove file extensions
-        topicName = topicName.replace(/\.(pdf|docx?|pptx?)$/i, '');
-        
-        // Remove numbers in parentheses (like "(1)")
-        topicName = topicName.replace(/\s*\(\d+\)\s*$/, '');
-        
-        // Remove duplicate course codes that might appear again
-        topicName = topicName.replace(/[A-Z]{2,6}\d{1,4}[\s\-_]*/g, '');
-        
-        // Clean up separators and whitespace
-        topicName = topicName.replace(/^[\s\-_]+|[\s\-_]+$/g, '');
-        
-        if (topicName && topicName.length > 0) {
-          topicInfo = { name: topicName };
-          console.log('Extracted topic name:', topicName);
+        if (topicInfo.name === 'Unknown Topic') {
+          let topicName = title;
+          
+          // Remove course code from beginning
+          topicName = topicName.replace(/^[A-Z]{2,6}\d{1,4}[\s\-_]*/, '');
+          
+          // Remove file extensions
+          topicName = topicName.replace(/\.(pdf|docx?|pptx?)$/i, '');
+          
+          // Remove numbers in parentheses (like "(1)")
+          topicName = topicName.replace(/\s*\(\d+\)\s*$/, '');
+          
+          // Remove duplicate course codes that might appear again
+          topicName = topicName.replace(/[A-Z]{2,6}\d{1,4}[\s\-_]*/g, '');
+          
+          // Clean up separators and whitespace
+          topicName = topicName.replace(/^[\s\-_]+|[\s\-_]+$/g, '');
+          
+          if (topicName && topicName.length > 0) {
+            topicInfo = { name: topicName };
+            console.log('Extracted topic name:', topicName);
+          }
         }
       }
       
       console.log('FINAL EXTRACTED DATA:');
       console.log('Course:', courseInfo);
       console.log('Topic:', topicInfo);
+      console.log('Quiz source:', quizSource);
+      console.log('Is published quiz:', isPublishedQuiz);
       
       // Transform the quiz data
       const transformedQuiz = {
-        id: finalQuizData.quiz_id || finalQuizData.id || quizId,
+        id: finalQuizData.quiz_id || finalQuizData.adaptive_quiz_id || finalQuizData.id || quizId,
+        originalId: quizId, // Keep track of the original ID used to load this quiz
         title: finalQuizData.title || 'Untitled Quiz',
         difficulty: finalQuizData.difficulty || 'medium',
-        status: finalQuizData.status || 'draft',
+        status: finalQuizData.status || (isPublishedQuiz ? 'published' : 'draft'),
         created_at: finalQuizData.created_at,
         review_notes: finalQuizData.review_notes || '',
+        is_published: isPublishedQuiz,
         topic: {
-          name: topicInfo.name || 'Unknown Topic',
+          name: topicInfo.name,
           course: {
-            code: courseInfo.code || 'UNKNOWN',
-            name: courseInfo.name || 'Unknown Course'
+            code: courseInfo.code,
+            name: courseInfo.name
           }
         },
-        originalData: finalQuizData
+        originalData: finalQuizData,
+        dataSource: quizSource
       };
 
-      // Transform questions
-      const transformedQuestions = (finalQuizData.questions || []).map((q, index) => {
-        console.log(`Processing question ${index}:`, q);
-        
-        let choices = [];
-        if (q.options) {
-          // API returns options as {A: "text", B: "text", etc.}
-          choices = Object.entries(q.options).map(([key, text], idx) => ({
-            choice_text: text,
-            is_correct: q.correct_answer === key,
-            order: idx
-          }));
-        } else if (q.choices) {
-          choices = q.choices;
-        }
+      // Transform questions based on the source API structure
+      let transformedQuestions = [];
+      
+      if (finalQuizData.questions && Array.isArray(finalQuizData.questions)) {
+        transformedQuestions = finalQuizData.questions.map((q, index) => {
+          console.log(`Processing question ${index}:`, q);
+          
+          let choices = [];
+          
+          // Handle different question structures
+          if (q.options && typeof q.options === 'object') {
+            // API returns options as {A: "text", B: "text", etc.}
+            choices = Object.entries(q.options).map(([key, text], idx) => ({
+              choice_text: text,
+              is_correct: q.correct_answer === key,
+              order: idx
+            }));
+          } else if (q.choices && Array.isArray(q.choices)) {
+            // Already in choice format
+            choices = q.choices.map((choice, idx) => ({
+              choice_text: choice.choice_text || choice.text || choice,
+              is_correct: choice.is_correct || false,
+              order: choice.order || idx
+            }));
+          } else if (q.answer_options && Array.isArray(q.answer_options)) {
+            // Another possible format
+            choices = q.answer_options.map((option, idx) => ({
+              choice_text: option.text || option,
+              is_correct: option.is_correct || false,
+              order: idx
+            }));
+          }
 
-        return {
-          question_text: q.question || q.question_text || '',
-          question_type: q.question_type || 'multiple_choice',
-          points: q.points || 1,
-          difficulty: q.difficulty || 'medium',
-          order: q.order || index,
-          explanation: q.explanation || '',
-          choices: choices,
-          originalData: q
-        };
-      });
+          return {
+            question_text: q.question || q.question_text || q.text || '',
+            question_type: q.question_type || 'multiple_choice',
+            points: q.points || 1,
+            difficulty: q.difficulty || 'medium',
+            order: q.order || index,
+            explanation: q.explanation || '',
+            choices: choices,
+            originalData: q
+          };
+        });
+      }
 
       console.log('Transformed quiz with course/topic:', transformedQuiz);
       console.log('Transformed questions:', transformedQuestions);
@@ -220,6 +283,7 @@ const QuizModeration = () => {
       console.error('Error loading quiz for moderation:', err);
       const errorMsg = err.response?.data?.detail || 
                       err.response?.data?.message || 
+                      err.message ||
                       'Failed to load quiz for moderation';
       setError(errorMsg);
     } finally {
@@ -228,6 +292,8 @@ const QuizModeration = () => {
   };
 
   const handleQuestionChange = (questionIndex, field, value) => {
+    if (!isEditable) return;
+    
     setQuestions(prev => {
       const updated = [...prev];
       updated[questionIndex] = {
@@ -242,6 +308,8 @@ const QuizModeration = () => {
   };
 
   const handleChoiceChange = (questionIndex, choiceIndex, field, value) => {
+    if (!isEditable) return;
+    
     setQuestions(prev => {
       const updated = [...prev];
       updated[questionIndex] = {
@@ -258,6 +326,8 @@ const QuizModeration = () => {
   };
 
   const handleCorrectAnswerChange = (questionIndex, choiceIndex) => {
+    if (!isEditable) return;
+    
     setQuestions(prev => {
       const updated = [...prev];
       updated[questionIndex] = {
@@ -275,6 +345,8 @@ const QuizModeration = () => {
   };
 
   const addChoice = (questionIndex) => {
+    if (!isEditable) return;
+    
     setQuestions(prev => {
       const updated = [...prev];
       const newChoice = {
@@ -292,6 +364,8 @@ const QuizModeration = () => {
   };
 
   const removeChoice = (questionIndex, choiceIndex) => {
+    if (!isEditable) return;
+    
     setQuestions(prev => {
       const updated = [...prev];
       updated[questionIndex] = {
@@ -304,6 +378,8 @@ const QuizModeration = () => {
   };
 
   const removeQuestion = (questionIndex) => {
+    if (!isEditable) return;
+    
     if (window.confirm('Are you sure you want to remove this question?')) {
       setQuestions(prev => prev.filter((_, idx) => idx !== questionIndex));
       setHasChanges(true);
@@ -311,6 +387,8 @@ const QuizModeration = () => {
   };
 
   const addQuestion = () => {
+    if (!isEditable) return;
+    
     const newQuestion = {
       question_text: '',
       question_type: 'multiple_choice',
@@ -328,9 +406,27 @@ const QuizModeration = () => {
     setHasChanges(true);
   };
 
+  const handleTitleChange = (newTitle) => {
+    if (!isEditable) return;
+    
+    setQuiz(prev => ({ ...prev, title: newTitle }));
+    setHasChanges(true);
+    setError('');
+    setSuccess('');
+  };
+
   const handleSaveChanges = async () => {
-    if (!quizId || quizId === 'undefined' || quizId === 'null') {
+    // Use the original ID for API operations
+    const operationalId = quiz?.originalId || quizId;
+    
+    if (!operationalId || operationalId === 'undefined' || operationalId === 'null') {
       setError('Cannot save: Invalid quiz ID');
+      return;
+    }
+
+    // Don't allow editing published quizzes
+    if (isPublishedQuiz) {
+      setError('Cannot edit published quizzes. Create a new version if changes are needed.');
       return;
     }
 
@@ -338,6 +434,13 @@ const QuizModeration = () => {
       setSaving(true);
       setError('');
       
+      // Validate quiz title
+      if (!quiz?.title?.trim()) {
+        setError('Please enter a quiz title');
+        return;
+      }
+
+      // Validate questions
       const invalidQuestions = questions.filter(q => 
         !q.question_text.trim() || 
         !q.choices.some(c => c.is_correct) ||
@@ -349,8 +452,14 @@ const QuizModeration = () => {
         return;
       }
 
-      console.log('Saving changes for quiz ID:', quizId);
-      await updateQuizQuestions(quizId, { questions });
+      console.log('Saving changes for quiz ID:', operationalId);
+      console.log('Updated quiz data:', { title: quiz.title, questions });
+      
+      await updateQuizQuestions(operationalId, { 
+        title: quiz.title,
+        questions 
+      });
+      
       setSuccess('Changes saved successfully!');
       setHasChanges(false);
     } catch (err) {
@@ -365,8 +474,39 @@ const QuizModeration = () => {
   };
 
   const handlePublish = async () => {
-    if (!quizId || quizId === 'undefined' || quizId === 'null') {
+    // Use the original ID for API operations
+    const operationalId = quiz?.originalId || quizId;
+    
+    if (!operationalId || operationalId === 'undefined' || operationalId === 'null') {
       setError('Cannot publish: Invalid quiz ID');
+      return;
+    }
+
+    // Don't allow republishing
+    if (isPublishedQuiz) {
+      setError('Quiz is already published. Create a new version if changes are needed.');
+      return;
+    }
+
+    // Validate before publishing
+    if (!quiz?.title?.trim()) {
+      setError('Please enter a quiz title before publishing');
+      return;
+    }
+
+    if (questions.length === 0) {
+      setError('Cannot publish quiz with no questions');
+      return;
+    }
+
+    const invalidQuestions = questions.filter(q => 
+      !q.question_text.trim() || 
+      !q.choices.some(c => c.is_correct) ||
+      q.choices.filter(c => c.choice_text.trim()).length < 2
+    );
+    
+    if (invalidQuestions.length > 0) {
+      setError('Please fix all questions before publishing. Each question needs text, at least 2 choices, and one correct answer.');
       return;
     }
 
@@ -374,22 +514,32 @@ const QuizModeration = () => {
       if (!window.confirm('You have unsaved changes. Save and publish?')) {
         return;
       }
-      await handleSaveChanges();
-      if (error) return;
+      try {
+        await handleSaveChanges();
+        if (error) return;
+      } catch (saveError) {
+        console.error('Error saving before publish:', saveError);
+        setError('Failed to save changes before publishing');
+        return;
+      }
     }
 
-    if (!window.confirm('Publish this quiz? Students will be able to access it.')) {
+    if (!window.confirm('Publish this quiz? Students will be able to access it immediately.')) {
       return;
     }
 
     try {
       setSaving(true);
-      console.log('Publishing quiz ID:', quizId);
-      await publishQuiz(quizId, { 
-        review_notes: 'Reviewed and approved by lecturer' 
+      console.log('Publishing quiz ID:', operationalId);
+      const publishResponse = await publishQuiz(operationalId, { 
+        review_notes: 'Reviewed and approved by lecturer',
+        confirm_publish: true
       });
-      setSuccess('Quiz published successfully!');
-      setTimeout(() => navigate('/LecturerDashboard'), 2000);
+      
+      console.log('Publish response:', publishResponse);
+      
+      setSuccess('Quiz published successfully! Students can now access it. Redirecting to dashboard...');
+      setTimeout(() => navigate('/LecturerDashboard'), 3000);
     } catch (err) {
       console.error('Error publishing quiz:', err);
       const errorMsg = err.response?.data?.detail || 
@@ -402,8 +552,17 @@ const QuizModeration = () => {
   };
 
   const handleReject = async () => {
-    if (!quizId || quizId === 'undefined' || quizId === 'null') {
+    // Use the original ID for API operations
+    const operationalId = quiz?.originalId || quizId;
+    
+    if (!operationalId || operationalId === 'undefined' || operationalId === 'null') {
       setError('Cannot reject: Invalid quiz ID');
+      return;
+    }
+
+    // Don't allow rejecting published quizzes
+    if (isPublishedQuiz) {
+      setError('Cannot reject published quizzes.');
       return;
     }
 
@@ -412,8 +571,8 @@ const QuizModeration = () => {
 
     try {
       setSaving(true);
-      console.log('Rejecting quiz ID:', quizId);
-      await rejectQuiz(quizId, { review_notes: reason });
+      console.log('Rejecting quiz ID:', operationalId);
+      await rejectQuiz(operationalId, { review_notes: reason });
       setSuccess('Quiz rejected. Returning to dashboard...');
       setTimeout(() => navigate('/LecturerDashboard'), 2000);
     } catch (err) {
@@ -436,10 +595,12 @@ const QuizModeration = () => {
     return colors[difficulty?.toLowerCase()] || '#64748b';
   };
 
+  // Determine if quiz is editable
+  const isEditable = !isPublishedQuiz;
+
   if (loading) {
     return (
       <div className="quiz-moderation-container">
-        
         <div className="loading-state">
           <div className="loading-spinner"></div>
           <p>Loading quiz for review...</p>
@@ -451,7 +612,6 @@ const QuizModeration = () => {
   if (error && !quiz) {
     return (
       <div className="quiz-moderation-container">
-
         <div className="error-state">
           <h2>Error Loading Quiz</h2>
           <p>{error}</p>
@@ -470,8 +630,6 @@ const QuizModeration = () => {
 
   return (
     <div className="quiz-moderation-container">
-
-      
       {/* Centered Content Container */}
       <div className="moderation-content">
         {/* Header Section */}
@@ -491,6 +649,11 @@ const QuizModeration = () => {
               >
                 {quiz?.difficulty || 'Medium'}
               </span>
+              {isPublishedQuiz && (
+                <span className="published-badge">
+                  Published
+                </span>
+              )}
             </div>
           </div>
           
@@ -500,32 +663,38 @@ const QuizModeration = () => {
               className="btn-secondary"
               disabled={saving}
             >
-              Cancel
+              {isPublishedQuiz ? 'Back to Dashboard' : 'Cancel'}
             </button>
             
-            <button 
-              onClick={handleSaveChanges}
-              className="btn-primary"
-              disabled={saving || !hasChanges || !quizId}
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
+            {isEditable && (
+              <button 
+                onClick={handleSaveChanges}
+                className="btn-primary"
+                disabled={saving || !hasChanges}
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            )}
             
-            <button 
-              onClick={handlePublish}
-              className="btn-success"
-              disabled={saving || !quizId}
-            >
-              {saving ? 'Publishing...' : 'Publish Quiz'}
-            </button>
+            {isEditable && (
+              <button 
+                onClick={handlePublish}
+                className="btn-success"
+                disabled={saving}
+              >
+                {saving ? 'Publishing...' : 'Publish Quiz'}
+              </button>
+            )}
             
-            <button 
-              onClick={handleReject}
-              className="btn-danger"
-              disabled={saving || !quizId}
-            >
-              Reject
-            </button>
+            {isEditable && (
+              <button 
+                onClick={handleReject}
+                className="btn-danger"
+                disabled={saving}
+              >
+                Reject
+              </button>
+            )}
           </div>
         </div>
 
@@ -542,6 +711,12 @@ const QuizModeration = () => {
           </div>
         )}
 
+        {isPublishedQuiz && (
+          <div className="alert alert-info">
+            This quiz has been published and is available to students. Editing is disabled to maintain consistency.
+          </div>
+        )}
+
         {/* Quiz Details Card */}
         <div className="quiz-details-card">
           <h2>Quiz Details</h2>
@@ -551,9 +726,10 @@ const QuizModeration = () => {
             <input
               type="text"
               value={quiz?.title || ''}
-              onChange={(e) => setQuiz(prev => ({ ...prev, title: e.target.value }))}
+              onChange={(e) => isEditable && handleTitleChange(e.target.value)}
               className="title-input"
               placeholder="Enter quiz title..."
+              disabled={!isEditable}
             />
           </div>
 
@@ -576,6 +752,12 @@ const QuizModeration = () => {
                 {quiz?.status || 'Unknown'}
               </span>
             </div>
+            <div className="stat-item">
+              <span className="stat-label">Source</span>
+              <span className="stat-value">
+                {quiz?.dataSource === 'adaptive' ? 'Published Quiz' : 'Draft Quiz'}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -583,19 +765,23 @@ const QuizModeration = () => {
         <div className="questions-container">
           <div className="section-header">
             <h2>Questions ({questions.length})</h2>
-            <button onClick={addQuestion} className="btn-add">
-              + Add Question
-            </button>
+            {isEditable && (
+              <button onClick={addQuestion} className="btn-add">
+                + Add Question
+              </button>
+            )}
           </div>
 
           {questions.length === 0 ? (
             <div className="empty-questions">
               <div className="empty-icon">📝</div>
               <h3>No Questions Yet</h3>
-              <p>Add your first question to get started with this quiz.</p>
-              <button onClick={addQuestion} className="btn-primary">
-                Add First Question
-              </button>
+              <p>{isEditable ? 'Add your first question to get started with this quiz.' : 'This quiz has no questions.'}</p>
+              {isEditable && (
+                <button onClick={addQuestion} className="btn-primary">
+                  Add First Question
+                </button>
+              )}
             </div>
           ) : (
             <div className="questions-list">
@@ -608,8 +794,9 @@ const QuizModeration = () => {
                     <div className="question-controls">
                       <select
                         value={question.difficulty || 'medium'}
-                        onChange={(e) => handleQuestionChange(qIndex, 'difficulty', e.target.value)}
+                        onChange={(e) => isEditable && handleQuestionChange(qIndex, 'difficulty', e.target.value)}
                         className="difficulty-select"
+                        disabled={!isEditable}
                       >
                         <option value="easy">Easy</option>
                         <option value="medium">Medium</option>
@@ -620,21 +807,24 @@ const QuizModeration = () => {
                         <input
                           type="number"
                           value={question.points || 1}
-                          onChange={(e) => handleQuestionChange(qIndex, 'points', parseInt(e.target.value) || 1)}
+                          onChange={(e) => isEditable && handleQuestionChange(qIndex, 'points', parseInt(e.target.value) || 1)}
                           className="points-input"
                           min="1"
                           max="10"
+                          disabled={!isEditable}
                         />
                         <span className="points-label">pts</span>
                       </div>
                       
-                      <button 
-                        onClick={() => removeQuestion(qIndex)}
-                        className="btn-remove-question"
-                        title="Remove question"
-                      >
-                        ×
-                      </button>
+                      {isEditable && (
+                        <button 
+                          onClick={() => removeQuestion(qIndex)}
+                          className="btn-remove-question"
+                          title="Remove question"
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -642,10 +832,11 @@ const QuizModeration = () => {
                     <label>Question Text</label>
                     <textarea
                       value={question.question_text || ''}
-                      onChange={(e) => handleQuestionChange(qIndex, 'question_text', e.target.value)}
+                      onChange={(e) => isEditable && handleQuestionChange(qIndex, 'question_text', e.target.value)}
                       placeholder="Enter your question here..."
                       className="question-textarea"
                       rows="3"
+                      disabled={!isEditable}
                     />
                   </div>
 
@@ -665,19 +856,21 @@ const QuizModeration = () => {
                             type="radio"
                             name={`correct_${qIndex}`}
                             checked={choice.is_correct}
-                            onChange={() => handleCorrectAnswerChange(qIndex, cIndex)}
+                            onChange={() => isEditable && handleCorrectAnswerChange(qIndex, cIndex)}
                             className="choice-radio"
+                            disabled={!isEditable}
                           />
                           
                           <input
                             type="text"
                             value={choice.choice_text || ''}
-                            onChange={(e) => handleChoiceChange(qIndex, cIndex, 'choice_text', e.target.value)}
+                            onChange={(e) => isEditable && handleChoiceChange(qIndex, cIndex, 'choice_text', e.target.value)}
                             placeholder={`Choice ${String.fromCharCode(65 + cIndex)}`}
                             className="choice-input"
+                            disabled={!isEditable}
                           />
                           
-                          {question.choices.length > 2 && (
+                          {isEditable && question.choices.length > 2 && (
                             <button
                               onClick={() => removeChoice(qIndex, cIndex)}
                               className="btn-remove-choice"
@@ -690,7 +883,7 @@ const QuizModeration = () => {
                       ))}
                     </div>
                     
-                    {question.choices?.length < 6 && (
+                    {isEditable && question.choices?.length < 6 && (
                       <button 
                         onClick={() => addChoice(qIndex)}
                         className="btn-add-choice"
@@ -714,28 +907,36 @@ const QuizModeration = () => {
                 className="btn-secondary"
                 disabled={saving}
               >
-                Cancel
+                {isPublishedQuiz ? 'Back to Dashboard' : 'Cancel'}
               </button>
               
-              <button 
-                onClick={handleSaveChanges}
-                className="btn-primary"
-                disabled={saving || !hasChanges || !quizId}
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
+              {isEditable && (
+                <button 
+                  onClick={handleSaveChanges}
+                  className="btn-primary"
+                  disabled={saving || !hasChanges}
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+              )}
               
-              <button 
-                onClick={handlePublish}
-                className="btn-success"
-                disabled={saving || !quizId}
-              >
-                {saving ? 'Publishing...' : 'Publish Quiz'}
-              </button>
+              {isEditable && (
+                <button 
+                  onClick={handlePublish}
+                  className="btn-success"
+                  disabled={saving}
+                >
+                  {saving ? 'Publishing...' : 'Publish Quiz'}
+                </button>
+              )}
             </div>
             
-            {hasChanges && (
+            {hasChanges && isEditable && (
               <p className="unsaved-changes">You have unsaved changes</p>
+            )}
+            
+            {!isEditable && (
+              <p className="read-only-notice">This published quiz is read-only</p>
             )}
           </div>
         </div>

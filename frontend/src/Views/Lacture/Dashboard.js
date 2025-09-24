@@ -55,14 +55,21 @@ function Dashboard() {
         slidesData = response.data.results;
       }
 
-      // Extract quiz IDs from slides that have generated quizzes
-      const quizIds = slidesData
+      // Extract and structure quiz information from slides
+      const quizInfoList = slidesData
         .filter(slide => slide.quiz_id || slide.adaptive_quiz_id || slide.generated_quiz_id)
-        .map(slide => slide.quiz_id || slide.adaptive_quiz_id || slide.generated_quiz_id)
-        .filter(Boolean);
+        .map(slide => ({
+          adaptiveQuizId: slide.adaptive_quiz_id || slide.quiz_id,
+          quizId: slide.quiz_id,
+          slideId: slide.id || slide.slide_id,
+          title: slide.title || slide.slide_title,
+          isPublished: !!(slide.adaptive_quiz_id || slide.quiz_id),
+          slideData: slide
+        }))
+        .filter(info => info.adaptiveQuizId || info.quizId);
 
-      console.log('Found quiz IDs:', quizIds);
-      return quizIds;
+      console.log('Found quiz info:', quizInfoList);
+      return quizInfoList;
     } catch (error) {
       console.error('Error getting available quizzes:', error);
       return [];
@@ -75,7 +82,7 @@ function Dashboard() {
     
     const allQuizData = [];
 
-    // Method 1: Get quizzes for review (lecturer perspective)
+    // Method 1: Get quizzes for review (lecturer perspective - draft/unpublished)
     try {
       console.log('Method 1: Getting quizzes for review...');
       const reviewResponse = await getQuizzesForReview();
@@ -89,28 +96,43 @@ function Dashboard() {
       }
       
       reviewQuizzes.forEach(quiz => {
-        allQuizData.push({ ...quiz, _source: 'review' });
+        allQuizData.push({ 
+          ...quiz, 
+          _source: 'review',
+          _isUnpublished: true,
+          _slideId: quiz.slide_id || quiz.id
+        });
       });
     } catch (error) {
       console.log('Method 1 failed:', error.message);
     }
 
-    // Method 2: Get available quiz IDs and fetch details
+    // Method 2: Get available quiz IDs and fetch details (published quizzes)
     try {
-      console.log('Method 2: Getting quiz IDs and fetching details...');
-      const quizIds = await getAvailableQuizzes();
+      console.log('Method 2: Getting published quiz details...');
+      const quizInfoList = await getAvailableQuizzes();
       
-      for (const quizId of quizIds) {
-        const quizDetails = await getQuizDetails(quizId);
-        if (quizDetails) {
-          allQuizData.push({ ...quizDetails, _source: 'adaptive', _realId: quizId });
+      for (const quizInfo of quizInfoList) {
+        if (quizInfo.adaptiveQuizId) {
+          const quizDetails = await getQuizDetails(quizInfo.adaptiveQuizId);
+          if (quizDetails) {
+            allQuizData.push({ 
+              ...quizDetails, 
+              _source: 'adaptive', 
+              _realAdaptiveQuizId: quizInfo.adaptiveQuizId,
+              _realQuizId: quizInfo.quizId,
+              _slideId: quizInfo.slideId,
+              _isPublished: true,
+              _originalSlideData: quizInfo.slideData
+            });
+          }
         }
       }
     } catch (error) {
       console.log('Method 2 failed:', error.message);
     }
 
-    // Method 3: Get lecturer slides
+    // Method 3: Get lecturer slides (fallback for any missed quizzes)
     try {
       console.log('Method 3: Getting lecturer slides...');
       const slidesResponse = await lecturerSlides();
@@ -124,7 +146,21 @@ function Dashboard() {
       }
       
       slidesData.forEach(slide => {
-        allQuizData.push({ ...slide, _source: 'slides' });
+        // Only add if not already found in previous methods
+        const alreadyExists = allQuizData.some(quiz => 
+          quiz._slideId === slide.id || 
+          quiz.slide_id === slide.id ||
+          quiz.id === slide.id
+        );
+        
+        if (!alreadyExists) {
+          allQuizData.push({ 
+            ...slide, 
+            _source: 'slides',
+            _slideId: slide.id,
+            _isUnpublished: true
+          });
+        }
       });
     } catch (error) {
       console.log('Method 3 failed:', error.message);
@@ -163,48 +199,62 @@ function Dashboard() {
         return;
       }
 
-      // Enhanced quiz processing with better ID handling
+      // Enhanced quiz processing with proper ID prioritization
       const normalizedQuizzes = allQuizData.map((quiz, index) => {
         console.log(`Processing quiz ${index}:`, quiz);
         
-        // Prioritize PUBLISHED quiz IDs over slide IDs
-        let quizId = null;
+        // ID Priority System:
+        // 1. For published quizzes: use adaptive_quiz_id for operations
+        // 2. For unpublished quizzes: use slide_id for operations
+        // 3. Always keep track of all relevant IDs
+        
+        let displayId = null;
+        let operationalId = null; // ID to use for API operations
         let hasRealId = false;
         let dataSource = quiz._source;
         
-        // Check for real quiz IDs first (from published quizzes)
-        if (quiz._realId && quiz._realId !== quiz.slide_id) {
-          quizId = quiz._realId;
+        if (quiz._isPublished && quiz._realAdaptiveQuizId) {
+          // Published quiz - use adaptive quiz ID
+          displayId = quiz._realAdaptiveQuizId;
+          operationalId = quiz._realAdaptiveQuizId;
           hasRealId = true;
-          dataSource = 'adaptive';
-          console.log('Using real adaptive quiz ID:', quizId);
-        } else if (quiz.quiz_id && quiz.quiz_id !== quiz.slide_id && quiz.quiz_id !== quiz.id) {
-          quizId = quiz.quiz_id;
-          hasRealId = true;
-          console.log('Using published quiz ID:', quizId);
-        } else if (quiz.adaptive_quiz_id && quiz.adaptive_quiz_id !== quiz.slide_id) {
-          quizId = quiz.adaptive_quiz_id;
-          hasRealId = true;
-          console.log('Using adaptive quiz ID:', quizId);
-        } else if (quiz.id) {
-          quizId = quiz.id;
+          dataSource = 'published';
+          console.log('Using published adaptive quiz ID:', displayId);
+        } else if (quiz._slideId) {
+          // Unpublished quiz - use slide ID for operations
+          displayId = quiz._slideId;
+          operationalId = quiz._slideId;
           hasRealId = false;
-          console.log('Using fallback ID (possibly slide ID):', quizId);
+          console.log('Using slide ID for unpublished quiz:', displayId);
+        } else if (quiz.id) {
+          // Fallback to whatever ID is available
+          displayId = quiz.id;
+          operationalId = quiz.id;
+          hasRealId = false;
+          console.log('Using fallback ID:', displayId);
         }
 
-        // If still no valid ID, generate one but mark it clearly
-        if (!quizId || String(quizId) === 'undefined' || String(quizId) === 'null') {
+        // Generate a consistent ID for React keys if needed
+        if (!displayId || String(displayId) === 'undefined' || String(displayId) === 'null') {
           const timestamp = Date.now();
           const random = Math.random().toString(36).substr(2, 9);
-          quizId = `generated_${quiz._source}_${timestamp}_${index}_${random}`;
+          displayId = `temp_${quiz._source}_${timestamp}_${index}_${random}`;
+          operationalId = displayId;
           hasRealId = false;
           dataSource = 'generated';
-          console.warn(`Generated fallback ID for quiz "${quiz.title || 'Untitled'}": ${quizId}`);
+          console.warn(`Generated temporary ID for quiz "${quiz.title || 'Untitled'}": ${displayId}`);
         }
         
         // Handle different possible data structures based on source
         const normalized = {
-          id: String(quizId), // Ensure ID is always a string
+          // Display ID for React and UI
+          id: String(displayId),
+          
+          // All relevant IDs for proper operations
+          slideId: quiz._slideId || quiz.slide_id,
+          adaptiveQuizId: quiz._realAdaptiveQuizId || quiz.adaptive_quiz_id,
+          quizId: quiz._realQuizId || quiz.quiz_id,
+          
           title: quiz.title || 
                  quiz.slide_title || 
                  quiz.name || 
@@ -246,11 +296,12 @@ function Dashboard() {
                      quiz.upload_date ||
                      new Date().toISOString(),
           
-          is_live: quiz.is_live || 
+          is_live: quiz._isPublished || 
+                  quiz.is_live || 
                   quiz.published || 
                   quiz.is_published ||
                   quiz.status === 'published' || 
-                  (quiz._source === 'adaptive'), // Adaptive quizzes are likely live
+                  !!(quiz._realAdaptiveQuizId), // Has adaptive quiz ID = published
           
           difficulty: quiz.difficulty || 
                      quiz.level || 
@@ -261,7 +312,7 @@ function Dashboard() {
           
           // Additional metadata
           status: quiz.status || 
-                 (quiz.is_live ? 'published' : 
+                 (quiz._isPublished ? 'published' : 
                   (quiz.questions_generated || quiz.questions_count > 0 ? 'ready' : 'draft')),
           
           time_limit: quiz.time_limit,
@@ -271,23 +322,24 @@ function Dashboard() {
           dataSource: dataSource,
           hasRealId: hasRealId,
           originalData: quiz,
-          slideId: quiz.slide_id || quiz.id, // Keep track of original slide ID
           
           // Publish tracking
           publishedAt: quiz.published_at || quiz.date_published,
-          originalSlideId: quiz.slide_id
+          originalSlideId: quiz._slideId
         };
 
-        console.log(`Normalized quiz: "${normalized.title}" with ID: ${normalized.id} (source: ${normalized.dataSource}, real ID: ${normalized.hasRealId})`);
+        console.log(`Normalized quiz: "${normalized.title}" with display ID: ${normalized.id} (adaptive: ${normalized.adaptiveQuizId}, slide: ${normalized.slideId}, source: ${normalized.dataSource})`);
         return normalized;
       });
 
       // Remove duplicates with better logic for published vs unpublished
       const uniqueQuizzes = normalizedQuizzes.reduce((acc, current) => {
         const duplicate = acc.find(quiz => {
-          // Check for same slide or same title
+          // Check for same slide or same title/course combination
           return (quiz.slideId && current.slideId && quiz.slideId === current.slideId) ||
-                 (quiz.title === current.title && quiz.topic?.course?.code === current.topic?.course?.code);
+                 (quiz.title === current.title && 
+                  quiz.topic?.course?.code === current.topic?.course?.code &&
+                  quiz.topic?.name === current.topic?.name);
         });
         
         if (duplicate) {
@@ -309,17 +361,17 @@ function Dashboard() {
         return acc;
       }, []);
 
-      console.log('Final unique quizzes with prioritized IDs:', uniqueQuizzes);
+      console.log('Final unique quizzes with proper ID management:', uniqueQuizzes);
       
       // Enhanced validation
-      const publishedQuizzes = uniqueQuizzes.filter(q => q.is_live && q.hasRealId);
+      const publishedQuizzes = uniqueQuizzes.filter(q => q.is_live && q.adaptiveQuizId);
       const draftQuizzes = uniqueQuizzes.filter(q => !q.is_live);
       const invalidQuizzes = uniqueQuizzes.filter(q => 
         !q.id || q.id === 'undefined' || q.id === 'null' || String(q.id) === 'undefined'
       );
       
       console.log(`Quiz Summary:`);
-      console.log(`- Published with real IDs: ${publishedQuizzes.length}`);
+      console.log(`- Published with adaptive IDs: ${publishedQuizzes.length}`);
       console.log(`- Draft quizzes: ${draftQuizzes.length}`);
       console.log(`- Invalid IDs: ${invalidQuizzes.length}`);
       
@@ -348,18 +400,19 @@ function Dashboard() {
     setError('AI quizzes cannot be deleted directly. Use the moderation interface to reject quizzes if needed.');
   };
 
-  // Enhanced status change handler with quiz ID updates
+  // Enhanced status change handler with proper ID updates
   const handleStatusChange = (quizId, newStatus, publishData = null) => {
     console.log('=== HANDLING STATUS CHANGE ===');
-    console.log('Original quiz ID:', quizId);
+    console.log('Quiz ID:', quizId);
     console.log('New status:', newStatus);
     console.log('Publish data:', publishData);
     
     setQuizzes(prev => {
       return prev.map(quiz => {
-        // Handle quiz ID updates from publishing
+        // Find the quiz that was published
         const isTargetQuiz = quiz.id === quizId || 
-                            (publishData?.originalId && quiz.id === publishData.originalId);
+                            (publishData?.originalId && quiz.id === publishData.originalId) ||
+                            (publishData?.originalSlideId && quiz.slideId === publishData.originalSlideId);
         
         if (isTargetQuiz) {
           const updatedQuiz = {
@@ -368,19 +421,29 @@ function Dashboard() {
             status: newStatus === 'published' ? 'published' : quiz.status
           };
 
-          // If publishing created a new quiz ID, update it
-          if (publishData?.newQuizId && publishData.newQuizId !== quiz.id) {
-            console.log('Updating quiz ID from', quiz.id, 'to', publishData.newQuizId);
-            updatedQuiz.id = publishData.newQuizId;
-            updatedQuiz.hasRealId = true; // Mark as having a real ID now
-            updatedQuiz.dataSource = 'published'; // Update source
+          // Update IDs when publishing
+          if (publishData) {
+            if (publishData.newAdaptiveQuizId) {
+              updatedQuiz.adaptiveQuizId = publishData.newAdaptiveQuizId;
+              updatedQuiz.hasRealId = true;
+              updatedQuiz.dataSource = 'published';
+              console.log('Updated quiz with new adaptive ID:', publishData.newAdaptiveQuizId);
+            }
             
+            if (publishData.newQuizId) {
+              updatedQuiz.quizId = publishData.newQuizId;
+            }
+
             // Add publish metadata
             updatedQuiz.publishedAt = publishData.publishedAt;
-            updatedQuiz.originalSlideId = publishData.originalId;
+            
+            // Keep original slide ID for reference
+            if (publishData.originalSlideId && !updatedQuiz.originalSlideId) {
+              updatedQuiz.originalSlideId = publishData.originalSlideId;
+            }
           }
 
-          console.log('Updated quiz:', updatedQuiz);
+          console.log('Updated quiz after status change:', updatedQuiz);
           return updatedQuiz;
         }
         
@@ -397,15 +460,15 @@ function Dashboard() {
     q.topic?.course?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Sort quizzes by creation date (newest first), prioritizing real IDs
+  // Sort quizzes by creation date (newest first), prioritizing published quizzes
   const sortedQuizzes = filteredQuizzes.sort((a, b) => {
-    // First, prioritize quizzes with real IDs
-    if (a.hasRealId && !b.hasRealId) return -1;
-    if (!a.hasRealId && b.hasRealId) return 1;
+    // First, prioritize published quizzes with adaptive IDs
+    if (a.is_live && a.adaptiveQuizId && (!b.is_live || !b.adaptiveQuizId)) return -1;
+    if (b.is_live && b.adaptiveQuizId && (!a.is_live || !a.adaptiveQuizId)) return 1;
     
-    // Then prioritize published quizzes
-    if (a.is_live && !b.is_live) return -1;
-    if (!a.is_live && b.is_live) return 1;
+    // Then prioritize ready quizzes over drafts
+    if (a.status === 'ready' && b.status === 'draft') return -1;
+    if (b.status === 'ready' && a.status === 'draft') return 1;
     
     // Finally sort by date
     const dateA = new Date(a.created_at || 0);
