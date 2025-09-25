@@ -89,7 +89,7 @@ const StudentQnAJoin = () => {
           <div style={{
             width: '80px',
             height: '80px',
-            background: 'linear-gradient(135deg, #1935CA 0%, #3B82F6 100%)',
+            background: 'linear-gradient(135deg, #b9c0e6ff 0%, #3B82F6 100%)',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
