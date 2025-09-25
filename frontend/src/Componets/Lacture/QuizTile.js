@@ -73,74 +73,52 @@ function QuizTile({
 
   const handleTileClick = () => {
     const operationalId = getOperationalId();
-    
+
     if (status === 'draft' || status === 'ready') {
       // Navigate to moderation/edit page
       navigate(`/moderate-quiz/${operationalId}`);
     } else if (status === 'live') {
-      // Navigate to analytics/results - use the correct published quiz ID
+      // Once live, we treat it as "past". Clicking from here (if it still shows) goes to Results first.
       const analyticsId = adaptiveQuizId || quizId || operationalId;
-      navigate(`/quiz-analytics/${analyticsId}`);
+      navigate(`/quiz-analytics/${analyticsId}?section=results`);
     }
   };
 
   const handlePublish = async (e) => {
     e.stopPropagation(); // Prevent tile click
-    
+
     const operationalId = getOperationalId();
-    
+
     if (!operationalId) {
       setError('Cannot publish: No quiz ID available');
       return;
     }
-    
-    setIsLoading(true); 
+
+    setIsLoading(true);
     setError('');
-    
+
     try {
-      console.log('=== PUBLISHING QUIZ ===');
-      console.log('Quiz ID:', id);
-      console.log('Operational ID (for API):', operationalId);
-      console.log('Slide ID:', slideId);
-      console.log('Quiz data source:', dataSource);
-      console.log('Has real ID:', hasRealId);
-      console.log('Adaptive Quiz ID:', adaptiveQuizId);
-      console.log('Quiz ID:', quizId);
-
-      // First, get moderation data to ensure we have the latest quiz info
-      console.log('Fetching moderation data for quiz:', operationalId);
       const moderationResponse = await getQuizForModeration(operationalId);
-      console.log('Moderation response:', moderationResponse.data);
 
-      // Publish the quiz - this should return the proper adaptive quiz ID
-      console.log('Publishing quiz with ID:', operationalId);
-      const publishResponse = await publishQuiz(operationalId, { 
+      const publishResponse = await publishQuiz(operationalId, {
         review_notes: 'Publishing from Dashboard',
-        confirm_publish: true 
+        confirm_publish: true
       });
-      
-      console.log('Publish response:', publishResponse);
-      console.log('Publish response data:', publishResponse.data);
 
       // Extract the correct quiz ID from publish response
       let finalAdaptiveQuizId = null;
       let finalQuizId = null;
-      
+
       if (publishResponse.data) {
-        // Look for adaptive quiz ID in various possible fields
-        finalAdaptiveQuizId = publishResponse.data.adaptive_quiz_id || 
+        finalAdaptiveQuizId = publishResponse.data.adaptive_quiz_id ||
                               publishResponse.data.quiz_id ||
                               publishResponse.data.id;
-        
-        // Also look for a separate quiz_id field if it exists
-        finalQuizId = publishResponse.data.quiz_id || 
+
+        finalQuizId = publishResponse.data.quiz_id ||
                       publishResponse.data.id;
-        
-        console.log('Extracted adaptive quiz ID:', finalAdaptiveQuizId);
-        console.log('Extracted quiz ID:', finalQuizId);
       }
 
-      // Update the quiz status and notify parent component with the correct IDs
+      // Notify parent to update local list (this will remove it from Dashboard)
       if (onStatusChange) {
         onStatusChange(id, 'published', {
           originalId: id,
@@ -151,32 +129,15 @@ function QuizTile({
           operationalId: operationalId
         });
       }
-
-      console.log('✅ Quiz successfully published with adaptive ID:', finalAdaptiveQuizId);
-      
     } catch (err) {
       console.error('Error publishing quiz:', err);
-      console.error('Error details:', {
-        status: err.response?.status,
-        data: err.response?.data,
-        message: err.message
-      });
-      
       const d = err.response?.data;
       let msg = 'Failed to publish quiz';
-      
-      if (typeof d === 'string') {
-        msg = d;
-      } else if (d?.detail) {
-        msg = d.detail;
-      } else if (d?.message) {
-        msg = d.message;
-      } else if (d?.error) {
-        msg = d.error;
-      } else if (err.message) {
-        msg = err.message;
-      }
-      
+      if (typeof d === 'string') msg = d;
+      else if (d?.detail) msg = d.detail;
+      else if (d?.message) msg = d.message;
+      else if (d?.error) msg = d.error;
+      else if (err.message) msg = err.message;
       setError(msg);
     } finally {
       setIsLoading(false);
@@ -185,17 +146,16 @@ function QuizTile({
 
   const handleDelete = async (e) => {
     e.stopPropagation(); // Prevent tile click
-    
+
     const operationalId = getOperationalId();
-    
+
     if (!operationalId || status === 'live') return;
     if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
-    
-    setIsLoading(true); 
+
+    setIsLoading(true);
     setError('');
-    
+
     try {
-      console.log('Attempting to delete quiz with operational ID:', operationalId);
       await deleteQuiz(operationalId);
       onDelete && onDelete(quiz);
     } catch (err) {
@@ -216,9 +176,9 @@ function QuizTile({
 
   const handleViewResults = (e) => {
     e.stopPropagation(); // Prevent tile click
-    // Use the published quiz ID for analytics
     const analyticsId = adaptiveQuizId || quizId || getOperationalId();
-    navigate(`/quiz-analytics/${analyticsId}`);
+    // Go to results section first
+    navigate(`/quiz-analytics/${analyticsId}?section=results`);
   };
 
   const colorForDifficulty = (diff) => {
@@ -229,13 +189,11 @@ function QuizTile({
     return '#64748b';
   };
 
-  // Show warning if this quiz doesn't have a proper published ID
   const hasValidPublishedId = is_live && (adaptiveQuizId || quizId);
-  const needsProperPublishing = !is_live && !hasRealId;
 
   return (
-    <div 
-      className={`quiz-tile-container ${courseCode.toLowerCase()}`} 
+    <div
+      className={`quiz-tile-container ${courseCode.toLowerCase()}`}
       onClick={handleTileClick}
       style={{ cursor: 'pointer' }}
     >
@@ -246,13 +204,13 @@ function QuizTile({
         <div className="quiz-status-text">{statusInfo.text}</div>
       </div>
 
-    
-
       {/* Info */}
       <div className="quiz-info-section">
         <div className="quiz-creation-date">{formatDate(created_at)}</div>
         <div className="quiz-stats-mini">
-          <span className="quiz-questions">{questions_count} Questions &nbsp; : &nbsp; <span className="quiz-points">{total_points} Points</span></span>
+          <span className="quiz-questions">
+            {questions_count} Questions &nbsp; : &nbsp; <span className="quiz-points">{total_points} Points</span>
+          </span>
         </div>
       </div>
 

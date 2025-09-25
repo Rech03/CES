@@ -9,6 +9,7 @@
     padding: 10px; /* Added padding for content spacing */
     box-sizing: border-box; /* Include padding in width calculation */
     overflow: hidden; /* Contain content within bounds */
+    padding-bottom: 30px;
     
 }
 
@@ -18,9 +19,8 @@
     box-shadow: 0px 2.4090728759765625px 6.4241943359375px #EDEDED; 
     border-radius: 1.61px;
     position: absolute;
-    margin-left: 84% ;
+    margin-left: 86% ;
     margin-top: 7%;
-
 }
 
 .TitleH {
@@ -43,9 +43,10 @@
 
 }
 .BoiH {
-    position: absolute;
-    margin-left: 86%;
+     position: absolute;
+    margin-left: 84%;
     margin-top: 20px;
+    max-width: 70px;
 }
 .Rating{
     width: 80%;

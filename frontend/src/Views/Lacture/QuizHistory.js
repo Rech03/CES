@@ -4,7 +4,6 @@ import CoursesList from "../../Componets/Lacture/CoursesList";
 import NavBar from "../../Componets/Lacture/NavBar";
 import PastQuizTile from "../../Componets/Lacture/PastQuizTile";
 import SearchBar from "../../Componets/Lacture/SearchBar";
-import StarRating from "../../Componets/Lacture/StarRating";
 import { 
   studentAdaptiveProgress,
   studentAvailableSlides,
@@ -34,13 +33,7 @@ function QuizHistory() {
       setError("");
       setDebugInfo(null);
 
-      console.log('=== LOADING AI QUIZ HISTORY ===');
-
-      // First, try to get courses (this usually works)
-      console.log('1. Fetching courses...');
       const coursesResponse = await getMyCourses();
-      console.log('Courses response:', coursesResponse);
-
       let coursesData = [];
       if (coursesResponse.data?.courses && Array.isArray(coursesResponse.data.courses)) {
         coursesData = coursesResponse.data.courses;
@@ -48,18 +41,13 @@ function QuizHistory() {
         coursesData = coursesResponse.data;
       }
       setCourses(coursesData);
-      console.log('Processed courses:', coursesData);
 
-      // Try multiple approaches to get AI quiz data
+      // 1) Attempts/Progress (if any)
       let progressData = [];
-      let debugMessages = [];
+      const debugMessages = [];
 
-      // Method 1: Try studentAdaptiveProgress
       try {
-        console.log('2. Trying studentAdaptiveProgress...');
         const progressResponse = await studentAdaptiveProgress();
-        console.log('Progress response:', progressResponse);
-        
         if (Array.isArray(progressResponse.data)) {
           progressData = progressResponse.data;
         } else if (progressResponse.data?.results) {
@@ -67,98 +55,92 @@ function QuizHistory() {
         } else if (progressResponse.data?.progress) {
           progressData = progressResponse.data.progress;
         }
-        
         debugMessages.push(`✅ studentAdaptiveProgress: Found ${progressData.length} items`);
       } catch (err) {
-        console.error('studentAdaptiveProgress failed:', err);
         debugMessages.push(`❌ studentAdaptiveProgress: ${err.response?.status} - ${err.response?.data?.detail || err.message}`);
       }
 
-      // Method 2: Try studentAvailableSlides if no progress data
-      if (progressData.length === 0) {
-        try {
-          console.log('3. Trying studentAvailableSlides...');
-          const slidesResponse = await studentAvailableSlides();
-          console.log('Slides response:', slidesResponse);
-          
-          let slidesData = [];
-          if (Array.isArray(slidesResponse.data)) {
-            slidesData = slidesResponse.data;
-          } else if (slidesResponse.data?.slides) {
-            slidesData = slidesResponse.data.slides;
-          }
-          
-          // Transform slides into attempt-like format
-          progressData = slidesData
-            .filter(slide => slide.quiz_id || slide.adaptive_quiz_id)
-            .map(slide => ({
-              id: slide.id,
-              quiz: {
-                id: slide.quiz_id || slide.adaptive_quiz_id,
-                title: slide.title || slide.slide_title || 'AI Generated Quiz',
-                topic: {
-                  name: slide.topic_name || 'Unknown Topic',
-                  course: {
-                    id: slide.course_id,
-                    code: slide.course_code || 'UNKNOWN',
-                    name: slide.course_name || 'Unknown Course'
-                  }
-                }
-              },
-              is_completed: false, // We don't know completion status from slides
-              started_at: slide.created_at || slide.upload_date,
-              score: 0,
-              total_possible_score: 0
-            }));
-          
-          debugMessages.push(`✅ studentAvailableSlides: Found ${slidesData.length} slides, ${progressData.length} with quizzes`);
-        } catch (err) {
-          console.error('studentAvailableSlides failed:', err);
-          debugMessages.push(`❌ studentAvailableSlides: ${err.response?.status} - ${err.response?.data?.detail || err.message}`);
+      // 2) Published Quizzes (ALWAYS include as "Past Quizzes")
+      let publishedQuizzes = [];
+      try {
+        const slidesResponse = await studentAvailableSlides();
+        let slidesData = [];
+        if (Array.isArray(slidesResponse.data)) {
+          slidesData = slidesResponse.data;
+        } else if (slidesResponse.data?.slides) {
+          slidesData = slidesResponse.data.slides;
         }
-      }
 
-      // Method 3: Try to get individual quiz details if we have quiz IDs
-      if (progressData.length > 0) {
-        console.log('4. Enriching quiz data...');
-        for (let i = 0; i < Math.min(progressData.length, 5); i++) { // Limit to first 5 to avoid too many requests
-          const attempt = progressData[i];
-          if (attempt.quiz?.id) {
-            try {
-              const quizDetails = await getAdaptiveQuiz(attempt.quiz.id);
-              console.log(`Quiz ${attempt.quiz.id} details:`, quizDetails);
-              
-              // Enrich the attempt data with quiz details
-              progressData[i] = {
-                ...attempt,
+        slidesData.forEach(slideGroup => {
+          const info = slideGroup?.slide_info || slideGroup;
+          const list = slideGroup?.quizzes || [];
+          list.forEach(q => {
+            if (q.quiz_id) {
+              publishedQuizzes.push({
+                id: `pub_${info.slide_id || info.id}_${q.quiz_id}`,
                 quiz: {
-                  ...attempt.quiz,
-                  ...quizDetails.data,
-                  title: quizDetails.data.title || attempt.quiz.title
-                }
-              };
-            } catch (err) {
-              console.warn(`Failed to get details for quiz ${attempt.quiz.id}:`, err);
+                  id: q.quiz_id,
+                  title: info.title || info.slide_title || 'AI Generated Quiz',
+                  topic: {
+                    name: info.topic_name || 'Unknown Topic',
+                    course: {
+                      id: info.course_id,
+                      code: info.course_code || 'UNKNOWN',
+                      name: info.course_name || 'Unknown Course'
+                    }
+                  },
+                  total_questions: q.question_count || 5,
+                  difficulty: q.difficulty || 'medium'
+                },
+                score: 0,
+                total_possible_score: 0,
+                is_completed: false,
+                is_published: true, // mark as "past/published"
+                started_at: q.progress?.last_attempt_at || info.created_at || new Date().toISOString(),
+                completed_at: null,
+                attempt_count: q.progress?.attempts_count || 0,
+                percentage: 0
+              });
             }
-          }
+          });
+        });
+
+        debugMessages.push(`✅ studentAvailableSlides: Added ${publishedQuizzes.length} published quizzes`);
+      } catch (err) {
+        debugMessages.push(`❌ studentAvailableSlides: ${err.response?.status} - ${err.response?.data?.detail || err.message}`);
+      }
+
+      // 3) Enrich a few with quiz details
+      const firstFew = [...publishedQuizzes].slice(0, 5);
+      for (let i = 0; i < firstFew.length; i++) {
+        const attempt = firstFew[i];
+        if (attempt.quiz?.id) {
+          try {
+            const quizDetails = await getAdaptiveQuiz(attempt.quiz.id);
+            publishedQuizzes = publishedQuizzes.map(a =>
+              a.quiz?.id === attempt.quiz.id
+                ? { 
+                    ...a, 
+                    quiz: { 
+                      ...a.quiz, 
+                      title: quizDetails.data?.title || a.quiz.title,
+                      total_questions: quizDetails.data?.questions?.length || a.quiz.total_questions
+                    }
+                  }
+                : a
+            );
+          } catch {}
         }
       }
 
-      // Transform progress data into attempt format
-      const transformedAttempts = progressData.map(progress => ({
+      // Transform progress attempts
+      const transformedProgressAttempts = (progressData || []).map(progress => ({
         id: progress.id || `attempt_${Date.now()}_${Math.random()}`,
         quiz: {
           id: progress.quiz?.id || progress.adaptive_quiz_id || progress.quiz_id,
-          title: progress.quiz?.title || 
-                 progress.quiz_title || 
-                 progress.slide_title || 
-                 progress.title ||
-                 "AI Generated Quiz",
+          title: progress.quiz?.title || progress.quiz_title || progress.slide_title || progress.title || "AI Generated Quiz",
           topic: {
-            name: progress.quiz?.topic?.name ||
-                  progress.topic_name || 
-                  progress.slide_topic ||
-                  "Unknown Topic",
+            name: progress.quiz?.topic?.name || progress.topic_name || progress.slide_topic || "Unknown Topic",
             course: {
               id: progress.quiz?.topic?.course?.id || progress.course_id,
               code: progress.quiz?.topic?.course?.code || progress.course_code || "UNKNOWN",
@@ -169,47 +151,42 @@ function QuizHistory() {
           difficulty: progress.quiz?.difficulty || progress.difficulty || progress.level || "medium"
         },
         score: progress.score || progress.current_score || 0,
-        total_possible_score: progress.total_possible_score || 
-                             progress.max_score || 
-                             ((progress.total_questions || 5) * 2),
+        total_possible_score: progress.total_possible_score || progress.max_score || ((progress.total_questions || 5) * 2),
         is_completed: progress.is_completed || progress.completed || false,
-        started_at: progress.started_at || 
-                   progress.created_at || 
-                   progress.last_attempt_at ||
-                   new Date().toISOString(),
+        is_published: false,
+        started_at: progress.started_at || progress.created_at || progress.last_attempt_at || new Date().toISOString(),
         completed_at: progress.completed_at || progress.finished_at,
         attempt_count: progress.attempt_count || 1,
-        percentage: progress.percentage || 
-                   (progress.score && progress.total_possible_score ? 
-                    Math.round((progress.score / progress.total_possible_score) * 100) : 0)
+        percentage: progress.percentage || (progress.score && progress.total_possible_score ? Math.round((progress.score / progress.total_possible_score) * 100) : 0)
       }));
 
-      // Sort by most recent
-      transformedAttempts.sort((a, b) => 
-        new Date(b.started_at || 0) - new Date(a.started_at || 0)
-      );
+      // Combine & de-duplicate by quiz id (prefer completed attempts data if present)
+      const combined = [];
+      const pushOrReplace = (item) => {
+        const idx = combined.findIndex(a => a.quiz?.id === item.quiz?.id);
+        if (idx === -1) { combined.push(item); return; }
+        const existing = combined[idx];
+        // Prefer real attempts (completed or with score) over bare published
+        const existingHasScore = (existing.score || 0) > 0 || existing.is_completed;
+        const itemHasScore = (item.score || 0) > 0 || item.is_completed;
+        if (itemHasScore && !existingHasScore) combined[idx] = item;
+      };
 
-      setAttempts(transformedAttempts);
-      
-      // Set debug info
+      transformedProgressAttempts.forEach(pushOrReplace);
+      publishedQuizzes.forEach(pushOrReplace);
+
+      // Sort most recent first
+      combined.sort((a, b) => new Date(b.started_at || 0) - new Date(a.started_at || 0));
+
+      setAttempts(combined);
       setDebugInfo({
         methods: debugMessages,
-        totalAttempts: transformedAttempts.length,
-        courses: coursesData.length,
-        rawProgressData: progressData.length > 0 ? progressData[0] : null
+        totalAttempts: combined.length,
+        courses: coursesData.length
       });
-
-      console.log('Final transformed attempts:', transformedAttempts);
-
     } catch (err) {
-      console.error('Error loading AI quiz history:', err);
-      const errorMessage = err.response?.data?.detail || 
-                          err.response?.data?.message || 
-                          err.message ||
-                          'Failed to load AI quiz history';
+      const errorMessage = err.response?.data?.detail || err.response?.data?.message || err.message || 'Failed to load AI quiz history';
       setError(errorMessage);
-      
-      // Set debug info even on error
       setDebugInfo({
         error: errorMessage,
         status: err.response?.status,
@@ -220,17 +197,16 @@ function QuizHistory() {
     }
   };
 
-  // Handle quiz retake
   const handleRetakeQuiz = (quiz) => {
+    // Lecturer retake paths can vary; keep existing behavior
     navigate(`/take-ai-quiz/${quiz.id}`);
   };
 
-  // Handle viewing attempt details
   const handleViewAttemptDetails = (attempt) => {
-    navigate(`/quiz-analytics/${attempt.quiz.id}`);
+    // Open Results section FIRST, then allow deep analysis
+    navigate(`/quiz-analytics/${attempt.quiz.id}?section=results`);
   };
 
-  // Filter attempts
   const filteredAttempts = attempts.filter(attempt => {
     const quiz = attempt.quiz || {};
     const topic = quiz.topic || {};
@@ -256,20 +232,18 @@ function QuizHistory() {
       <div className="SeachBar">
         <SearchBar 
           onSearch={setSearchTerm}
-          placeholder="Search AI quiz history by title, topic, or course..."
+          placeholder="Search AI past quizzes by title, topic, or course..."
         />
       </div>
 
       <div className="SideST">
-        
-          <CoursesList 
-            courses={courses}
-            selectedCourse={courses.find(c => c.id === parseInt(selectedCourse))}
-            onCourseSelect={(course) => setSelectedCourse(course?.id || "")}
-            loading={loading}
-            onRefresh={loadAIQuizHistory}
-          />
-      
+        <CoursesList 
+          courses={courses}
+          selectedCourse={courses.find(c => c.id === parseInt(selectedCourse))}
+          onCourseSelect={(course) => setSelectedCourse(course?.id || "")}
+          loading={loading}
+          onRefresh={loadAIQuizHistory}
+        />
       </div>
 
       <div className="BoiST">
@@ -277,9 +251,6 @@ function QuizHistory() {
       </div>
 
       <div className="ContainerH">
-        
-
-        {/* Error Message */}
         {error && (
           <div className="error-message" style={{
             background: '#FEE2E2',
@@ -307,7 +278,6 @@ function QuizHistory() {
           </div>
         )}
 
-        {/* Header */}
         <div className="quiz-history-header" style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -317,7 +287,7 @@ function QuizHistory() {
           gap: '15px'
         }}>
           <div className="TitleH">
-            {loading ? 'Loading...' : `AI Quiz History (${filteredAttempts.length})`}
+            {loading ? 'Loading...' : `Past Quizzes (${filteredAttempts.length})`}
           </div>
           
           {courses.length > 0 && (
@@ -361,7 +331,7 @@ function QuizHistory() {
                 animation: 'spin 1s linear infinite',
                 margin: '0 auto 20px'
               }}></div>
-              Loading your AI quiz history...
+              Loading your past quizzes...
             </div>
           ) : filteredAttempts.length > 0 ? (
             filteredAttempts.map((attempt) => (
@@ -392,19 +362,16 @@ function QuizHistory() {
                 marginBottom: '10px',
                 fontSize: '18px'
               }}>
-                {searchTerm || selectedCourse ? 'No quiz history matches your filters' : 'No quiz history yet'}
+                {searchTerm || selectedCourse ? 'No past quizzes match your filters' : 'No past quizzes yet'}
               </h3>
               <p style={{
                 color: '#666',
                 marginBottom: '20px',
                 fontSize: '14px',
-                maxWidth: '400px',
+                maxWidth: '420px',
                 margin: '0 auto 20px'
               }}>
-                {searchTerm || selectedCourse
-                  ? 'Try adjusting your search terms or course filter.'
-                  : 'Your completed quizzes will appear here. Take some time a create  quizzes for your students!'
-                }
+                Publish a quiz to see it here. Click a past quiz to view results, then jump into detailed analysis.
               </p>
               <button 
                 onClick={() => navigate('/LecturerDashboard')}
@@ -419,7 +386,7 @@ function QuizHistory() {
                   fontWeight: '500'
                 }}
               >
-                Browse Available Quizzes
+                Back to Current Quizzes
               </button>
             </div>
           )}

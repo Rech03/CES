@@ -7,18 +7,18 @@ function PastQuizTile({
   onRetake,
   onViewDetails,
   onClick,
-  isAIQuiz = false // Flag to distinguish AI quizzes
+  isAIQuiz = false
 }) {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Extract data from attempt object with fallbacks
   const {
     id,
     quiz = {},
     score = 0,
     total_possible_score = 0,
     is_completed = false,
+    is_published = false,   // NEW: treat as "past"
     started_at,
     completed_at,
     attempt_count = 1,
@@ -32,29 +32,22 @@ function PastQuizTile({
     difficulty = "medium"
   } = quiz;
 
-  // Get course info from topic
   const courseCode = topic?.course?.code || "UNKNOWN";
-  const courseName = topic?.course?.name || "Unknown Course";
   const topicName = topic?.name || "Unknown Topic";
-  
-  // Format dates
+
   const formatDate = (dateString) => {
     if (!dateString) return "No date";
     try {
       const date = new Date(dateString);
       return date.toLocaleDateString('en-GB', { 
-        day: '2-digit', 
-        month: 'short', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
       });
     } catch {
       return "Invalid date";
     }
   };
 
-  // Calculate percentage if not provided
   const getPercentage = () => {
     if (percentage) return percentage;
     if (total_possible_score > 0) {
@@ -63,7 +56,6 @@ function PastQuizTile({
     return 0;
   };
 
-  // Get grade based on percentage
   const getGrade = (percent) => {
     if (percent >= 80) return { grade: 'A', color: '#10B981' };
     if (percent >= 70) return { grade: 'B', color: '#F59E0B' };
@@ -72,7 +64,6 @@ function PastQuizTile({
     return { grade: 'F', color: '#991B1B' };
   };
 
-  // Get difficulty color
   const getDifficultyColor = (diff) => {
     const d = (diff || '').toLowerCase();
     if (d.includes('easy')) return '#22c55e';
@@ -85,17 +76,15 @@ function PastQuizTile({
   const gradeInfo = getGrade(percent);
   const attemptDate = completed_at || started_at;
 
-  // Handle click to view analytics
   const handleClick = () => {
     if (onClick) {
       onClick(attempt);
     } else {
-      // Navigate to quiz analytics page
-      navigate(`/quiz-analytics/${quiz.id}`);
+      // Go to RESULTS first, then allow analysis navigation there
+      navigate(`/quiz-analytics/${quiz.id}?section=results`);
     }
   };
 
-  // Handle retake action
   const handleRetake = (e) => {
     e.stopPropagation();
     if (onRetake) {
@@ -107,15 +96,19 @@ function PastQuizTile({
     }
   };
 
-  // Handle view details
   const handleViewDetails = (e) => {
     e.stopPropagation();
     if (onViewDetails) {
       onViewDetails(attempt);
     } else {
-      navigate(`/quiz-analytics/${quiz.id}`);
+      navigate(`/quiz-analytics/${quiz.id}?section=results`);
     }
   };
+
+  // Status label is Published if it's a past (published) quiz,
+  // otherwise show Completed/In Progress for attempts with scores.
+  const statusLabel = is_published ? 'Published' : (is_completed ? 'Completed' : 'In Progress');
+  const statusColor = is_published ? '#27AE60' : (is_completed ? '#27AE60' : '#F39C12');
 
   return (
     <div 
@@ -150,17 +143,17 @@ function PastQuizTile({
       <div 
         className="quiz-status-badge" 
         style={{ 
-          backgroundColor: is_completed ? '#27AE60' : '#F39C12',
+          backgroundColor: statusColor,
           top: isAIQuiz ? '32px' : '8px'
         }}
       >
         <div className="quiz-status-text">
-          {is_completed ? 'Completed' : 'In Progress'}
+          {statusLabel}
         </div>
       </div>
 
-      {/* Grade Badge */}
-      {is_completed && (
+      {/* Grade Badge (show only if completed and we have score context) */}
+      {is_completed && total_possible_score > 0 && (
         <div 
           className="grade-badge" 
           style={{
@@ -183,7 +176,7 @@ function PastQuizTile({
       {/* Quiz Info */}
       <div className="quiz-info-section" style={{ top: isAIQuiz ? '60px' : '40px' }}>
         <div className="quiz-creation-date">
-          {is_completed ? `Completed: ${formatDate(attemptDate)}` : `Started: ${formatDate(attemptDate)}`}
+          {is_completed ? `Completed: ${formatDate(attemptDate)}` : `Published: ${formatDate(attemptDate)}`}
         </div>
         <div className="quiz-stats-mini">
           <span className="quiz-questions">{total_questions} Questions</span>
@@ -221,7 +214,7 @@ function PastQuizTile({
         </div>
       )}
 
-      {/* Progress Bar (for incomplete attempts) */}
+      {/* If it's not completed, show a subtle progress/placeholder bar */}
       {!is_completed && (
         <div style={{
           position: 'absolute',
@@ -243,7 +236,7 @@ function PastQuizTile({
         </div>
       )}
 
-      {/* Action Buttons */}
+      {/* Actions */}
       <div className="quiz-actions">
         <button 
           className="action-btn results-btn"
@@ -251,10 +244,10 @@ function PastQuizTile({
           disabled={isLoading}
           style={{ backgroundColor: '#1976D2' }}
         >
-          View Analytics
+          View Results
         </button>
 
-        {is_completed && (
+        {is_completed ? (
           <button 
             className="action-btn retake-btn"
             onClick={handleRetake}
@@ -263,16 +256,14 @@ function PastQuizTile({
           >
             Retake Quiz
           </button>
-        )}
-
-        {!is_completed && (
+        ) : (
           <button 
             className="action-btn continue-btn"
             onClick={handleRetake}
             disabled={isLoading}
             style={{ backgroundColor: '#F39C12' }}
           >
-            Continue Quiz
+            Preview / Continue
           </button>
         )}
       </div>

@@ -5,15 +5,15 @@ function NavBar() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    const KEYS = ["token", "authToken", "accessToken", "auth_token", "Authorization", "user", "userInfo"];
+    const KEYS = ["token", "authToken", "accessToken", "auth_token", "Authorization", "user", "userInfo", "userSession", "access", "refresh"];
     KEYS.forEach((k) => {
       try { localStorage.removeItem(k); } catch (_) {}
       try { sessionStorage.removeItem(k); } catch (_) {}
     });
     try {
-      navigate("/Login");
-    } catch {
       navigate("/");
+    } catch {
+      window.location.href = "/";
     }
   };
 
@@ -25,6 +25,11 @@ function NavBar() {
         <li>
           <NavLink to="/LecturerDashboard" className={({ isActive }) => (isActive ? "active" : "")}>
             Dashboard
+          </NavLink>
+        </li>
+        <li>
+          <NavLink to="/LiveQnA" className={({ isActive }) => (isActive ? "active" : "")} end>
+            Live Q&A
           </NavLink>
         </li>
         <li>
