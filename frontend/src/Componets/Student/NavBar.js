@@ -34,6 +34,11 @@ function NavBar() {
           </NavLink>
         </li>
         <li>
+          <NavLink to="/QnA" className={({ isActive }) => (isActive ? "active" : "")}>
+            Live QnA
+          </NavLink>
+        </li>
+        <li>
           <NavLink to="/Analytics" className={({ isActive }) => (isActive ? "active" : "")}>
             Analytics
           </NavLink>
