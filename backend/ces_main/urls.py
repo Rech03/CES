@@ -37,6 +37,7 @@ urlpatterns = [
     path('api/analytics/', include('analytics.urls')),
     path('api/ai-quiz/', include('ai_quiz.urls')),
     path('api/achievements/', include('achievements.urls')),
+    path('api/live_qna/', include('live_qna.urls')),
 ]
 
 if settings.DEBUG:
