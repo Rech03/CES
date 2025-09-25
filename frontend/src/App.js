@@ -24,6 +24,7 @@ import LecturerAIQuizzes from "./Views/Lacture/AIQuizzes";
 import QuizzAnalytics from "./Views/Lacture/QuizAnalytics";
 import AddTopic from './Componets/Lacture/AddTopic';
 import AddTopicPage from './Views/Lacture/AddTopicPage';
+import LiveQnA from './Views/Lacture/LiveQnA';
 
 // NEW: AI Quiz Moderation Component
 import QuizModeration from './Views/Lacture/QuizModeration';
@@ -446,6 +447,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['lecturer', 'teacher', 'instructor']}>
                 <AddTopicPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/LiveQnA" 
+            element={
+              <ProtectedRoute allowedRoles={['lecturer', 'teacher', 'instructor']}>
+                <LiveQnA />
               </ProtectedRoute>
             } 
           />

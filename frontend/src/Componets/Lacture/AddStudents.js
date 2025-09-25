@@ -306,9 +306,6 @@ function AddStudents({
                 <li>File must be in CSV format (.csv)</li>
                 <li>Include headers: first_name, last_name, student_number, password</li>
                 <li>Each row should contain one student's complete information</li>
-                <li>Passwords must be at least 6 characters long</li>
-                <li>Student accounts will be created automatically if they don't exist</li>
-                <li>Existing students will be updated and enrolled in the course</li>
               </ul>
               <p><strong>Note:</strong> The system will automatically create student accounts for new students and enroll them in <strong>{localSelectedCourse.code}</strong>.</p>
             </div>

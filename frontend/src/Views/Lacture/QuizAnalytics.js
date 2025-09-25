@@ -203,15 +203,13 @@ function QuizAnalytics() {
       </div>
 
       <div className="SideH">
-        <div className="Rating">
-          <StarRating />
-        </div>
+        
         
           <CoursesList courses={courses} />
         
       </div>
       
-      <div className="BoiH">
+      <div className="BoiD">
         <Bio />
       </div>
       
@@ -221,30 +219,9 @@ function QuizAnalytics() {
           <div className="selection-header">
             <h3>Select Quiz for Analysis</h3>
             <div className="selection-controls">
-              <SearchBar 
-                placeholder="Search quizzes..."
-                value={searchTerm}
-                onChange={setSearchTerm}
-              />
+             
               
-              {/* Quiz Type Filter */}
-              <select 
-                value={quizType} 
-                onChange={(e) => handleQuizTypeFilter(e.target.value)}
-                className="quiz-type-filter"
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  backgroundColor: 'white',
-                  marginLeft: '10px'
-                }}
-              >
-                <option value="all">All Quiz Types</option>
-                <option value="traditional">Traditional Quizzes</option>
-                <option value="ai">AI Generated Quizzes</option>
-              </select>
+            
               
               <select 
                 value={selectedCourse} 
@@ -269,52 +246,6 @@ function QuizAnalytics() {
             </div>
           </div>
           
-          <div className="quiz-list">
-            {filteredQuizzes.length > 0 ? (
-              filteredQuizzes.map(quiz => (
-                <div 
-                  key={`${quiz.type}_${quiz.id}`}
-                  className={`quiz-item ${selectedQuizId === quiz.id ? 'selected' : ''} ${quiz.type === 'ai' ? 'ai-quiz-item' : ''}`}
-                  onClick={() => handleQuizSelect(quiz.id)}
-                >
-                  <div className="quiz-title">
-                    {quiz.type === 'ai' && (
-                      <span className="ai-badge" style={{
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: 'white',
-                        padding: '2px 6px',
-                        borderRadius: '8px',
-                        fontSize: '10px',
-                        fontWeight: '600',
-                        marginRight: '8px'
-                      }}>
-                        🤖 AI
-                      </span>
-                    )}
-                    {quiz.title}
-                  </div>
-                  <div className="quiz-meta">
-                    <span className="quiz-course">
-                      {quiz.topic_name || quiz.course_name || 'Unknown Course'}
-                    </span>
-                    <span className="quiz-attempts">
-                      {quiz.attempt_count || quiz.total_attempts || 0} attempts
-                    </span>
-                  </div>
-                  <div className="quiz-date">
-                    Created: {new Date(quiz.created_at || quiz.date_created).toLocaleDateString()}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="no-quizzes">
-                <p>No quizzes found matching your criteria.</p>
-                {getAllQuizzes().length === 0 && (
-                  <p>Create your first quiz to see analytics here!</p>
-                )}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Quiz Analysis */}
