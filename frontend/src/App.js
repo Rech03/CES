@@ -12,6 +12,7 @@ import STQuizInterface from './Views/Student/QuizInterface';
 import STQuizResultsPage from './Views/Student/QuizResultsPage';
 import STQuizHistory from "./Views/Student/QuizHistory";
 import QuizAnalyticsPage from './Views/Student/QuizAnalyticsPage';
+import QnA from './Views/Student/QnA';
 
 // Lecturer Components
 import AddStudents from "./Views/Lacture/AddStudents";
@@ -254,6 +255,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['student']}>
                 <STAchievements />
+              </ProtectedRoute>
+            } 
+          />
+            <Route 
+            path="/QnA" 
+            element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <QnA />
               </ProtectedRoute>
             } 
           />
