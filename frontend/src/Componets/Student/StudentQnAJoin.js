@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { validateSessionCode, joinSession, sendMessage, getSessionMessagesStudent } from '../../api/live-qna';
 
 const StudentQnAJoin = () => {
   const [sessionCode, setSessionCode] = useState('');
@@ -8,6 +9,27 @@ const StudentQnAJoin = () => {
   const [newQuestion, setNewQuestion] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [myQuestions, setMyQuestions] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Poll for updates when in a session
+  useEffect(() => {
+    if (!joinedSession) return;
+
+    const fetchMessages = async () => {
+      try {
+        const response = await getSessionMessagesStudent(joinedSession.code);
+        // Update only my questions that match
+        const studentQuestions = response.data.filter(q => q.is_mine);
+        setMyQuestions(studentQuestions);
+      } catch (err) {
+        console.error('Error fetching messages:', err);
+      }
+    };
+
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 3000);
+    return () => clearInterval(interval);
+  }, [joinedSession]);
 
   const handleJoinSession = async () => {
     if (!sessionCode.trim()) {
@@ -19,21 +41,24 @@ const StudentQnAJoin = () => {
     setJoinError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // First validate the code
+      const validateResponse = await validateSessionCode(sessionCode);
       
-      // Mock successful join - you can test with any code
-      const session = {
-        id: 1,
-        code: sessionCode.toUpperCase(),
-        title: 'Live Q&A Session',
-        course: 'CSC3003S',
-        instructor: 'Dr. Smith',
-        participants: 45
-      };
+      if (!validateResponse.data.is_valid) {
+        setJoinError('Invalid session code. Please check and try again.');
+        setIsJoining(false);
+        return;
+      }
 
-      setJoinedSession(session);
+      // Then join the session
+      const joinResponse = await joinSession({
+        session_code: sessionCode.toUpperCase()
+      });
+
+      setJoinedSession(joinResponse.data);
     } catch (error) {
-      setJoinError('Failed to join session. Please try again.');
+      console.error('Error joining session:', error);
+      setJoinError(error.response?.data?.error || 'Failed to join session. Please try again.');
     } finally {
       setIsJoining(false);
     }
@@ -42,17 +67,24 @@ const StudentQnAJoin = () => {
   const handleSubmitQuestion = async () => {
     if (!newQuestion.trim()) return;
 
-    const question = {
-      id: Date.now(),
-      text: newQuestion,
-      likes: 0,
-      submitted_at: new Date(),
-      is_anonymous: isAnonymous,
-      status: 'submitted'
-    };
+    setSubmitting(true);
+    try {
+      const payload = {
+        message_text: newQuestion,
+        is_anonymous: isAnonymous
+      };
 
-    setMyQuestions(prev => [question, ...prev]);
-    setNewQuestion('');
+      const response = await sendMessage(joinedSession.code, payload);
+      
+      // Add to my questions list
+      setMyQuestions(prev => [response.data, ...prev]);
+      setNewQuestion('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to submit question. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleLeaveSession = () => {
@@ -63,7 +95,8 @@ const StudentQnAJoin = () => {
     }
   };
 
-  const formatTime = (date) => {
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
     const now = new Date();
     const diff = Math.floor((now - date) / 1000);
     if (diff < 60) return `${diff}s ago`;
@@ -89,7 +122,7 @@ const StudentQnAJoin = () => {
           <div style={{
             width: '80px',
             height: '80px',
-            background: 'linear-gradient(135deg, #b9c0e6ff 0%, #3B82F6 100%)',
+            background: 'linear-gradient(135deg, #1935CA 0%, #3B82F6 100%)',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
@@ -176,17 +209,6 @@ const StudentQnAJoin = () => {
           >
             {isJoining ? 'Joining...' : 'Join Session'}
           </button>
-
-          <div style={{
-            marginTop: '24px',
-            padding: '16px',
-            background: '#F3F4F6',
-            borderRadius: '8px',
-            fontSize: '14px',
-            color: '#666'
-          }}>
-            Try any code to see the demo interface
-          </div>
         </div>
       </div>
     );
@@ -209,10 +231,10 @@ const StudentQnAJoin = () => {
       }}>
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: '600', margin: '0 0 4px 0' }}>
-            {joinedSession.title}
+            {joinedSession.session_title || 'Live Q&A Session'}
           </h1>
           <div style={{ fontSize: '14px', opacity: 0.9 }}>
-            {joinedSession.course} • Code: <strong>{joinedSession.code}</strong> • {joinedSession.participants} online
+            {joinedSession.course_code} • Code: <strong>{joinedSession.code}</strong>
           </div>
         </div>
 
@@ -256,6 +278,7 @@ const StudentQnAJoin = () => {
             value={newQuestion}
             onChange={(e) => setNewQuestion(e.target.value)}
             placeholder="Type your question here..."
+            maxLength={500}
             style={{
               width: '100%',
               minHeight: '120px',
@@ -300,20 +323,20 @@ const StudentQnAJoin = () => {
 
           <button
             onClick={handleSubmitQuestion}
-            disabled={!newQuestion.trim()}
+            disabled={!newQuestion.trim() || submitting}
             style={{
               width: '100%',
-              background: !newQuestion.trim() ? '#D1D5DB' : 'linear-gradient(135deg, #1935CA 0%, #3B82F6 100%)',
+              background: !newQuestion.trim() || submitting ? '#D1D5DB' : 'linear-gradient(135deg, #1935CA 0%, #3B82F6 100%)',
               color: 'white',
               border: 'none',
               padding: '14px',
               borderRadius: '8px',
               fontSize: '16px',
               fontWeight: '500',
-              cursor: !newQuestion.trim() ? 'not-allowed' : 'pointer'
+              cursor: !newQuestion.trim() || submitting ? 'not-allowed' : 'pointer'
             }}
           >
-            Submit Question
+            {submitting ? 'Submitting...' : 'Submit Question'}
           </button>
         </div>
 
@@ -346,7 +369,7 @@ const StudentQnAJoin = () => {
                     padding: '12px',
                     border: '1px solid #E5E7EB',
                     borderRadius: '8px',
-                    background: '#F9FAFB'
+                    background: question.is_highlighted ? '#FEF3C7' : '#F9FAFB'
                   }}
                 >
                   <div style={{
@@ -355,26 +378,26 @@ const StudentQnAJoin = () => {
                     marginBottom: '6px'
                   }}>
                     <div style={{
-                      background: '#6B7280',
+                      background: question.is_highlighted ? '#F59E0B' : '#6B7280',
                       color: 'white',
-                      padding: '1px 6px',
+                      padding: '2px 8px',
                       borderRadius: '8px',
                       fontSize: '10px',
                       textTransform: 'uppercase'
                     }}>
-                      {question.status}
+                      {question.is_highlighted ? 'highlighted' : question.is_answered ? 'answered' : 'submitted'}
                     </div>
                     <div style={{ fontSize: '12px', color: '#666' }}>
-                      👍 {question.likes}
+                      👍 {question.likes || 0}
                     </div>
                   </div>
 
                   <div style={{ fontSize: '14px', marginBottom: '6px' }}>
-                    {question.text}
+                    {question.message_text}
                   </div>
 
                   <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-                    {formatTime(question.submitted_at)} • {question.is_anonymous ? 'Anonymous' : 'Named'}
+                    {formatTime(question.created_at)} • {question.is_anonymous ? 'Anonymous' : 'Named'}
                   </div>
                 </div>
               ))}

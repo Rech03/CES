@@ -4,8 +4,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   getQuizForModeration, 
   updateQuizQuestions, 
-  publishQuiz, 
-  rejectQuiz,
+  publishQuiz,
   getAdaptiveQuiz
 } from '../../api/ai-quiz';
 import { getMyCourses } from '../../api/courses';
@@ -551,41 +550,6 @@ const QuizModeration = () => {
     }
   };
 
-  const handleReject = async () => {
-    // Use the original ID for API operations
-    const operationalId = quiz?.originalId || quizId;
-    
-    if (!operationalId || operationalId === 'undefined' || operationalId === 'null') {
-      setError('Cannot reject: Invalid quiz ID');
-      return;
-    }
-
-    // Don't allow rejecting published quizzes
-    if (isPublishedQuiz) {
-      setError('Cannot reject published quizzes.');
-      return;
-    }
-
-    const reason = window.prompt('Enter reason for rejection:');
-    if (!reason) return;
-
-    try {
-      setSaving(true);
-      console.log('Rejecting quiz ID:', operationalId);
-      await rejectQuiz(operationalId, { review_notes: reason });
-      setSuccess('Quiz rejected. Returning to dashboard...');
-      setTimeout(() => navigate('/LecturerDashboard'), 2000);
-    } catch (err) {
-      console.error('Error rejecting quiz:', err);
-      const errorMsg = err.response?.data?.detail || 
-                      err.response?.data?.message || 
-                      'Failed to reject quiz';
-      setError(errorMsg);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const getDifficultyColor = (difficulty) => {
     const colors = {
       easy: '#22c55e',
@@ -683,16 +647,6 @@ const QuizModeration = () => {
                 disabled={saving}
               >
                 {saving ? 'Publishing...' : 'Publish Quiz'}
-              </button>
-            )}
-            
-            {isEditable && (
-              <button 
-                onClick={handleReject}
-                className="btn-danger"
-                disabled={saving}
-              >
-                Reject
               </button>
             )}
           </div>

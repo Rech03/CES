@@ -4,7 +4,7 @@ import './App.css';
 
 // Student Components
 import STAchievements from './Views/Student/Achievements';
-import STAIQuizzes from './Views/Student/AIQuizzes';
+
 import STAnalytics from './Views/Student/Analytics';
 import STDashboard from './Views/Student/Dashboard';
 import STQuizCountdownPage from './Views/Student/QuizCountdownPage';
@@ -266,14 +266,7 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/AIQuizzes" 
-            element={
-              <ProtectedRoute allowedRoles={['student']}>
-                <STAIQuizzes />
-              </ProtectedRoute>
-            } 
-          />
+         
           <Route 
             path="/Analytics" 
             element={

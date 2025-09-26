@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getQuizExplanations } from '../../api/ai-quiz';
 import './QuizResultsPage.css';
 
 const QuizResultsPage = () => {
@@ -9,7 +8,6 @@ const QuizResultsPage = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [explanations, setExplanations] = useState(null);
   
   // Get results data from navigation state (from AI quiz submission)
   const resultsData = location.state || {
@@ -22,24 +20,10 @@ const QuizResultsPage = () => {
   };
 
   useEffect(() => {
-    const fetchExplanations = async () => {
-      if (resultsData.attempt_id && resultsData.quizData?.quizId) {
-        try {
-          console.log('Fetching AI quiz explanations...');
-          const explanationsResponse = await getQuizExplanations(
-            resultsData.quizData.quizId,
-            resultsData.attempt_id
-          );
-          setExplanations(explanationsResponse.data);
-        } catch (err) {
-          console.warn('Could not fetch explanations:', err);
-        }
-      }
-      setLoading(false);
-    };
-
-    fetchExplanations();
-  }, [resultsData.attempt_id, resultsData.quizData?.quizId]);
+    // Explanations are already included in resultsData from submission response
+    // No need to fetch separately - the backend returns them in submit_adaptive_quiz
+    setLoading(false);
+  }, []);
 
   // Calculate results from AI quiz response
   const calculateResults = () => {
