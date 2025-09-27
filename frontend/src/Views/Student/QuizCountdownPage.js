@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { getAdaptiveQuiz, checkQuizAccess } from '../../api/ai-quiz';
+import { getAdaptiveQuiz } from '../../api/ai-quiz';
 import './QuizCountdownPage.css';
 
 const QuizCountdownPage = () => {
@@ -44,15 +44,8 @@ const QuizCountdownPage = () => {
 
         console.log('Fetching published quiz details for adaptive quiz ID:', quizData.quizId);
 
-        // Check quiz access first using the adaptive quiz ID
-        const accessResponse = await checkQuizAccess(quizData.quizId);
-        const canAccess = accessResponse.data?.can_access !== false;
-        
-        if (!canAccess) {
-          throw new Error('You do not have access to this published quiz. It may have been unpublished or restricted.');
-        }
-
         // Fetch published quiz details using the adaptive quiz ID
+        // The backend getAdaptiveQuiz view already handles access control
         const quizResponse = await getAdaptiveQuiz(quizData.quizId);
         const fetchedQuizDetails = quizResponse.data;
 
