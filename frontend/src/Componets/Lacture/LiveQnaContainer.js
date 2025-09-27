@@ -17,7 +17,7 @@ const Toast = ({ message, type, onClose }) => {
   const colors = {
     success: { bg: '#10B981', icon: '✓' },
     error: { bg: '#EF4444', icon: '✕' },
-    info: { bg: '#3B82F6', icon: 'ℹ' }
+    info: { bg: '#1d4ed8', icon: 'ℹ' }
   };
 
   const color = colors[type] || colors.info;
@@ -60,16 +60,16 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
     const fetchMessages = async () => {
       try {
         const sessionId = session.id || session.session_id;
-        const sessionCode = session.code || session.session_code;
         
         if (!sessionId) {
           console.error('No session ID available:', session);
           return;
         }
         
-        console.log('Fetching messages for session ID:', sessionId);
         const response = await getSessionMessages(sessionId);
-        const sortedQuestions = [...response.data].sort((a, b) => 
+        const messagesArray = response.data.messages || response.data || [];
+        
+        const sortedQuestions = [...messagesArray].sort((a, b) => 
           (b.likes || 0) - (a.likes || 0)
         );
         setQuestions(sortedQuestions);
@@ -116,9 +116,10 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
     return (
       <div style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
         display: 'flex', flexDirection: 'column', color: 'white',
-        fontFamily: 'Poppins, sans-serif'
+        fontFamily: 'Poppins, sans-serif',
+        zIndex: 9999
       }}>
         <div style={{
           padding: '20px 40px', display: 'flex',
@@ -162,7 +163,7 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
             maxWidth: '900px', lineHeight: '1.3', marginBottom: '40px',
             animation: 'fadeIn 0.5s ease'
           }}>
-            {currentQ.message_text}
+            {currentQ.text || currentQ.message_text || currentQ.message || 'No message'}
           </div>
 
           <div style={{
@@ -208,7 +209,7 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
           <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             background: 'rgba(0,0,0,0.8)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', zIndex: 2000
+            alignItems: 'center', justifyContent: 'center', zIndex: 10000
           }} onClick={() => setShowCodeModal(false)}>
             <div style={{
               background: 'white', padding: '48px', borderRadius: '24px',
@@ -218,7 +219,7 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
                 Students Join With:
               </h2>
               <div style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
                 color: 'white', padding: '32px', borderRadius: '16px',
                 fontSize: '72px', fontWeight: 'bold', letterSpacing: '8px',
                 marginBottom: '24px'
@@ -269,7 +270,7 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
               Session Code: <strong style={{ color: '#1935CA' }}>{displayCode}</strong> • {questions.length} Questions
             </div>
             <button onClick={() => setShowCodeModal(true)} style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
               color: 'white', border: 'none', padding: '6px 16px',
               borderRadius: '6px', fontSize: '12px', fontWeight: '600',
               cursor: 'pointer'
@@ -311,7 +312,7 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
             <p style={{ fontSize: '18px', margin: '0 0 16px 0', fontWeight: '600', color: '#1935CA' }}>
               Students join with code: <span style={{ 
                 fontSize: '32px', 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 fontWeight: 'bold'
@@ -332,7 +333,8 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
               </h3>
               {questions.length > 0 && (
                 <button onClick={() => setViewMode('fullscreen')} style={{
-                  background: '#667eea', color: 'white', border: 'none',
+                  background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', 
+                  color: 'white', border: 'none',
                   padding: '10px 20px', borderRadius: '8px',
                   cursor: 'pointer', fontSize: '14px', fontWeight: '600'
                 }}>
@@ -352,7 +354,7 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
                   style={{
                     background: question.is_highlighted 
                       ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'
-                      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      : 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
                     borderRadius: '16px', padding: '24px',
                     color: 'white', position: 'relative',
                     minHeight: '140px', display: 'flex',
@@ -371,7 +373,7 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
                     fontSize: '18px', lineHeight: '1.5',
                     marginBottom: 'auto', fontWeight: '500'
                   }}>
-                    {question.message_text}
+                    {question.text || question.message_text || question.message || 'No message'}
                   </div>
 
                   <div style={{
@@ -409,7 +411,7 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
               Students Join With:
             </h2>
             <div style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
               color: 'white', padding: '32px', borderRadius: '16px',
               fontSize: '72px', fontWeight: 'bold', letterSpacing: '8px',
               marginBottom: '24px'
@@ -456,7 +458,6 @@ const LecturesView = ({ course, onBackToCourses, onStartSession, onViewPastSessi
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Get lectures/topics from course
         let lecturesData = [];
         if (course.lectures && Array.isArray(course.lectures)) {
           lecturesData = course.lectures;
@@ -472,7 +473,6 @@ const LecturesView = ({ course, onBackToCourses, onStartSession, onViewPastSessi
         
         setLectures(sortedLectures);
 
-        // Get past sessions
         try {
           const sessionsResponse = await getLecturerSessions({ course_id: course.id });
           setPastSessions(sessionsResponse.data || []);
@@ -514,13 +514,8 @@ const LecturesView = ({ course, onBackToCourses, onStartSession, onViewPastSessi
         description: `Live Q&A session for ${course.name}`
       };
 
-      console.log('Creating session with payload:', payload);
       const response = await createLiveSession(payload);
-      
-      // Backend returns: { message: '...', session: { id, code, ... } }
       const sessionData = response.data.session || response.data;
-      
-      console.log('Session created:', sessionData);
       
       setToast({ message: `Session created! Code: ${sessionData.code}`, type: 'success' });
       
@@ -536,7 +531,6 @@ const LecturesView = ({ course, onBackToCourses, onStartSession, onViewPastSessi
       }, 1000);
     } catch (err) {
       console.error('Error creating session:', err);
-      console.error('Error details:', err.response?.data);
       const errorMessage = err.response?.data?.course?.[0] 
         || err.response?.data?.error 
         || 'Failed to create session';
@@ -582,7 +576,6 @@ const LecturesView = ({ course, onBackToCourses, onStartSession, onViewPastSessi
         </p>
       </div>
 
-      {/* Start New Session */}
       <div onClick={() => !creating && handleStartSession()} style={{
         background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
         color: 'white', padding: '32px', borderRadius: '16px',
@@ -604,7 +597,6 @@ const LecturesView = ({ course, onBackToCourses, onStartSession, onViewPastSessi
         <div style={{ fontSize: '48px' }}>🚀</div>
       </div>
 
-      {/* Lecture Tiles */}
       {lectures.length > 0 && (
         <>
           <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#374151', marginBottom: '20px' }}>
@@ -657,7 +649,6 @@ const LecturesView = ({ course, onBackToCourses, onStartSession, onViewPastSessi
         </>
       )}
 
-      {/* Past Sessions */}
       {pastSessions.length > 0 && (
         <>
           <h3 style={{ fontSize: '20px', fontWeight: '600', color: '#374151', marginBottom: '20px' }}>
