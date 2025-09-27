@@ -52,7 +52,7 @@ class Course(models.Model):
         """Get total AI quizzes across all topics"""
         from ai_quiz.models import AdaptiveQuiz
         return AdaptiveQuiz.objects.filter(
-            lecture_slide__topic__course=self,  # Correct path: AdaptiveQuiz -> LectureSlide -> Topic -> Course
+            lecture_slide__topic__course=self,  
             is_active=True
         ).count()
     
@@ -108,7 +108,7 @@ class Topic(models.Model):
         try:
             from ai_quiz.models import AdaptiveQuiz
             return AdaptiveQuiz.objects.filter(
-                lecture_slide__topic=self  # Correct path: AdaptiveQuiz -> LectureSlide -> Topic
+                lecture_slide__topic=self 
             ).count()
         except ImportError:
             return 0

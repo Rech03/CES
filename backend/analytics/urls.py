@@ -12,7 +12,6 @@ urlpatterns = [
     
     # Student analytics
     path('student/dashboard/', views.student_analytics_dashboard, name='student_analytics_dashboard'),
-    path('student/engagement-heatmap/', views.student_engagement_heatmap, name='student_engagement_heatmap'),
     
     # DETAILED STATISTICS ENDPOINTS
     path('quiz/<int:quiz_id>/stats/', views.quiz_statistics, name='quiz_statistics'),

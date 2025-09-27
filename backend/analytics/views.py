@@ -358,53 +358,6 @@ def student_analytics_dashboard(request):
     return Response(dashboard_data)
 
 
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated, IsStudentPermission])
-def student_engagement_heatmap(request):
-    """Get engagement heatmap data for student"""
-    student = request.user
-    year = int(request.query_params.get('year', timezone.now().year))
-    month = int(request.query_params.get('month', timezone.now().month))
-    
-    # Get engagement data for the specified month
-    start_date = datetime(year, month, 1).date()
-    if month == 12:
-        end_date = datetime(year + 1, 1, 1).date() - timedelta(days=1)
-    else:
-        end_date = datetime(year, month + 1, 1).date() - timedelta(days=1)
-    
-    engagements = DailyEngagement.objects.filter(
-        student=student,
-        date__gte=start_date,
-        date__lte=end_date
-    )
-    
-    # Create engagement map
-    engagement_map = {engagement.date.day: engagement.engaged for engagement in engagements}
-    
-    # Build calendar data
-    cal = calendar.monthcalendar(year, month)
-    engagement_data = []
-    
-    for week in cal:
-        week_data = []
-        for day in week:
-            if day == 0:  # Empty day
-                week_data.append(None)
-            else:
-                week_data.append({
-                    'day': day,
-                    'engaged': engagement_map.get(day, False),
-                    'date': f"{year}-{month:02d}-{day:02d}"
-                })
-        engagement_data.append(week_data)
-    
-    return Response({
-        'year': year,
-        'month': month,
-        'engagement_data': engagement_data,
-        'month_name': calendar.month_name[month]
-    })
 
 
 @api_view(['GET'])

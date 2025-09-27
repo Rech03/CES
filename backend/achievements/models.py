@@ -15,7 +15,7 @@ class BadgeType(models.Model):
     
     BADGE_RARITIES = [
         ('common', 'Common'),
-        ('earned', 'Earned'),
+        ('rare', 'Rare'),  # FIXED: was 'earned'
         ('gold', 'Gold'),
         ('legendary', 'Legendary'),
     ]
@@ -130,32 +130,6 @@ class StudentAchievement(models.Model):
         if attempts.exists():
             self.total_quizzes_completed = attempts.count()
             self.perfect_scores = attempts.filter(score_percentage=100).count()
-            self.average_score = attempts.aggregate(
-                avg=models.Avg('score_percentage')
-            )['avg'] or 0
-    
-            # Calculate total study time from AI quiz attempts
-            total_duration = timezone.timedelta()
-            for attempt in attempts:
-                if attempt.completed_at and attempt.started_at:
-                    duration = attempt.completed_at - attempt.started_at
-                    total_duration += duration
-            self.total_study_time = total_duration
-
-        self.save()
-    def update_ai_quiz_stats(self):
-        """Update StudentAchievement stats based on AI quiz attempts"""
-        from ai_quiz.models import AdaptiveQuizAttempt
-
-        attempts = AdaptiveQuizAttempt.objects.filter(
-            progress__student=self.student
-        )
-
-        if attempts.exists():
-            self.total_quizzes_completed = attempts.count()
-            # Perfect scores in AI quizzes (100%)
-            self.perfect_scores = attempts.filter(score_percentage=100).count()
-            # Average score across all AI quiz attempts
             self.average_score = attempts.aggregate(
                 avg=models.Avg('score_percentage')
             )['avg'] or 0

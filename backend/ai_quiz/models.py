@@ -211,7 +211,9 @@ class StudentAdaptiveProgress(models.Model):
             try:
                 next_quiz = AdaptiveQuiz.objects.get(
                     lecture_slide=lecture_slide,
-                    difficulty=next_difficulty
+                    difficulty=next_difficulty,
+                    status='published',  # FIXED: Only unlock published quizzes
+                    is_active=True       # FIXED: Only unlock active quizzes
                 )
                 
                 # Create or update progress for next level

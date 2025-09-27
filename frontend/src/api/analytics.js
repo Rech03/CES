@@ -40,8 +40,7 @@ export const getProgressAnalytics = (params) => api.get('analytics/progress-anal
 // STUDENT PERFORMANCE ANALYTICS
 export const getStudentPerformanceBreakdown = (params) => api.get('analytics/student/performance-breakdown/', { params });
 export const getDifficultyProgression = (params) => api.get('analytics/difficulty-progression/', { params }); // { student_id?, course_id? }
-export const getAttendanceVerification = (params) => api.get('analytics/attendance-verification/', { params }); // { course_id?, date_range? }\
-export const getStudentEngagementHeatmap = (params) => api.get('analytics/student/engagement-heatmap/', { params });
+export const getAttendanceVerification = (params) => api.get('analytics/attendance-verification/', { params }); // { course_id?, date_range? }
 
 // INTERVENTION AND ENGAGEMENT
 export const getStudentsNeedingAttention = (courseId) => api.get(`analytics/course/${courseId}/students-needing-attention/`);

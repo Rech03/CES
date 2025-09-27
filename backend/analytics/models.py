@@ -45,103 +45,6 @@ class StudentEngagementMetrics(models.Model):
         unique_together = ('student', 'course')
         ordering = ['-average_quiz_score']
     
-    def calculate_metrics(self):
-        """Calculate metrics from both traditional and adaptive quizzes"""
-        from ai_quiz.models import AdaptiveQuizAttempt
-    
-        # Get AI quiz attempts (primary source now)
-        ai_attempts = AdaptiveQuizAttempt.objects.filter(
-            progress__student=self.student,
-            progress__adaptive_quiz__lecture_slide__topic__course=self.course
-        )
-    
-        if ai_attempts.exists():
-            self.total_quizzes_taken = ai_attempts.count()
-            self.total_quiz_score = sum(attempt.score_percentage for attempt in ai_attempts)
-            self.average_quiz_score = self.total_quiz_score / self.total_quizzes_taken
-        
-            # Update performance category based on AI quiz scores
-            if self.average_quiz_score < 50:
-                self.performance_category = 'danger'
-            elif self.average_quiz_score < 70:
-                self.performance_category = 'good'
-            else:
-                self.performance_category = 'excellent'
-            
-            latest_attempt = ai_attempts.order_by('-started_at').first()
-            if latest_attempt:
-                self.last_quiz_date = latest_attempt.started_at.date()
-        self.save()
-    
-    def calculate_consecutive_ai_quiz_misses(self):
-        """Calculate consecutive missed AI quiz opportunities"""
-        from ai_quiz.models import AdaptiveQuiz, AdaptiveQuizAttempt
-    
-        # Get all available AI quizzes for this course (only easy level for attendance)
-        available_quizzes = AdaptiveQuiz.objects.filter(
-            lecture_slide__topic__course=self.course,
-            difficulty='easy',  # Only easy quizzes count for attendance
-            is_active=True
-        ).order_by('-created_at')[:10]  # Check last 10 available quizzes
-    
-        consecutive_misses = 0
-        for quiz in available_quizzes:
-            attempt_exists = AdaptiveQuizAttempt.objects.filter(
-                progress__student=self.student,
-                progress__adaptive_quiz=quiz
-            ).exists()
-        
-            if not attempt_exists:
-                consecutive_misses += 1
-            else:
-                break  # Stop counting when we find an attempt
-    
-        self.consecutive_missed_quizzes = consecutive_misses
-    
-        # Trigger intervention email if needed (3+ missed AI quizzes)
-        if consecutive_misses >= 3 and not self.intervention_email_sent:
-            self.send_intervention_email()
-    
-        def send_intervention_email(self):
-            """Send intervention email to student"""
-            from django.core.mail import send_mail
-            from django.conf import settings
-        
-            subject = f"Course Engagement Alert - {self.course.code}"
-            message = f"""
-            Dear {self.student.get_full_name()},
-        
-            We've noticed you've missed 3 consecutive quizzes in {self.course.name} ({self.course.code}).
-        
-            If you need help or support, please reach out to your lecturer:
-            {self.course.lecturer.get_full_name()} - {self.course.lecturer.email}
-        
-            We're here to help you succeed!
-        
-            Best regards,
-            Amandla Course Engagement System
-
-            """
-        
-            try:
-                send_mail(
-                    subject,
-                    message,
-                    settings.DEFAULT_FROM_EMAIL,
-                    [self.student.email],
-                    fail_silently=False,
-                )
-                self.intervention_email_sent = True
-                self.save()
-            except Exception as e:
-                print(f"Failed to send intervention email: {e}")
-    
-    def reset_intervention_status(self):
-        """Reset intervention status when student re-engages"""
-        if self.consecutive_missed_quizzes == 0:
-            self.intervention_email_sent = False
-            self.save()
-
     def calculate_ai_quiz_metrics(self):
         """Calculate and update metrics based on AI quiz attempts"""
         from ai_quiz.models import AdaptiveQuizAttempt
@@ -182,7 +85,8 @@ class StudentEngagementMetrics(models.Model):
         # Get all available AI quizzes for this course (only easy level for attendance)
         available_quizzes = AdaptiveQuiz.objects.filter(
             lecture_slide__topic__course=self.course,
-            difficulty='easy',  # Only easy quizzes count for attendance
+            difficulty='easy',
+            status='published',  # FIXED: Only check published quizzes
             is_active=True
         ).order_by('-created_at')[:10]  # Check last 10 available quizzes
     
@@ -203,33 +107,45 @@ class StudentEngagementMetrics(models.Model):
         # Trigger intervention email if needed (3+ missed AI quizzes)
         if consecutive_misses >= 3 and not self.intervention_email_sent:
             self.send_intervention_email()
-
-    def update_ai_quiz_stats(self):
-        """Update StudentAchievement stats based on AI quiz attempts"""
-        from ai_quiz.models import AdaptiveQuizAttempt
     
-        attempts = AdaptiveQuizAttempt.objects.filter(
-            progress__student=self.student
-        )
+    def send_intervention_email(self):
+        """Send intervention email to student"""
+        from django.core.mail import send_mail
+        from django.conf import settings
     
-        if attempts.exists():
-            self.total_quizzes_completed = attempts.count()
-            # Perfect scores in AI quizzes (100%)
-            self.perfect_scores = attempts.filter(score_percentage=100).count()
-            # Average score across all AI quiz attempts
-            self.average_score = attempts.aggregate(
-                avg=models.Avg('score_percentage')
-            )['avg'] or 0
-        
-            # Calculate total study time from AI quiz attempts
-            total_duration = timezone.timedelta()
-            for attempt in attempts:
-                if attempt.completed_at and attempt.started_at:
-                    duration = attempt.completed_at - attempt.started_at
-                    total_duration += duration
-            self.total_study_time = total_duration
+        subject = f"Course Engagement Alert - {self.course.code}"
+        message = f"""
+        Dear {self.student.get_full_name()},
     
-        self.save()
+        We've noticed you've missed 3 consecutive quizzes in {self.course.name} ({self.course.code}).
+    
+        If you need help or support, please reach out to your lecturer:
+        {self.course.lecturer.get_full_name()} - {self.course.lecturer.email}
+    
+        We're here to help you succeed!
+    
+        Best regards,
+        Amandla Course Engagement System
+        """
+    
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [self.student.email],
+                fail_silently=False,
+            )
+            self.intervention_email_sent = True
+            self.save()
+        except Exception as e:
+            print(f"Failed to send intervention email: {e}")
+    
+    def reset_intervention_status(self):
+        """Reset intervention status when student re-engages"""
+        if self.consecutive_missed_quizzes == 0:
+            self.intervention_email_sent = False
+            self.save()
     
     def __str__(self):
         return f"{self.student.get_full_name()} - {self.course.code} ({self.performance_category})"
@@ -271,4 +187,4 @@ class DailyEngagement(models.Model):
         return engagement
     
     def __str__(self):
-        return f"{self.student.get_full_name()} - {self.date} ({'correct' if self.engaged else 'wrong'})"
+        return f"{self.student.get_full_name()} - {self.date} ({'engaged' if self.engaged else 'not engaged'})"

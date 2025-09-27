@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.authentication import TokenAuthentication
 from django.utils import timezone
 from django.db import transaction
-from django.db.models import Avg, Count, Sum
+from django.db.models import Avg, Count, Sum, Q
 
 from .models import LectureSlide, AdaptiveQuiz, StudentAdaptiveProgress, AdaptiveQuizAttempt
 from .serializers import (
@@ -187,7 +187,6 @@ def student_available_slides(request):
         is_active=True
     ).values_list('course_id', flat=True)
     
-    # Fix: Remove the problematic filter
     slides = LectureSlide.objects.filter(
         topic__course_id__in=enrolled_course_ids,
         questions_generated=True
@@ -319,7 +318,6 @@ def submit_adaptive_quiz(request):
                     progress__adaptive_quiz=adaptive_quiz
                 ).order_by('-started_at').first()
                 
-                # ATTENDANCE INTEGRATION
                 # Mark attendance for ANY AI quiz completion (easy level sufficient)
                 from courses.models import Attendance
                 course = adaptive_quiz.lecture_slide.topic.course
@@ -333,7 +331,6 @@ def submit_adaptive_quiz(request):
                     }
                 )
                 
-                # ANALYTICS INTEGRATION
                 # Update student engagement metrics for analytics
                 from analytics.models import StudentEngagementMetrics
                 try:
@@ -350,7 +347,6 @@ def submit_adaptive_quiz(request):
                 from analytics.models import DailyEngagement
                 DailyEngagement.mark_engagement(student)
                 
-                # ACHIEVEMENTS INTEGRATION
                 # Process achievements for AI quiz completion
                 from achievements.services import AchievementService
                 try:
@@ -942,8 +938,7 @@ def get_student_quiz_summary(request):
                 'slide_title': attempt.progress.adaptive_quiz.lecture_slide.title,
                 'course_code': attempt.progress.adaptive_quiz.lecture_slide.topic.course.code,
                 'difficulty': attempt.progress.adaptive_quiz.difficulty,
-                'score': attempt.score,
-                'completed': attempt.completed,
+                'score': attempt.score_percentage,
                 'started_at': attempt.started_at,
                 'completed_at': attempt.completed_at
             })
@@ -1030,8 +1025,8 @@ def get_lecturer_available_quizzes(request):
         ).values('adaptive_quiz_id').annotate(
             total_students=Count('student', distinct=True),
             total_attempts=Sum('attempts_count'),
-            completed_count=Count('id', filter=models.Q(completed=True)),
-            avg_score=Avg('best_score', filter=models.Q(completed=True))
+            completed_count=Count('id', filter=Q(completed=True)),
+            avg_score=Avg('best_score', filter=Q(completed=True))
         )
         
         # Create lookup dictionary for progress stats

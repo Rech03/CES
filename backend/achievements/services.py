@@ -1,10 +1,9 @@
 from django.utils import timezone
+from django.db import models
 from django.db.models import Avg, Count
 from datetime import timedelta
 
 from .models import StudentAchievement, BadgeType, EarnedBadge, DailyActivity
-
-from achievements import models
 
 
 class AchievementService:
@@ -147,66 +146,6 @@ class AchievementService:
         
         return requirements
     
-    # @classmethod
-    # def process_quiz_completion(cls, student, adaptive_quiz_attempt):
-    #     """Process achievements for AI quiz completion"""
-    #     from ai_quiz.models import AdaptiveQuizAttempt
-    
-    #     # Get student achievement record
-    #     achievement, created = StudentAchievement.objects.get_or_create(student=student)
-    #     achievement.update_ai_quiz_stats()  # New method to handle AI quizzes
-    #     achievement.update_streak()
-    
-    #     # Calculate XP based on difficulty and performance
-    #     base_xp = 50
-    #     difficulty_multiplier = {'easy': 1, 'medium': 1.5, 'hard': 2.0}
-    #     score_bonus = int(adaptive_quiz_attempt.score_percentage * 2)
-    
-    #     difficulty = adaptive_quiz_attempt.progress.adaptive_quiz.difficulty
-    #     total_xp = int((base_xp * difficulty_multiplier[difficulty]) + score_bonus)
-    
-    #     achievement.add_xp(total_xp)
-    
-    #     # Check for new badges
-    #     new_badges = cls.check_and_award_badges(student)
-    
-    #     return {
-    #         'xp_earned': total_xp,
-    #         'total_xp': achievement.total_xp,
-    #         'level': achievement.level,
-    #         'new_badges': new_badges,
-    #         'streak': achievement.current_streak
-    #     }
-    
-    # @classmethod
-    # def _calculate_time_bonus(cls, quiz_attempt):
-    #     """Calculate time bonus for quiz completion speed"""
-    #     if not quiz_attempt.time_taken:
-    #         return 0
-        
-    #     # Get average time for this quiz
-    #     from ai_quiz import AdaptiveQuizAttempt
-    #     avg_time = AdaptiveQuizAttempt.objects.filter(
-    #         quiz=quiz_attempt.quiz,
-    #         is_completed=True,
-    #         time_taken__isnull=False
-    #     ).aggregate(avg=Avg('time_taken'))['avg']
-        
-    #     if not avg_time:
-    #         return 10  # Default bonus if no average available
-        
-    #     # Bonus for completing faster than average
-    #     time_ratio = quiz_attempt.time_taken.total_seconds() / avg_time.total_seconds()
-        
-    #     if time_ratio < 0.8:  # Completed in less than 80% of average time
-    #         return 25
-    #     elif time_ratio < 0.9:  # Completed in less than 90% of average time
-    #         return 15
-    #     elif time_ratio < 1.0:  # Completed faster than average
-    #         return 10
-    #     else:
-    #         return 5  # Small bonus for completion
-    
     @classmethod
     def ensure_student_achievement_exists(cls, student):
         """Ensure StudentAchievement record exists for student"""
@@ -222,11 +161,11 @@ class AchievementService:
     
         # Update achievement stats
         achievement, created = StudentAchievement.objects.get_or_create(student=student)
-        achievement.update_ai_quiz_stats()  
+        achievement.update_stats()
         achievement.update_streak()
     
         # Calculate XP based on AI quiz performance and difficulty
-        base_xp = 50  # Base XP for completing any AI quiz
+        base_xp = 50
     
         # Difficulty multipliers
         difficulty_multipliers = {
@@ -294,7 +233,7 @@ class AchievementService:
         ).exclude(id=adaptive_quiz_attempt.id)
     
         if not avg_time_attempts.exists():
-            return 10  # Default bonus if no comparison data
+            return 10
     
         # Calculate average time for this difficulty
         total_seconds = 0
@@ -313,14 +252,14 @@ class AchievementService:
         # Bonus for completing faster than average
         time_ratio = attempt_duration / avg_seconds
     
-        if time_ratio < 0.7:  # Much faster than average
+        if time_ratio < 0.7:
             return 30
-        elif time_ratio < 0.8:  # Faster than average
+        elif time_ratio < 0.8:
             return 20
-        elif time_ratio < 0.9:  # Slightly faster
+        elif time_ratio < 0.9:
             return 15
         else:
-            return 5  # Small bonus for completion
+            return 5
 
     @classmethod
     def check_and_award_ai_quiz_badges(cls, student):

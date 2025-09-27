@@ -168,7 +168,7 @@ def dashboard_data(request):
             'user_type': 'lecturer',
             'user': LecturerSerializer(user).data,
             'stats': {
-                # Will implement when course models are ready
+                # Didn't see the need to implement this but sanity sake we kept it here 
             },
         }
     elif user.user_type == 'admin':

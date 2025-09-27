@@ -1,5 +1,3 @@
-# analytics/services.py
-
 import json
 import time
 import requests
@@ -225,7 +223,7 @@ class AdaptiveQuizService:
         quizzes = AdaptiveQuiz.objects.filter(
             lecture_slide=lecture_slide,
             is_active=True,
-            status = 'published'
+            status='published'
         ).order_by('difficulty')
         
         quiz_info_list = []
@@ -279,7 +277,8 @@ class AdaptiveQuizService:
                 previous_quiz = AdaptiveQuiz.objects.get(
                     lecture_slide=lecture_slide,
                     difficulty=previous_difficulty,
-                    is_active=True
+                    is_active=True,
+                    status='published'  # FIXED: Only check published quizzes
                 )
                 
                 previous_progress = StudentAdaptiveProgress.objects.get(
