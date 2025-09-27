@@ -1,4 +1,69 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { validateSessionCode, joinSession, sendMessage, getSessionMessagesStudent } from '../../api/live-qna';
+
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 4000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const colors = {
+    success: { bg: '#10B981', icon: '✓' },
+    error: { bg: '#EF4444', icon: '✕' },
+    info: { bg: '#3B82F6', icon: 'ℹ' }
+  };
+
+  const color = colors[type] || colors.info;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: '20px',
+      right: '20px',
+      background: color.bg,
+      color: 'white',
+      padding: '16px 24px',
+      borderRadius: '12px',
+      boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      zIndex: 10000,
+      animation: 'slideIn 0.3s ease-out',
+      fontFamily: 'Poppins, sans-serif',
+      maxWidth: '400px'
+    }}>
+      <div style={{
+        width: '24px',
+        height: '24px',
+        background: 'rgba(255,255,255,0.2)',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 'bold'
+      }}>
+        {color.icon}
+      </div>
+      <div style={{ flex: 1, fontSize: '14px' }}>{message}</div>
+      <button onClick={onClose} style={{
+        background: 'none',
+        border: 'none',
+        color: 'white',
+        cursor: 'pointer',
+        fontSize: '20px',
+        padding: 0,
+        opacity: 0.8
+      }}>×</button>
+      <style>{`
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+};
 
 const StudentQnAJoin = () => {
   const [sessionCode, setSessionCode] = useState('');
@@ -8,6 +73,38 @@ const StudentQnAJoin = () => {
   const [newQuestion, setNewQuestion] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [myQuestions, setMyQuestions] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (!joinedSession) return;
+
+    const fetchMessages = async () => {
+      try {
+        const response = await getSessionMessagesStudent(joinedSession.code);
+        
+        console.log('Fetched messages response:', response.data);
+        
+        // Backend returns { session: {...}, messages: [...] }
+        const messages = response.data.messages || response.data || [];
+        
+        console.log('All messages:', messages);
+        
+        // Since backend doesn't send is_mine flag, we need to identify by user
+        // For now, show ALL messages as "my questions" since students can only see their own
+        const studentQuestions = Array.isArray(messages) ? messages : [];
+        
+        console.log('Student questions:', studentQuestions);
+        setMyQuestions(studentQuestions);
+      } catch (err) {
+        console.error('Error fetching messages:', err);
+      }
+    };
+
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 3000);
+    return () => clearInterval(interval);
+  }, [joinedSession]);
 
   const handleJoinSession = async () => {
     if (!sessionCode.trim()) {
@@ -19,40 +116,117 @@ const StudentQnAJoin = () => {
     setJoinError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const validateResponse = await validateSessionCode(sessionCode);
       
-      // Mock successful join - you can test with any code
-      const session = {
-        id: 1,
-        code: sessionCode.toUpperCase(),
-        title: 'Live Q&A Session',
-        course: 'CSC3003S',
-        instructor: 'Dr. Smith',
-        participants: 45
-      };
+      // Backend returns { valid: true, session: {...} }
+      if (!validateResponse.data.valid) {
+        setJoinError('Invalid session code. Please check and try again.');
+        setIsJoining(false);
+        return;
+      }
 
-      setJoinedSession(session);
+      const joinResponse = await joinSession({
+        session_code: sessionCode.toUpperCase()
+      });
+
+      // Merge session data from both responses
+      setJoinedSession({
+        code: sessionCode.toUpperCase(),
+        ...joinResponse.data,
+        ...validateResponse.data.session
+      });
     } catch (error) {
-      setJoinError('Failed to join session. Please try again.');
+      console.error('Error joining session:', error);
+      setJoinError(error.response?.data?.error || 'Failed to join session. Please try again.');
     } finally {
       setIsJoining(false);
     }
   };
 
   const handleSubmitQuestion = async () => {
-    if (!newQuestion.trim()) return;
+    console.log('=== SUBMIT QUESTION CALLED ===');
+    console.log('Question text:', newQuestion);
+    console.log('Is anonymous:', isAnonymous);
+    
+    if (!newQuestion.trim()) {
+      console.log('Question is empty, returning');
+      return;
+    }
 
-    const question = {
-      id: Date.now(),
-      text: newQuestion,
-      likes: 0,
-      submitted_at: new Date(),
-      is_anonymous: isAnonymous,
-      status: 'submitted'
-    };
+    setSubmitting(true);
+    
+    // Try with 'text' first (most common)
+    try {
+      const payload = {
+        text: newQuestion,
+        is_anonymous: isAnonymous
+      };
 
-    setMyQuestions(prev => [question, ...prev]);
-    setNewQuestion('');
+      console.log('Attempt 1: Trying with "text" field:', payload);
+      const response = await sendMessage(joinedSession.code, payload);
+      
+      console.log('SUCCESS! Response:', response.data);
+      const questionData = response.data.data || response.data;
+      setMyQuestions(prev => [questionData, ...prev]);
+      setNewQuestion('');
+      setToast({ message: 'Question submitted successfully!', type: 'success' });
+      setSubmitting(false);
+      return;
+    } catch (error) {
+      console.log('Attempt 1 failed:', error.response?.data);
+    }
+    
+    // Try with 'message_text'
+    try {
+      const payload = {
+        message_text: newQuestion,
+        is_anonymous: isAnonymous
+      };
+
+      console.log('Attempt 2: Trying with "message_text" field:', payload);
+      const response = await sendMessage(joinedSession.code, payload);
+      
+      console.log('SUCCESS! Response:', response.data);
+      const questionData = response.data.data || response.data;
+      setMyQuestions(prev => [questionData, ...prev]);
+      setNewQuestion('');
+      setToast({ message: 'Question submitted successfully!', type: 'success' });
+      setSubmitting(false);
+      return;
+    } catch (error) {
+      console.log('Attempt 2 failed:', error.response?.data);
+    }
+    
+    // Try with 'message'
+    try {
+      const payload = {
+        message: newQuestion,
+        is_anonymous: isAnonymous
+      };
+
+      console.log('Attempt 3: Trying with "message" field:', payload);
+      const response = await sendMessage(joinedSession.code, payload);
+      
+      console.log('SUCCESS! Response:', response.data);
+      const questionData = response.data.data || response.data;
+      setMyQuestions(prev => [questionData, ...prev]);
+      setNewQuestion('');
+      setToast({ message: 'Question submitted successfully!', type: 'success' });
+      setSubmitting(false);
+      return;
+    } catch (error) {
+      console.log('Attempt 3 failed:', error.response?.data);
+      
+      // Show final error
+      let errorMessage = 'Failed to submit question';
+      if (error.response?.data) {
+        const data = error.response.data;
+        errorMessage = JSON.stringify(data);
+      }
+      
+      setToast({ message: errorMessage, type: 'error' });
+      setSubmitting(false);
+    }
   };
 
   const handleLeaveSession = () => {
@@ -63,7 +237,8 @@ const StudentQnAJoin = () => {
     }
   };
 
-  const formatTime = (date) => {
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
     const now = new Date();
     const diff = Math.floor((now - date) / 1000);
     if (diff < 60) return `${diff}s ago`;
@@ -89,7 +264,7 @@ const StudentQnAJoin = () => {
           <div style={{
             width: '80px',
             height: '80px',
-            background: 'linear-gradient(135deg, #b9c0e6ff 0%, #3B82F6 100%)',
+            background: 'linear-gradient(135deg, #1935CA 0%, #3B82F6 100%)',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
@@ -176,17 +351,6 @@ const StudentQnAJoin = () => {
           >
             {isJoining ? 'Joining...' : 'Join Session'}
           </button>
-
-          <div style={{
-            marginTop: '24px',
-            padding: '16px',
-            background: '#F3F4F6',
-            borderRadius: '8px',
-            fontSize: '14px',
-            color: '#666'
-          }}>
-            Try any code to see the demo interface
-          </div>
         </div>
       </div>
     );
@@ -198,7 +362,8 @@ const StudentQnAJoin = () => {
       backgroundColor: '#f5f5f5',
       minHeight: '100vh'
     }}>
-      {/* Header */}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      
       <div style={{
         background: 'linear-gradient(135deg, #1935CA 0%, #3B82F6 100%)',
         color: 'white',
@@ -209,10 +374,10 @@ const StudentQnAJoin = () => {
       }}>
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: '600', margin: '0 0 4px 0' }}>
-            {joinedSession.title}
+            {joinedSession.title || joinedSession.session_title || 'Live Q&A Session'}
           </h1>
           <div style={{ fontSize: '14px', opacity: 0.9 }}>
-            {joinedSession.course} • Code: <strong>{joinedSession.code}</strong> • {joinedSession.participants} online
+            {joinedSession.course_code || joinedSession.course_name} • Code: <strong>{joinedSession.code}</strong>
           </div>
         </div>
 
@@ -240,7 +405,6 @@ const StudentQnAJoin = () => {
         maxWidth: '1200px',
         margin: '0 auto'
       }}>
-        {/* Question Submission */}
         <div style={{
           background: 'white',
           borderRadius: '12px',
@@ -256,6 +420,7 @@ const StudentQnAJoin = () => {
             value={newQuestion}
             onChange={(e) => setNewQuestion(e.target.value)}
             placeholder="Type your question here..."
+            maxLength={500}
             style={{
               width: '100%',
               minHeight: '120px',
@@ -266,7 +431,8 @@ const StudentQnAJoin = () => {
               fontFamily: 'Poppins, sans-serif',
               outline: 'none',
               resize: 'vertical',
-              marginBottom: '16px'
+              marginBottom: '16px',
+              boxSizing: 'border-box'
             }}
           />
 
@@ -288,7 +454,7 @@ const StudentQnAJoin = () => {
                 type="checkbox"
                 checked={isAnonymous}
                 onChange={(e) => setIsAnonymous(e.target.checked)}
-                style={{ accentColor: '#1935CA' }}
+                style={{ accentColor: '#1935CA', width: '16px', height: '16px' }}
               />
               Ask anonymously
             </label>
@@ -299,25 +465,32 @@ const StudentQnAJoin = () => {
           </div>
 
           <button
-            onClick={handleSubmitQuestion}
-            disabled={!newQuestion.trim()}
+            type="button"
+            onClick={(e) => {
+              alert('BUTTON WAS CLICKED!'); // This will show immediately
+              console.log('BUTTON CLICKED!');
+              e.preventDefault();
+              e.stopPropagation();
+              handleSubmitQuestion();
+            }}
+            disabled={!newQuestion.trim() || submitting}
             style={{
               width: '100%',
-              background: !newQuestion.trim() ? '#D1D5DB' : 'linear-gradient(135deg, #1935CA 0%, #3B82F6 100%)',
+              background: !newQuestion.trim() || submitting ? '#D1D5DB' : 'linear-gradient(135deg, #1935CA 0%, #3B82F6 100%)',
               color: 'white',
               border: 'none',
               padding: '14px',
               borderRadius: '8px',
               fontSize: '16px',
               fontWeight: '500',
-              cursor: !newQuestion.trim() ? 'not-allowed' : 'pointer'
+              cursor: !newQuestion.trim() || submitting ? 'not-allowed' : 'pointer',
+              boxSizing: 'border-box'
             }}
           >
-            Submit Question
+            {submitting ? 'Submitting...' : 'Submit Question'}
           </button>
         </div>
 
-        {/* My Questions */}
         <div style={{
           background: 'white',
           borderRadius: '12px',
@@ -346,7 +519,7 @@ const StudentQnAJoin = () => {
                     padding: '12px',
                     border: '1px solid #E5E7EB',
                     borderRadius: '8px',
-                    background: '#F9FAFB'
+                    background: question.is_highlighted ? '#FEF3C7' : '#F9FAFB'
                   }}
                 >
                   <div style={{
@@ -355,26 +528,27 @@ const StudentQnAJoin = () => {
                     marginBottom: '6px'
                   }}>
                     <div style={{
-                      background: '#6B7280',
+                      background: question.is_highlighted ? '#F59E0B' : '#6B7280',
                       color: 'white',
-                      padding: '1px 6px',
+                      padding: '2px 8px',
                       borderRadius: '8px',
                       fontSize: '10px',
-                      textTransform: 'uppercase'
+                      textTransform: 'uppercase',
+                      fontWeight: '600'
                     }}>
-                      {question.status}
+                      {question.is_highlighted ? 'highlighted' : question.is_answered ? 'answered' : 'submitted'}
                     </div>
                     <div style={{ fontSize: '12px', color: '#666' }}>
-                      👍 {question.likes}
+                      👍 {question.likes || 0}
                     </div>
                   </div>
 
                   <div style={{ fontSize: '14px', marginBottom: '6px' }}>
-                    {question.text}
+                    {question.text || question.message_text || question.message || 'No message'}
                   </div>
 
                   <div style={{ fontSize: '11px', color: '#9CA3AF' }}>
-                    {formatTime(question.submitted_at)} • {question.is_anonymous ? 'Anonymous' : 'Named'}
+                    {question.created_at && formatTime(question.created_at)} • {question.is_anonymous ? 'Anonymous' : 'Named'}
                   </div>
                 </div>
               ))}
