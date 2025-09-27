@@ -7,21 +7,23 @@ import "./QnA.css";
 
 function QnA() {
   return (
-    <div>
-      <div className="NavBar">
-        <NavBar />
-      </div>
+    <div className="QnAPage">
+      {/* Navbar stays on left (slides out on mobile) */}
+      <NavBar />
       
-      <div className="ContainerAI">
-        <StudentQnAJoin />
-      </div>
-      
-      <div className="SideAI">
-        <CoursesList />
-      </div>
-      
-      <div className="BoiAI">
-        <Bio />
+      {/* Main content area */}
+      <div className="QnAContent">
+        <div className="ContainerQA">
+          <StudentQnAJoin />
+        </div>
+        
+        <div className="SideAI">
+          <CoursesList />
+        </div>
+        
+        <div className="BoiAI">
+          <Bio />
+        </div>
       </div>
     </div> 
   );

@@ -1,39 +1,131 @@
-.ContainerAI{
- width: 64%; 
-    background: white; 
-    box-shadow: 0px 5.15717077255249px 13.752455711364746px #EDEDED; 
-    border-radius: 3.44px;
-    position: absolute;
-    margin-left: 21% ;
-    margin-top: 7%;
-    padding-bottom: 30px;
+/* Desktop Layout (default) */
+.ContainerQA {
+  width: 64%; 
+  background: white; 
+  box-shadow: 0px 5.15717077255249px 13.752455711364746px #EDEDED; 
+  border-radius: 3.44px;
+  position: absolute;
+  margin-left: 21%;
+  margin-top: 7%;
+  padding-bottom: 30px;
 }
-.SideAI{
-    width: 13%; 
-   
-    background: white; 
-    box-shadow: 0px 2.4090728759765625px 6.4241943359375px #EDEDED; 
-    border-radius: 1.61px;
-    position: absolute;
-    margin-left: 86% ;
-    margin-top: 7%;
 
+.SideAI {
+  width: 13%; 
+  background: white; 
+  box-shadow: 0px 2.4090728759765625px 6.4241943359375px #EDEDED; 
+  border-radius: 1.61px;
+  position: absolute;
+  margin-left: 86%;
+  margin-top: 7%;
 }
+
 .BoiAI {
-    position: absolute;
-    margin-left: 84%;
-    margin-top: 20px;
+  position: absolute;
+  margin-left: 84%;
+  margin-top: 20px;
 }
-.UploadSlides{
+
+.UploadSlides {
+  width: 70%;
+  margin-left: 15%;
+}
+
+.Rating {
+  width: 80%;
+  margin-left: 5%;
+  margin-top: 5%;
+}
+
+.List {
+  width: 100%;
+  margin-top: 20%;
+}
+
+/* ============================================ */
+/* === TABLET VIEW (1024px and below) === */
+/* ============================================ */
+@media (max-width: 1024px) {
+  .ContainerAI {
     width: 70%;
-    margin-left:15%;
-}
-.Rating{
-    width: 80%;
-    margin-left: 5%;
+    margin-left: 18%;
     margin-top: 5%;
+  }
+
+  .SideAI {
+    width: 15%;
+    margin-left: 83%;
+  }
+
+  .BoiAI {
+    margin-left: 81%;
+  }
 }
-.List{
+
+/* ============================================ */
+/* === MOBILE VIEW (768px and below) === */
+/* CONTAINER GOES FULL WIDTH */
+/* ============================================ */
+@media (max-width: 768px) {
+  /* Main container takes full width */
+  .ContainerQA {
     width: 100%;
-    margin-top: 20%;
+    margin-left: 0;
+    margin-top: 0px; 
+    position: relative;
+    border-radius: 0;
+    padding: 20px;
+    box-sizing: border-box;
+     box-shadow: none; 
+  }
+
+  /* Hide sidebar on mobile */
+  .SideAI {
+    display: none;
+  }
+
+  /* Bio moves to top right corner (fixed position) */
+  .BoiAI {
+    display:none;
+  }
+
+  .UploadSlides {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .Rating {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 20px;
+  }
+
+  .List {
+    width: 100%;
+    margin-top: 20px;
+  }
+}
+
+/* ============================================ */
+/* === SMALL MOBILE (480px and below) === */
+/* ============================================ */
+@media (max-width: 480px) {
+  .ContainerQA {
+    margin-top: 0px;
+    padding: 15px;
+  }
+
+  .BoiAI {
+    top: 10px;
+    right: 10px;
+  }
+}
+
+/* ============================================ */
+/* === VERY SMALL MOBILE (360px and below) === */
+/* ============================================ */
+@media (max-width: 360px) {
+  .ContainerQA {
+    padding: 10px;
+  }
 }

@@ -1,3 +1,105 @@
+/* Bio.css - Mobile Responsive */
+
+/* === DESKTOP BIO STYLES === */
+.bio-container {
+  width: 100.58px;
+  height: 27.63px;
+  position: relative;
+  border-radius: 13.92px;
+}
+
+.bio-avatar {
+  width: 25px;
+  height: 25px;
+  left: 0px;
+  top: 0px;
+  position: absolute;
+  background: white;
+  box-shadow: 0px 5.15717077255249px 13.752455711364746px 1.7190569639205933px #EDEDED;
+  border-radius: 13.92px;
+  object-fit: cover;
+}
+
+.bio-name {
+  width: 66.98px;
+  height: 13.39px;
+  left: 33.60px;
+  top: 5.65px;
+  position: absolute;
+  justify-content: center;
+  display: flex;
+  flex-direction: column;
+  color: #696F79;
+  font-size: 6.53px;
+  font-family: Poppins, sans-serif;
+  font-weight: 400;
+  word-wrap: break-word;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Hover effects for interactivity */
+.bio-container:hover .bio-avatar {
+  box-shadow: 0px 6px 16px 2px #E0E0E0;
+  transform: scale(1.05);
+  transition: all 0.3s ease;
+}
+
+.bio-container:hover .bio-name {
+  color: #1935CA;
+  transition: color 0.3s ease;
+}
+
+/* === RESPONSIVE FOR LARGER SCREENS === */
+@media (min-width: 1024px) {
+  .bio-container {
+    transform: scale(2);
+    transform-origin: left top;
+    margin-right: 50px;
+    margin-bottom: 30px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .bio-container {
+    transform: scale(1.5);
+    transform-origin: left top;
+    margin-right: 20px;
+    margin-bottom: 10px;
+  }
+}
+
+/* === MOBILE SPECIFIC STYLES === */
+/* Make Bio visible and properly sized on mobile */
+@media (max-width: 768px) {
+  .bio-container {
+    transform: scale(1.3);
+    transform-origin: right top;
+    margin: 0;
+  }
+  
+  .bio-avatar {
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+@media (max-width: 480px) {
+  .bio-container {
+    transform: scale(1.2);
+    transform-origin: right top;
+  }
+}
+
+@media (max-width: 360px) {
+  .bio-container {
+    transform: scale(1.1);
+    transform-origin: right top;
+  }
+}/* Dashboard.css - Mobile Responsive Full Screen */
+
+/* === DESKTOP CONTAINER STYLES === */
 .ContainerD {
     width: 64%; 
     background: white; 
@@ -6,23 +108,24 @@
     position: absolute;
     margin-left: 21%;
     margin-top: 7%;
-    padding: 10px; /* Added padding for content spacing */
-    box-sizing: border-box; /* Include padding in width calculation */
-    overflow: hidden; /* Contain content within bounds */
+    padding: 10px;
+    box-sizing: border-box;
+    overflow: hidden;
     padding-bottom: 30px;
-
 }
 
+/* === SIDEBAR FOR COURSES (Desktop only) === */
 .SideD{
     width: 13%; 
     background: white; 
     box-shadow: 0px 2.4090728759765625px 6.4241943359375px #EDEDED; 
     border-radius: 1.61px;
     position: absolute;
-    margin-left: 86% ;
+    margin-left: 86%;
     margin-top: 7%;
-
 }
+
+/* === BIO COMPONENT (Desktop only) === */
 .BoiD {
     position: absolute;
     margin-left: 84%;
@@ -30,52 +133,509 @@
     max-width: 70px;
 }
 
+/* === BIOGRAPHY SECTION === */
 .Boigraphy {
-    /* Remove absolute positioning to keep it in document flow */
-    margin-bottom: 40px; /* Space before next section */
+    margin-bottom: 40px;
 }
 
+/* === QUIZ SECTION TITLE === */
 .Title {
     color: #1935CA;
     font-size: 16px;
     font-family: Poppins, sans-serif;
     font-weight: 700;
     line-height: 1.2;
-    margin-bottom: 20px; /* Space before quiz list */
+    margin-bottom: 20px;
 }
 
+/* === VIEW ALL/SHOW LESS BUTTON === */
 .More {
     color: #1935CA;
     font-size: 16px;
     font-family: Poppins, sans-serif;
     font-weight: 700;
     line-height: 1.2;
-    text-align: right; /* Align to right side */
+    text-align: right;
     margin-bottom: 20px;
-    cursor: pointer; /* Make it clickable */
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
 
+.More:hover {
+    color: #0f29a3;
+    transform: scale(1.05);
+}
+
+/* === QUIZ GRID LAYOUT === */
 .QuizList {
     display: grid;
-    grid-template-columns: repeat(3, 1fr); /* Exactly 3 columns per row */
-    gap: 0px; /* Space between quiz tiles */
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
     width: 100%;
-    /* Removed absolute positioning */
+    padding: 0 10px;
 }
 
-/* Header section for title and "view all" */
+/* === QUIZ HEADER (Title + View All) === */
 .quiz-header1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-left: 30px;
+    margin-right: 30px;
+    margin-bottom: 15px;
 }
+
 .Rating{
     width: 80%;
     margin-left: 5%;
     margin-top: 5%;
 }
+
 .List{
     width: 100%;
     margin-top: 20%;
+}
+
+/* ============================================ */
+/* === RESPONSIVE BREAKPOINTS === */
+/* ============================================ */
+
+@media (max-width: 1200px) {
+    .ContainerD {
+        width: 70%;
+        margin-left: 18%;
+    }
+    
+    .QuizList {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+}
+
+@media (max-width: 1024px) {
+    .ContainerD {
+        width: 75%;
+        margin-left: 15%;
+    }
+    
+    .SideD {
+        width: 18%;
+        margin-left: 80%;
+    }
+    
+    .BoiD {
+        margin-left: 78%;
+    }
+}
+
+/* === MOBILE (768px and below) === */
+@media (max-width: 768px) {
+    /* FULL SCREEN - NO SPACING */
+    .ContainerD {
+        width: 100% !important;
+        height: 100vh !important;
+        margin: 0 !important;
+        padding: 60px 0 0 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        overflow-y: auto !important;
+        background: white !important;
+    }
+    
+    .SideD {
+        display: none !important;
+    }
+    
+    .BoiD {
+        display: block !important;
+        position: fixed !important;
+        top: 15px !important;
+        right: 15px !important;
+        margin: 0 !important;
+        z-index: 1002 !important;
+    }
+    
+    .Boigraphy {
+        display: none !important;
+    }
+    
+    .SeachBar {
+        display: none !important;
+    }
+    
+    /* ONE COLUMN ONLY */
+    .QuizList {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+        justify-items: center !important;
+        padding: 0 15px !important;
+        margin-top: 15px !important;
+        width: 100% !important;
+    }
+    
+    .quiz-header1 {
+        margin: 15px 20px !important;
+    }
+    
+    .Title {
+        font-size: 18px !important;
+    }
+    
+    .More {
+        font-size: 14px !important;
+    }
+}
+
+/* === SMALL MOBILE (480px and below) === */
+@media (max-width: 480px) {
+    .ContainerD {
+        width: 100% !important;
+        height: 100vh !important;
+        margin: 0 !important;
+        padding: 60px 0 0 0 !important;
+        border-radius: 0 !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        overflow-y: auto !important;
+    }
+    
+    .BoiD {
+        top: 12px !important;
+        right: 12px !important;
+    }
+    
+    .Boigraphy {
+        display: none !important;
+    }
+    
+    .SeachBar {
+        display: none !important;
+    }
+    
+    /* SINGLE COLUMN - FULL WIDTH */
+    .QuizList {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+        padding: 0 10px !important;
+        width: 100% !important;
+    }
+    
+    .quiz-header1 {
+        margin: 10px 15px !important;
+    }
+    
+    .Title {
+        font-size: 16px !important;
+    }
+    
+    .More {
+        font-size: 12px !important;
+    }
+}
+
+@media (max-width: 360px) {
+    .ContainerD {
+        padding: 55px 0 0 0 !important;
+    }
+    
+    .QuizList {
+        padding: 0 8px !important;
+    }
+}
+
+/* === SIDEBAR FOR COURSES (Desktop only) === */
+.SideD{
+    width: 13%; 
+    background: white; 
+    box-shadow: 0px 2.4090728759765625px 6.4241943359375px #EDEDED; 
+    border-radius: 1.61px;
+    position: absolute;
+    margin-left: 86%;
+    margin-top: 7%;
+}
+
+/* === BIO COMPONENT (Desktop only) === */
+.BoiD {
+    position: absolute;
+    margin-left: 84%;
+    margin-top: 20px;
+    max-width: 70px;
+}
+
+/* === BIOGRAPHY SECTION === */
+.Boigraphy {
+    margin-bottom: 40px;
+}
+
+/* === QUIZ SECTION TITLE === */
+.Title {
+    color: #1935CA;
+    font-size: 16px;
+    font-family: Poppins, sans-serif;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 20px;
+}
+
+/* === VIEW ALL/SHOW LESS BUTTON === */
+.More {
+    color: #1935CA;
+    font-size: 16px;
+    font-family: Poppins, sans-serif;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: right;
+    margin-bottom: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.More:hover {
+    color: #0f29a3;
+    transform: scale(1.05);
+}
+
+/* === QUIZ GRID LAYOUT === */
+/* Desktop: 3 columns side by side */
+.QuizList {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* Three equal columns */
+    gap: 20px;
+    width: 100%;
+    padding: 0 10px;
+}
+
+/* === QUIZ HEADER (Title + View All) === */
+.quiz-header1 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-left: 30px;
+    margin-right: 30px;
+    margin-bottom: 15px;
+}
+
+/* === RATING SECTION === */
+.Rating{
+    width: 80%;
+    margin-left: 5%;
+    margin-top: 5%;
+}
+
+/* === LIST SECTION === */
+.List{
+    width: 100%;
+    margin-top: 20%;
+}
+
+/* ============================================ */
+/* === RESPONSIVE BREAKPOINTS === */
+/* ============================================ */
+
+/* === LARGE SCREENS (1200px and below) === */
+@media (max-width: 1200px) {
+    /* Adjust container width for smaller desktops */
+    .ContainerD {
+        width: 70%;
+        margin-left: 18%;
+    }
+    
+    /* Change to 2 columns on medium screens */
+    .QuizList {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+}
+
+/* === TABLETS (1024px and below) === */
+@media (max-width: 1024px) {
+    .ContainerD {
+        width: 75%;
+        margin-left: 15%;
+    }
+    
+    /* Adjust sidebar width */
+    .SideD {
+        width: 18%;
+        margin-left: 80%;
+    }
+    
+    .BoiD {
+        margin-left: 78%;
+    }
+}
+
+/* === TABLET/MOBILE (768px and below) === */
+/* This is where hamburger menu appears */
+@media (max-width: 768px) {
+    /* FULL SCREEN CONTAINER - No margins, takes entire viewport */
+    .ContainerD {
+        width: 100%;
+        margin-left: 0;
+        margin-top: 0;
+        padding: 70px 15px 15px 15px; /* Top padding for hamburger + bio */
+        min-height: 100vh; /* Full viewport height */
+        border-radius: 0; /* Remove rounded corners on mobile */
+        box-shadow: none; /* Remove shadow for cleaner look */
+        position: fixed;
+        top: 0;
+        left: 0;
+        overflow-y: auto; /* Allow scrolling */
+        background: white;
+    }
+    
+    /* Hide sidebar on mobile - not needed */
+    .SideD {
+        display: none;
+    }
+    
+    /* SHOW BIO at top right on mobile */
+    .BoiD {
+        display: block;
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        margin: 0;
+        max-width: none;
+        z-index: 1002; /* Above hamburger */
+    }
+    
+    /* HIDE BIOGRAPHY SECTION on mobile */
+    .Boigraphy {
+        display: none;
+    }
+    
+    /* HIDE SEARCH BAR on mobile - saves space */
+    .SeachBar {
+        display: none;
+    }
+    
+    /* QUIZ GRID: 2 columns on tablet */
+    .QuizList {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        justify-items: center; /* Center the tiles */
+        margin-top: 20px;
+    }
+    
+    /* Adjust header spacing */
+    .quiz-header1 {
+        margin-left: 10px;
+        margin-right: 10px;
+        margin-top: 10px;
+    }
+    
+    .Title {
+        font-size: 18px;
+    }
+    
+    .More {
+        font-size: 14px;
+    }
+}
+
+/* === MOBILE PHONES (480px and below) === */
+/* ONE COLUMN LAYOUT - Each quiz gets full width */
+@media (max-width: 480px) {
+    /* Full screen container optimized for mobile */
+    .ContainerD {
+        width: 100%;
+        margin: 0;
+        padding: 70px 10px 20px 10px; /* Top padding for hamburger + bio */
+        min-height: 100vh;
+        border-radius: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        overflow-y: auto;
+        background: white;
+    }
+    
+    /* Bio component at top right */
+    .BoiD {
+        display: block;
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 1002;
+    }
+    
+    /* Hide biography section completely */
+    .Boigraphy {
+        display: none;
+    }
+    
+    /* Hide search bar on mobile */
+    .SeachBar {
+        display: none;
+    }
+    
+    /* === SINGLE COLUMN LAYOUT === */
+    /* Each quiz tile takes full width for better readability */
+    .QuizList {
+        grid-template-columns: 1fr; /* ONE COLUMN - stacked vertically */
+        gap: 15px;
+        justify-items: center;
+        padding: 0 5px;
+        margin-top: 15px;
+    }
+    
+    /* Header stays horizontal on mobile */
+    .quiz-header1 {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin: 10px 5px 15px 5px;
+    }
+    
+    /* Smaller text on mobile */
+    .Title {
+        font-size: 16px;
+        margin-bottom: 5px;
+    }
+    
+    .More {
+        font-size: 12px;
+    }
+    
+    /* Search results text */
+    .search-results {
+        display: block;
+        font-size: 11px;
+        margin-top: 5px;
+        color: #666;
+    }
+}
+
+/* === EXTRA SMALL MOBILE (360px and below) === */
+/* For very small phones */
+@media (max-width: 360px) {
+    .ContainerD {
+        padding: 65px 8px 15px 8px;
+    }
+    
+    .BoiD {
+        top: 10px;
+        right: 10px;
+    }
+    
+    .Title {
+        font-size: 14px;
+    }
+    
+    .More {
+        font-size: 11px;
+    }
+    
+    /* Single column with slightly smaller gap */
+    .QuizList {
+        gap: 12px;
+    }
 }

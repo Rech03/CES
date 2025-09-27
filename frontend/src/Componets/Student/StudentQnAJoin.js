@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { validateSessionCode, joinSession, sendMessage, getSessionMessagesStudent } from '../../api/live-qna';
+import './StudentQnAJoin.css';
 
 const Toast = ({ message, type, onClose }) => {
   useEffect(() => {
@@ -55,12 +56,6 @@ const Toast = ({ message, type, onClose }) => {
         padding: 0,
         opacity: 0.8
       }}>×</button>
-      <style>{`
-        @keyframes slideIn {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-      `}</style>
     </div>
   );
 };
@@ -82,19 +77,8 @@ const StudentQnAJoin = () => {
     const fetchMessages = async () => {
       try {
         const response = await getSessionMessagesStudent(joinedSession.code);
-        
-        console.log('Fetched messages response:', response.data);
-        
-        // Backend returns { session: {...}, messages: [...] }
         const messages = response.data.messages || response.data || [];
-        
-        console.log('All messages:', messages);
-        
-        // Since backend doesn't send is_mine flag, we need to identify by user
-        // For now, show ALL messages as "my questions" since students can only see their own
         const studentQuestions = Array.isArray(messages) ? messages : [];
-        
-        console.log('Student questions:', studentQuestions);
         setMyQuestions(studentQuestions);
       } catch (err) {
         console.error('Error fetching messages:', err);
@@ -118,7 +102,6 @@ const StudentQnAJoin = () => {
     try {
       const validateResponse = await validateSessionCode(sessionCode);
       
-      // Backend returns { valid: true, session: {...} }
       if (!validateResponse.data.valid) {
         setJoinError('Invalid session code. Please check and try again.');
         setIsJoining(false);
@@ -129,7 +112,6 @@ const StudentQnAJoin = () => {
         session_code: sessionCode.toUpperCase()
       });
 
-      // Merge session data from both responses
       setJoinedSession({
         code: sessionCode.toUpperCase(),
         ...joinResponse.data,
@@ -144,28 +126,13 @@ const StudentQnAJoin = () => {
   };
 
   const handleSubmitQuestion = async () => {
-    console.log('=== SUBMIT QUESTION CALLED ===');
-    console.log('Question text:', newQuestion);
-    console.log('Is anonymous:', isAnonymous);
-    
-    if (!newQuestion.trim()) {
-      console.log('Question is empty, returning');
-      return;
-    }
+    if (!newQuestion.trim()) return;
 
     setSubmitting(true);
     
-    // Try with 'text' first (most common)
     try {
-      const payload = {
-        text: newQuestion,
-        is_anonymous: isAnonymous
-      };
-
-      console.log('Attempt 1: Trying with "text" field:', payload);
+      const payload = { text: newQuestion, is_anonymous: isAnonymous };
       const response = await sendMessage(joinedSession.code, payload);
-      
-      console.log('SUCCESS! Response:', response.data);
       const questionData = response.data.data || response.data;
       setMyQuestions(prev => [questionData, ...prev]);
       setNewQuestion('');
@@ -173,20 +140,12 @@ const StudentQnAJoin = () => {
       setSubmitting(false);
       return;
     } catch (error) {
-      console.log('Attempt 1 failed:', error.response?.data);
+      console.log('Attempt 1 failed, trying alternative field names...');
     }
     
-    // Try with 'message_text'
     try {
-      const payload = {
-        message_text: newQuestion,
-        is_anonymous: isAnonymous
-      };
-
-      console.log('Attempt 2: Trying with "message_text" field:', payload);
+      const payload = { message_text: newQuestion, is_anonymous: isAnonymous };
       const response = await sendMessage(joinedSession.code, payload);
-      
-      console.log('SUCCESS! Response:', response.data);
       const questionData = response.data.data || response.data;
       setMyQuestions(prev => [questionData, ...prev]);
       setNewQuestion('');
@@ -194,20 +153,12 @@ const StudentQnAJoin = () => {
       setSubmitting(false);
       return;
     } catch (error) {
-      console.log('Attempt 2 failed:', error.response?.data);
+      console.log('Attempt 2 failed, trying final alternative...');
     }
     
-    // Try with 'message'
     try {
-      const payload = {
-        message: newQuestion,
-        is_anonymous: isAnonymous
-      };
-
-      console.log('Attempt 3: Trying with "message" field:', payload);
+      const payload = { message: newQuestion, is_anonymous: isAnonymous };
       const response = await sendMessage(joinedSession.code, payload);
-      
-      console.log('SUCCESS! Response:', response.data);
       const questionData = response.data.data || response.data;
       setMyQuestions(prev => [questionData, ...prev]);
       setNewQuestion('');
@@ -215,15 +166,10 @@ const StudentQnAJoin = () => {
       setSubmitting(false);
       return;
     } catch (error) {
-      console.log('Attempt 3 failed:', error.response?.data);
-      
-      // Show final error
       let errorMessage = 'Failed to submit question';
       if (error.response?.data) {
-        const data = error.response.data;
-        errorMessage = JSON.stringify(data);
+        errorMessage = JSON.stringify(error.response.data);
       }
-      
       setToast({ message: errorMessage, type: 'error' });
       setSubmitting(false);
     }
@@ -258,7 +204,6 @@ const StudentQnAJoin = () => {
           background: 'white',
           borderRadius: '16px',
           padding: '40px',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
           textAlign: 'center'
         }}>
           <div style={{
@@ -295,11 +240,23 @@ const StudentQnAJoin = () => {
 
           <input
             type="text"
+            inputMode="text"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="characters"
             placeholder="Enter session code"
             value={sessionCode}
             onChange={(e) => {
               setSessionCode(e.target.value.toUpperCase());
               setJoinError('');
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.currentTarget.focus();
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              e.currentTarget.focus();
             }}
             style={{
               width: '100%',
@@ -312,7 +269,14 @@ const StudentQnAJoin = () => {
               fontWeight: '600',
               letterSpacing: '2px',
               outline: 'none',
-              marginBottom: '16px'
+              marginBottom: '16px',
+              WebkitAppearance: 'none',
+              WebkitUserSelect: 'text',
+              userSelect: 'text',
+              pointerEvents: 'auto',
+              touchAction: 'manipulation',
+              position: 'relative',
+              zIndex: 100
             }}
             onKeyPress={(e) => e.key === 'Enter' && handleJoinSession()}
           />
@@ -466,13 +430,7 @@ const StudentQnAJoin = () => {
 
           <button
             type="button"
-            onClick={(e) => {
-              alert('BUTTON WAS CLICKED!'); // This will show immediately
-              console.log('BUTTON CLICKED!');
-              e.preventDefault();
-              e.stopPropagation();
-              handleSubmitQuestion();
-            }}
+            onClick={handleSubmitQuestion}
             disabled={!newQuestion.trim() || submitting}
             style={{
               width: '100%',
