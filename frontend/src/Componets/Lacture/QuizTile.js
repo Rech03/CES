@@ -78,7 +78,7 @@ function QuizTile({
       // Navigate to moderation/edit page
       navigate(`/moderate-quiz/${operationalId}`);
     } else if (status === 'live') {
-      // Once live, we treat it as "past". Clicking from here (if it still shows) goes to Results first.
+      // For published quizzes, go to analytics with results section
       const analyticsId = adaptiveQuizId || quizId || operationalId;
       navigate(`/quiz-analytics/${analyticsId}?section=results`);
     }
@@ -118,7 +118,7 @@ function QuizTile({
                       publishResponse.data.id;
       }
 
-      // Notify parent to update local list (this will remove it from Dashboard)
+      // Notify parent to update local list (quiz should stay visible but change status)
       if (onStatusChange) {
         onStatusChange(id, 'published', {
           originalId: id,
@@ -126,9 +126,14 @@ function QuizTile({
           newAdaptiveQuizId: finalAdaptiveQuizId,
           newQuizId: finalQuizId,
           publishedAt: new Date().toISOString(),
-          operationalId: operationalId
+          operationalId: operationalId,
+          keepVisible: true // Keep the quiz visible on dashboard
         });
       }
+
+      // Clear any previous errors
+      setError('');
+      
     } catch (err) {
       console.error('Error publishing quiz:', err);
       const d = err.response?.data;
@@ -181,6 +186,13 @@ function QuizTile({
     navigate(`/quiz-analytics/${analyticsId}?section=results`);
   };
 
+  const handleViewAnalytics = (e) => {
+    e.stopPropagation(); // Prevent tile click
+    const analyticsId = adaptiveQuizId || quizId || getOperationalId();
+    // Go to general analytics page
+    navigate(`/quiz-analytics/${analyticsId}`);
+  };
+
   const colorForDifficulty = (diff) => {
     const d = (diff || '').toLowerCase();
     if (d.includes('easy')) return '#22c55e';
@@ -189,22 +201,20 @@ function QuizTile({
     return '#64748b';
   };
 
-  const hasValidPublishedId = is_live && (adaptiveQuizId || quizId);
-
   return (
     <div
-      className={`quiz-tile-container ${courseCode.toLowerCase()}`}
+      className={`quiz-tile-container ${courseCode.toLowerCase()} ${status === 'live' ? 'published' : ''}`}
       onClick={handleTileClick}
       style={{ cursor: 'pointer' }}
     >
       <div className="quiz-overlay"></div>
 
-      {/* Status */}
+      {/* Status Badge */}
       <div className="quiz-status-badge" style={{ backgroundColor: statusInfo.color }}>
         <div className="quiz-status-text">{statusInfo.text}</div>
       </div>
 
-      {/* Info */}
+      {/* Quiz Info Section */}
       <div className="quiz-info-section">
         <div className="quiz-creation-date">{formatDate(created_at)}</div>
         <div className="quiz-stats-mini">
@@ -231,7 +241,7 @@ function QuizTile({
         </div>
       )}
 
-      {/* Error */}
+      {/* Error Message */}
       {error && (
         <div className="quiz-error" style={{
           position: 'absolute', bottom: '80px', left: '16px', right: '16px',
@@ -242,7 +252,7 @@ function QuizTile({
         </div>
       )}
 
-      {/* Actions */}
+      {/* Action Buttons */}
       <div className="quiz-actions">
         {status === 'draft' && (
           <button
@@ -266,13 +276,17 @@ function QuizTile({
         )}
 
         {status === 'live' && (
-          <button
-            className="action-btn results-btn"
-            onClick={handleViewResults}
-            disabled={isLoading}
-          >
-            Results
-          </button>
+          <>
+            <button
+              className="action-btn results-btn"
+              onClick={handleViewResults}
+              disabled={isLoading}
+              style={{ backgroundColor: '#27AE60' }}
+            >
+              View Results
+            </button>
+           
+          </>
         )}
 
         {(status === 'draft' || status === 'ready') && (
@@ -287,15 +301,94 @@ function QuizTile({
         )}
       </div>
 
-      {/* Loading overlay */}
+      {/* Loading Overlay */}
       {isLoading && (
         <div style={{
           position:'absolute', inset:0, background:'rgba(255,255,255,0.8)',
-          display:'flex', alignItems:'center', justifyContent:'center', zIndex:20
+          display:'flex', alignItems:'center', justifyContent:'center', zIndex:20,
+          borderRadius: '12px'
         }}>
-          <div>Loading...</div>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            fontSize: '14px', fontWeight: '500', color: '#666'
+          }}>
+            <div style={{
+              width: '20px', height: '20px', border: '2px solid #f3f3f3',
+              borderTop: '2px solid #1935CA', borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+            {status === 'ready' && isLoading ? 'Publishing...' : 'Loading...'}
+          </div>
         </div>
       )}
+
+      {/* Success Animation for Published State */}
+      {status === 'live' && (
+        <div className="published-indicator" style={{
+          position: 'absolute', top: '12px', left: '12px',
+          background: 'linear-gradient(135deg, #27AE60, #2ECC71)',
+          color: 'white', padding: '4px 8px', borderRadius: '12px',
+          fontSize: '11px', fontWeight: '600', textTransform: 'uppercase',
+          letterSpacing: '0.5px', boxShadow: '0 2px 4px rgba(39, 174, 96, 0.3)'
+        }}>
+          ✓ Live
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        .quiz-tile-container.published {
+          border: 2px solid #27AE60;
+          box-shadow: 0 4px 12px rgba(39, 174, 96, 0.15);
+        }
+        
+        .quiz-tile-container.published::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 4px;
+          background: linear-gradient(90deg, #27AE60, #2ECC71);
+          border-radius: 8px 8px 0 0;
+        }
+        
+        .action-btn.results-btn {
+          background-color: #27AE60 !important;
+          color: white;
+          transition: all 0.3s ease;
+        }
+        
+        .action-btn.results-btn:hover {
+          background-color: #219A52 !important;
+          transform: translateY(-1px);
+        }
+        
+        .action-btn.analytics-btn {
+          background-color: #3498DB !important;
+          color: white;
+          transition: all 0.3s ease;
+        }
+        
+        .action-btn.analytics-btn:hover {
+          background-color: #2980B9 !important;
+          transform: translateY(-1px);
+        }
+        
+        @keyframes publishSuccess {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+        
+        .quiz-tile-container.just-published {
+          animation: publishSuccess 0.6s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 }

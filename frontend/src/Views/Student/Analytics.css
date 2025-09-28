@@ -201,17 +201,11 @@
   }
 
   .SideAn {
-    width: 90%;
-    margin-left: 5%;
-    margin-top: 85%;
-    position: relative;
+   display: none;
   }
 
   .BoiAn {
-    position: relative;
-    margin-left: 5%;
-    margin-top: 20px;
-    width: 90%;
+    display: none;
   }
 
   .analytics-tabs {
@@ -249,12 +243,10 @@
   }
 
   .SideAn {
-    width: 95%;
-    margin-left: 2.5%;
+    display: none;
   }
 
   .BoiAn {
-    margin-left: 2.5%;
-    width: 95%;
+    display: none;
   }
 }

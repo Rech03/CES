@@ -53,12 +53,11 @@
   }
 
   .SideAI {
-    width: 15%;
-    margin-left: 83%;
+    display: none;
   }
 
   .BoiAI {
-    margin-left: 81%;
+    display: none;
   }
 }
 
@@ -116,8 +115,7 @@
   }
 
   .BoiAI {
-    top: 10px;
-    right: 10px;
+    display: none;
   }
 }
 

@@ -211,7 +211,7 @@ function Dashboard() {
           total_points: quiz.total_points || quiz.points || quiz.questions?.reduce((sum, q) => sum + (q.points || 1), 0) || (quiz.questions_count ? quiz.questions_count * 2 : 0),
           created_at: quiz.created_at || quiz.date_created || quiz.uploaded_at || quiz.upload_date || new Date().toISOString(),
 
-          // IMPORTANT CHANGE: Published quizzes should DISAPPEAR from Dashboard (current list)
+          // UPDATED: Keep published quizzes visible on Dashboard
           is_live: !!(quiz._isPublished || quiz.is_live || quiz.published || quiz.is_published || quiz.status === 'published' || quiz._realAdaptiveQuizId),
 
           difficulty: quiz.difficulty || quiz.level || quiz.metadata?.difficulty || 'medium',
@@ -266,7 +266,7 @@ function Dashboard() {
     setError('AI quizzes cannot be deleted directly. Use the moderation interface to reject quizzes if needed.');
   };
 
-  // When a quiz is published, mark live (it will disappear from current list)
+  // Updated handleStatusChange to keep published quizzes visible
   const handleStatusChange = (quizId, newStatus, publishData = null) => {
     setQuizzes(prev =>
       prev.map(quiz => {
@@ -311,16 +311,23 @@ function Dashboard() {
   );
 
   const sortedQuizzes = filteredQuizzes.sort((a, b) => {
-    // Keep unpublished order (ready before draft)
-    if (!a.is_live && a.status === 'ready' && b.status === 'draft') return -1;
-    if (!b.is_live && b.status === 'ready' && a.status === 'draft') return 1;
+    // Sort published quizzes first, then ready, then draft
+    if (a.is_live && !b.is_live) return -1;
+    if (!a.is_live && b.is_live) return 1;
+    
+    // Among unpublished, keep ready before draft
+    if (!a.is_live && !b.is_live) {
+      if (a.status === 'ready' && b.status === 'draft') return -1;
+      if (a.status === 'draft' && b.status === 'ready') return 1;
+    }
+    
     const dateA = new Date(a.created_at || 0);
     const dateB = new Date(b.created_at || 0);
     return dateB - dateA;
   });
 
-  // NEW: Only show UNPUBLISHED (current) quizzes on Dashboard
-  const currentQuizzes = sortedQuizzes.filter(q => !q.is_live);
+  // UPDATED: Show ALL quizzes (both published and unpublished)
+  const currentQuizzes = sortedQuizzes;
   const recentQuizzes = currentQuizzes.slice(0, 8);
 
   return (
@@ -361,7 +368,7 @@ function Dashboard() {
 
         <div className="quiz-header1">
           <div className="Title">
-            {loading ? 'Loading...' : `Current (Unpublished) AI Quizzes (${currentQuizzes.length})`}
+            {loading ? 'Loading...' : `AI Quizzes (${currentQuizzes.length})`}
           </div>
           <div className="header-actions">
             {currentQuizzes.length > 8 && (
@@ -369,7 +376,7 @@ function Dashboard() {
                 className="More" 
                 onClick={() => window.location.href = '/LecturerQuizHistory'}
               >
-                View Past Quizzes
+                View All Quizzes
               </button>
             )}
             <button 
@@ -409,10 +416,10 @@ function Dashboard() {
                 📚
               </div>
               <h3 style={{ color:'#333', marginBottom:'10px', fontSize:'18px' }}>
-                {searchTerm ? 'No AI quizzes match your search' : 'No unpublished quizzes'}
+                {searchTerm ? 'No AI quizzes match your search' : 'No AI quizzes found'}
               </h3>
               <p style={{ color:'#666', marginBottom:'20px', fontSize:'14px' }}>
-                Published quizzes are now in <strong>Past Quizzes</strong>. Create or edit drafts here.
+                {searchTerm ? 'Try adjusting your search criteria.' : 'Create your first AI quiz to get started.'}
               </p>
               <button 
                 onClick={() => window.location.href = '/LecturerAIQuizzes'} 

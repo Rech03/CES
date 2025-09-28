@@ -79,3 +79,204 @@
     width: 100%;
     margin-top: 20%;
 }
+/* ============================================ */
+/* === RESPONSIVE BREAKPOINTS === */
+/* ============================================ */
+
+/* === LARGE SCREENS (1200px and below) === */
+@media (max-width: 1200px) {
+    /* Adjust container width for smaller desktops */
+    .ContainerD {
+        width: 70%;
+        margin-left: 18%;
+    }
+    
+    /* Change to 2 columns on medium screens */
+    .QuizList {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+}
+
+/* === TABLETS (1024px and below) === */
+@media (max-width: 1024px) {
+    .ContainerD {
+        width: 75%;
+        margin-left: 15%;
+    }
+    
+    /* Adjust sidebar width */
+    .SideD {
+        width: 18%;
+        margin-left: 80%;
+    }
+    
+    .BoiD {
+        margin-left: 78%;
+    }
+}
+
+/* === TABLET/MOBILE (768px and below) === */
+/* This is where hamburger menu appears */
+@media (max-width: 768px) {
+    /* FULL SCREEN CONTAINER - No margins, takes entire viewport */
+    .ContainerD {
+        width: 100%;
+        margin-left: 0;
+        margin-top: 0;
+        padding: 70px 15px 15px 15px; /* Top padding for hamburger + bio */
+        min-height: 100vh; /* Full viewport height */
+        border-radius: 0; /* Remove rounded corners on mobile */
+        box-shadow: none; /* Remove shadow for cleaner look */
+        position: fixed;
+        top: 0;
+        left: 0;
+        overflow-y: auto; /* Allow scrolling */
+        background: white;
+    }
+    
+    /* Hide sidebar on mobile - not needed */
+    .SideD {
+        display: none;
+    }
+    
+    /* SHOW BIO at top right on mobile */
+    .BoiD {
+        display: block;
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        margin: 0;
+        max-width: none;
+        z-index: 1002; /* Above hamburger */
+    }
+    
+    /* HIDE BIOGRAPHY SECTION on mobile */
+    .Boigraphy {
+        display: none;
+    }
+    
+    /* HIDE SEARCH BAR on mobile - saves space */
+    .SeachBar {
+        display: none;
+    }
+    
+    /* QUIZ GRID: 2 columns on tablet */
+    .QuizList {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        justify-items: center; /* Center the tiles */
+        margin-top: 20px;
+    }
+    
+    /* Adjust header spacing */
+    .quiz-header1 {
+        margin-left: 10px;
+        margin-right: 10px;
+        margin-top: 10px;
+    }
+    
+    .Title {
+        font-size: 18px;
+    }
+    
+    .More {
+        font-size: 14px;
+    }
+}
+
+/* === MOBILE PHONES (480px and below) === */
+/* ONE COLUMN LAYOUT - Each quiz gets full width */
+@media (max-width: 480px) {
+    /* Full screen container optimized for mobile */
+    .ContainerD {
+        width: 100%;
+        margin: 0;
+        padding: 70px 10px 20px 10px; /* Top padding for hamburger + bio */
+        min-height: 100vh;
+        border-radius: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        overflow-y: auto;
+        background: white;
+    }
+    
+    /* Bio component at top right */
+    .BoiD {
+        display: none;
+       
+    }
+    
+    /* Hide biography section completely */
+    .Boigraphy {
+        display: none;
+    }
+    
+    /* Hide search bar on mobile */
+    .SeachBar {
+        display: none;
+    }
+    
+    /* === SINGLE COLUMN LAYOUT === */
+    /* Each quiz tile takes full width for better readability */
+    .QuizList {
+        grid-template-columns: 1fr; /* ONE COLUMN - stacked vertically */
+        gap: 15px;
+        justify-items: center;
+        padding: 0 5px;
+        margin-top: 15px;
+    }
+    
+    /* Header stays horizontal on mobile */
+    .quiz-header1 {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin: 10px 5px 15px 5px;
+    }
+    
+    /* Smaller text on mobile */
+    .Title {
+        font-size: 16px;
+        margin-bottom: 5px;
+    }
+    
+    .More {
+        font-size: 12px;
+    }
+    
+    /* Search results text */
+    .search-results {
+        display: block;
+        font-size: 11px;
+        margin-top: 5px;
+        color: #666;
+    }
+}
+
+/* === EXTRA SMALL MOBILE (360px and below) === */
+/* For very small phones */
+@media (max-width: 360px) {
+    .ContainerD {
+        padding: 65px 8px 15px 8px;
+    }
+    
+    .BoiD {
+        display: none;
+    }
+    
+    .Title {
+        font-size: 14px;
+    }
+    
+    .More {
+        font-size: 11px;
+    }
+    
+    /* Single column with slightly smaller gap */
+    .QuizList {
+        gap: 12px;
+    }
+}

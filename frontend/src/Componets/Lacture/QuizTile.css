@@ -314,3 +314,53 @@
     padding: 3px 6px;
   }
 }
+/* Add these styles to QuizTile.css for better published quiz visualization */
+
+.quiz-tile-container.published {
+  border: 2px solid #27AE60;
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.15);
+}
+
+.quiz-tile-container.published::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #27AE60, #2ECC71);
+  border-radius: 8px 8px 0 0;
+}
+
+.action-btn.results-btn {
+  background-color: #27AE60 !important;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.action-btn.results-btn:hover {
+  background-color: #219A52 !important;
+  transform: translateY(-1px);
+}
+
+.action-btn.analytics-btn {
+  background-color: #3498DB !important;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.action-btn.analytics-btn:hover {
+  background-color: #2980B9 !important;
+  transform: translateY(-1px);
+}
+
+/* Success animation for when quiz gets published */
+@keyframes publishSuccess {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.quiz-tile-container.just-published {
+  animation: publishSuccess 0.6s ease-in-out;
+}

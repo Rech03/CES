@@ -154,8 +154,7 @@
   }
 
   .BoiA{
-    top: 10px;
-    right: 10px;
+   display: none;
   }
 }
 

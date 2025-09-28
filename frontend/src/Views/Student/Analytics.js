@@ -76,13 +76,7 @@ function Analytics() {
       
       {/* Main Container using your existing CSS classes */}
       <div className="ContainerAn">
-        <div className="Boigraphy">
-          <Biography 
-            showLoading={true}
-            compact={false}
-          />
-        </div>
-
+       
         {error && (
           <div className="error-banner">
             <div className="error-content">
@@ -94,22 +88,7 @@ function Analytics() {
           </div>
         )}
         
-        {/* Tab Selector */}
-        <div className="tab-selector">
-          <button 
-            className={`tab-btn ${activeTab === 'insights' ? 'active' : ''}`}
-            onClick={() => setActiveTab('insights')}
-          >
-            Insights
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analytics')}
-          >
-            Analytics
-          </button>
-        </div>
-
+       
         {/* Tab Content */}
         <div className="tab-content">
           {activeTab === 'insights' && (
@@ -128,12 +107,12 @@ function Analytics() {
 
       {/* Side panels using your existing CSS classes */}
       <div className="SideAn">
-        <div className="List">
+        
           <CoursesList 
             compact={true}
             showLoading={true}
           />
-        </div>
+        
       </div>
       
       <div className="BoiAn">
