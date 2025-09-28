@@ -34,7 +34,7 @@ const Toast = ({ message, type, onClose }) => {
     }}>
       <div style={{
         width: '24px', height: '24px',
-        background: 'rgba(255,255,255,0.2)',
+        background: 'rgba(255, 255, 255, 1)',
         borderRadius: '50%', display: 'flex',
         alignItems: 'center', justifyContent: 'center',
         fontWeight: 'bold'
@@ -131,7 +131,7 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
           </div>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
             <div onClick={() => setShowCodeModal(true)} style={{ 
-              background: 'rgba(255,255,255,0.2)', 
+              background: 'rgba(255, 255, 255, 1)', 
               padding: '8px 16px', borderRadius: '8px',
               fontSize: '14px', cursor: 'pointer'
             }}>
@@ -171,9 +171,7 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
           }}>
             <div>{currentQ.is_anonymous ? 'Anonymous' : currentQ.student_name}</div>
             <div>•</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              👍 {currentQ.likes || 0}
-            </div>
+            
           </div>
         </div>
 
@@ -275,7 +273,7 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
               borderRadius: '6px', fontSize: '12px', fontWeight: '600',
               cursor: 'pointer'
             }}>
-              📱 Show Code for Students
+              Show Code for Students
             </button>
           </div>
         </div>
@@ -370,7 +368,7 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
                   onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >
                   <div style={{
-                    fontSize: '18px', lineHeight: '1.5',
+                    fontSize: '20px', lineHeight: '1.5',
                     marginBottom: 'auto', fontWeight: '500'
                   }}>
                     {question.text || question.message_text || question.message || 'No message'}
@@ -382,13 +380,8 @@ const MentimeterPresentation = ({ session, onEndSession }) => {
                     opacity: 0.9, marginTop: '16px'
                   }}>
                     <span>{question.is_anonymous ? 'Anonymous' : question.student_name}</span>
-                    <div style={{
-                      background: 'rgba(255,255,255,0.2)',
-                      padding: '4px 12px', borderRadius: '16px',
-                      fontWeight: '600'
-                    }}>
-                      👍 {question.likes || 0}
-                    </div>
+                    
+                    
                   </div>
                 </div>
               ))}

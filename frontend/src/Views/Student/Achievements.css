@@ -80,3 +80,90 @@
     width: 100%;
     margin-top: 20%;
 }
+/* ============================================ */
+/* === TABLET VIEW (1024px and below) === */
+/* ============================================ */
+@media (max-width: 1024px) {
+  .ContainerAI {
+    width: 70%;
+    margin-left: 18%;
+    margin-top: 5%;
+  }
+
+  .SideAI {
+    width: 15%;
+    margin-left: 83%;
+  }
+
+  .BoiAI {
+    margin-left: 81%;
+  }
+}
+
+/* ============================================ */
+/* === MOBILE VIEW (768px and below) === */
+/* CONTAINER GOES FULL WIDTH */
+/* ============================================ */
+@media (max-width: 768px) {
+  /* Main container takes full width */
+  .ContainerA {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 0px; 
+    position: relative;
+    border-radius: 0;
+    padding: 20px;
+    box-sizing: border-box;
+     box-shadow: none; 
+  }
+
+  /* Hide sidebar on mobile */
+  .SideA {
+    display: none;
+  }
+
+  /* Bio moves to top right corner (fixed position) */
+  .BoiA {
+    display:none;
+  }
+
+  .UploadSlides {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .Rating {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 20px;
+  }
+
+  .List {
+    width: 100%;
+    margin-top: 20px;
+  }
+}
+
+/* ============================================ */
+/* === SMALL MOBILE (480px and below) === */
+/* ============================================ */
+@media (max-width: 480px) {
+  .ContainerA {
+    margin-top: 0px;
+    padding: 15px;
+  }
+
+  .BoiA{
+    top: 10px;
+    right: 10px;
+  }
+}
+
+/* ============================================ */
+/* === VERY SMALL MOBILE (360px and below) === */
+/* ============================================ */
+@media (max-width: 360px) {
+  .ContainerA {
+    padding: 10px;
+  }
+}

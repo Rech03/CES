@@ -188,7 +188,6 @@ const QuizCountdownPage = () => {
     const details = quizDetails || {};
     return {
       title: details.title || 
-             details.slide_title ||
              quizData.quizTitle || 
              quizData.title || 
              'Published Quiz',

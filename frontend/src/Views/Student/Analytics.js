@@ -1,20 +1,18 @@
 import { useState, useEffect } from 'react';
-// Correct API imports
 import { getProfile } from '../../api/users';
-import { getMyCourses } from '../../api/courses';
 import Bio from "../../Componets/Student/bio";
 import Biography from "../../Componets/Student/Biography";
 import CoursesList from "../../Componets/Student/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
-import StarRating from "../../Componets/Student/StarRating";
 import StudentAnalytics from '../../Componets/Student/QuizAnalytics';
-import "./AIQuizzes.css";
+import StudentInsights from '../../Componets/Student/StudentInsights';
+import "./Analytics.css";
 
 function Analytics() {
   const [selectedStudentId, setSelectedStudentId] = useState(null);
-  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('insights'); // insights or analytics
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,41 +34,11 @@ function Analytics() {
           setSelectedStudentId(1);
         }
 
-        // Fetch courses for sidebar
-        try {
-          const coursesResponse = await getMyCourses();
-          console.log('Courses response for analytics:', coursesResponse);
-          
-          // Handle different response structures
-          let fetchedCourses = [];
-          if (Array.isArray(coursesResponse.data)) {
-            fetchedCourses = coursesResponse.data;
-          } else if (coursesResponse.data?.results) {
-            fetchedCourses = coursesResponse.data.results;
-          } else if (coursesResponse.data?.courses) {
-            fetchedCourses = coursesResponse.data.courses;
-          } else if (coursesResponse.data && typeof coursesResponse.data === 'object') {
-            // Check if the data object has an array property
-            const arrayKey = Object.keys(coursesResponse.data).find(key => 
-              Array.isArray(coursesResponse.data[key])
-            );
-            if (arrayKey) {
-              fetchedCourses = coursesResponse.data[arrayKey];
-            }
-          }
-          
-          setCourses(fetchedCourses);
-        } catch (coursesErr) {
-          console.warn('Error fetching courses:', coursesErr);
-          setCourses([]); // Set empty array if courses fetch fails
-        }
-
       } catch (err) {
         console.error('Error fetching analytics data:', err);
         setError('Failed to load analytics data');
         // Set defaults if everything fails
         setSelectedStudentId(1);
-        setCourses([]);
       } finally {
         setLoading(false);
       }
@@ -91,38 +59,85 @@ function Analytics() {
           <NavBar />
         </div>
         <div className="loading-container">
-          <div className="spinner"></div>
-          <p>Loading analytics...</p>
+          <div className="loading-spinner">
+            <div className="spinner"></div>
+            <p>Loading analytics...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="analytics-page">
       <div className="NavBar">
         <NavBar />
       </div>
       
-      {/* Main Container - everything inside will be contained */}
-      <div className="ContainerAI">
+      {/* Main Container using your existing CSS classes */}
+      <div className="ContainerAn">
+        <div className="Boigraphy">
+          <Biography 
+            showLoading={true}
+            compact={false}
+          />
+        </div>
+
         {error && (
           <div className="error-banner">
-            <p>{error}</p>
-            <button onClick={handleRefresh}>Retry</button>
+            <div className="error-content">
+              <p>{error}</p>
+              <button onClick={handleRefresh} className="retry-button">
+                Try Again
+              </button>
+            </div>
           </div>
         )}
-        <div className="StudentAnalyticsWrapper">
-          <StudentAnalytics studentId={selectedStudentId} />
+        
+        {/* Tab Selector */}
+        <div className="tab-selector">
+          <button 
+            className={`tab-btn ${activeTab === 'insights' ? 'active' : ''}`}
+            onClick={() => setActiveTab('insights')}
+          >
+            Insights
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+            onClick={() => setActiveTab('analytics')}
+          >
+            Analytics
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        <div className="tab-content">
+          {activeTab === 'insights' && (
+            <div className="StudentInsightsWrapper">
+              <StudentInsights studentId={selectedStudentId} />
+            </div>
+          )}
+          
+          {activeTab === 'analytics' && (
+            <div className="StudentAnalyticsWrapper">
+              <StudentAnalytics studentId={selectedStudentId} />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Side panel remains outside */}
-      <div className="SideAI">
-          <CoursesList courses={courses} />
+      {/* Side panels using your existing CSS classes */}
+      <div className="SideAn">
+        <div className="List">
+          <CoursesList 
+            compact={true}
+            showLoading={true}
+          />
+        </div>
       </div>
-      <div className="BoiAI">
-        <Bio />
+      
+      <div className="BoiAn">
+        <Bio showLoading={true} />
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
 import Bio from "../../Componets/Student/bio";
 import CoursesList from "../../Componets/Student/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
-import StarRating from "../../Componets/Student/StarRating";
 import StudentAchievements from "../../Componets/Student/StudentAchievements";
 import "./Achievements.css";
 
@@ -19,11 +18,14 @@ function Achievements() {
 
       {/* Side panel remains outside */}
       <div className="SideA">
-          <CoursesList />
+        <CoursesList 
+          compact={true}
+          showLoading={true}
+        />
       </div>
       
       <div className="BoiA">
-        <Bio />
+        <Bio showLoading={true} />
       </div>
     </div>
   );

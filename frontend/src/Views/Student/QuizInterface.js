@@ -1,48 +1,31 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getAdaptiveQuiz, submitAdaptiveQuiz, getStudentAvailableQuizzes } from '../../api/ai-quiz';
+import { getAdaptiveQuiz, submitAdaptiveQuiz, getStudentAvailableQuizzes, studentAdaptiveProgress } from '../../api/ai-quiz';
 import MultipleChoiceQuestion from '../../Componets/Student/MultipleChoiceQuestion';
-import TrueFalseQuestion from '../../Componets/Student/TrueFalseQuestion';
-import ShortAnswerQuestion from '../../Componets/Student/ShortAnswerQuestion';
 import './QuizInterface.css';
 
 const DIFF_ORDER = { easy: 1, medium: 2, hard: 3 };
+const MAX_ATTEMPTS = 3;
 
 const QuizInterface = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Router state
   const stateData = location.state || {};
-
-  // Query params
   const search = new URLSearchParams(location.search);
   const quizIdFromQuery = search.get('quizId');
   const slideIdFromQuery = search.get('slideId');
 
-  // LocalStorage fallbacks
-  const quizIdFromStorage = typeof window !== 'undefined' ? localStorage.getItem('last_quiz_id') : null;
-  const slideIdFromStorage = typeof window !== 'undefined' ? localStorage.getItem('last_slide_id') : null;
-
-  // Quiz meta
   const [quizEnv, setQuizEnv] = useState({
-    quizTitle: stateData.quizTitle || 'AI Quiz',
+    quizTitle: stateData.quizTitle || 'Quiz',
     quizDuration: stateData.quizDuration || '15 min',
     totalQuestions: stateData.totalQuestions || 5,
-    quizId:
-      stateData.quizId ||
-      (quizIdFromQuery ? Number(quizIdFromQuery) : null) ||
-      (quizIdFromStorage ? Number(quizIdFromStorage) : null),
-    slideId:
-      stateData.slideId ||
-      (slideIdFromQuery ? Number(slideIdFromQuery) : null) ||
-      (slideIdFromStorage ? Number(slideIdFromStorage) : null),
-    isAIQuiz: true,
+    quizId: stateData.quizId || (quizIdFromQuery ? Number(quizIdFromQuery) : null),
+    slideId: stateData.slideId || (slideIdFromQuery ? Number(slideIdFromQuery) : null),
     isLive: !!stateData.isLive,
     time_limit: stateData.time_limit
   });
 
-  // UI state
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -51,9 +34,9 @@ const QuizInterface = () => {
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState(null);
   const [resolvedTitle, setResolvedTitle] = useState(quizEnv.quizTitle);
-  const [gateInfo, setGateInfo] = useState(null); // { message, suggested }
+  const [currentAttempts, setCurrentAttempts] = useState(0);
+  const [quizDifficulty, setQuizDifficulty] = useState(null);
 
-  // timer helpers
   const getSecondsFromDuration = (duration) => {
     if (typeof duration === 'number') return duration * 60;
     if (typeof duration === 'string') {
@@ -62,315 +45,188 @@ const QuizInterface = () => {
     }
     return 900;
   };
+
   const [timeRemaining, setTimeRemaining] = useState(getSecondsFromDuration(quizEnv.time_limit || quizEnv.quizDuration));
 
-  // ---------- robust normalizers ----------
-  const normalizeType = (rawType) => {
-    const t = String(rawType || '').toLowerCase().replace(/[-\s]/g, '_');
-    if (['mcq','multiple_choice','multiple_choice_single','single_choice','multiple_choice_question'].includes(t)) return 'multiple_choice';
-    if (['true_false','true/false','boolean','bool'].includes(t)) return 'true_false';
-    if (['short_answer','short_answer_question','text','open','open_ended'].includes(t)) return 'short_answer';
-    return 'multiple_choice';
-  };
-
-  const normalizeChoices = (raw) => {
-    if (!raw) return [];
-    if (Array.isArray(raw)) {
-      return raw.map((choice, i) => {
-        if (typeof choice === 'string') {
-          return { id: i + 1, text: choice, is_correct: false };
-        }
-        if (choice && typeof choice === 'object') {
-          return {
-            id: choice.id ?? i + 1,
-            text: choice.choice_text ?? choice.text ?? choice.answer_text ?? `Option ${i + 1}`,
-            is_correct: !!choice.is_correct
-          };
-        }
-        return { id: i + 1, text: String(choice), is_correct: false };
-      }).filter(Boolean);
+  // Normalize question from API
+  const normalizeQuestion = (q, index) => {
+    let choices = [];
+    
+    // The API returns 'options' as an object with keys A, B, C, D
+    if (q.options && typeof q.options === 'object') {
+      // Convert object to array: {A: "text", B: "text"} -> [{id: 1, text: "text"}, ...]
+      const optionKeys = Object.keys(q.options).sort(); // Sort to ensure A, B, C, D order
+      choices = optionKeys.map((key, idx) => ({
+        id: idx + 1,
+        letter: key,
+        text: q.options[key],
+        is_correct: false // We don't know which is correct during quiz taking
+      }));
     }
-    if (typeof raw === 'object') {
-      return Object.entries(raw).map(([key, val], idx) => {
-        if (typeof val === 'string') {
-          return {
-            id: isNaN(Number(key)) ? idx + 1 : Number(key),
-            text: val,
-            is_correct: false
-          };
-        }
-        if (val && typeof val === 'object') {
-          return {
-            id: val.id ?? (isNaN(Number(key)) ? idx + 1 : Number(key)),
-            text: val.choice_text ?? val.text ?? val.answer_text ?? `Option ${idx + 1}`,
-            is_correct: !!val.is_correct
-          };
-        }
-        return {
-          id: isNaN(Number(key)) ? idx + 1 : Number(key),
-          text: String(val),
-          is_correct: false
-        };
-      }).filter(Boolean);
-    }
-    if (typeof raw === 'string') {
-      const parts = raw.split(/\r?\n|;|\|/).map(s => s.trim()).filter(Boolean);
-      return parts.map((txt, i) => ({ id: i + 1, text: txt, is_correct: false }));
-    }
-    return [];
-  };
-
-  const normalizeOneQuestion = (q, index) => {
-    const type = normalizeType(q?.question_type || q?.type);
-    const base = {
-      id: q?.id || q?.question_id || index + 1,
-      type,
-      question: q?.question_text || q?.text || q?.question || `Question ${index + 1}`,
-      points: q?.points || q?.weight || 1,
-      order: q?.order || index + 1,
-      explanation: q?.explanation || null,
-    };
-
-    if (type === 'multiple_choice') {
-      const rawChoices = (q?.choices ?? q?.options ?? q?.answers ?? null);
-      const choices = normalizeChoices(rawChoices);
-      const correctId = q?.correct_choice_id ?? q?.correct_option_id ?? null;
-      const correctText = q?.correct_answer ?? null;
-      if (correctId != null) {
-        choices.forEach(c => { if (String(c.id) === String(correctId)) c.is_correct = true; });
-      } else if (correctText) {
-        choices.forEach(c => { if ((c.text || '').trim() === String(correctText).trim()) c.is_correct = true; });
-      }
-      return { ...base, choices };
+    // Fallback: check for other possible formats
+    else if (Array.isArray(q.choices)) {
+      choices = q.choices.map((choice, i) => ({
+        id: choice.id || i + 1,
+        letter: String.fromCharCode(65 + i),
+        text: choice.text || choice.choice_text || String(choice),
+        is_correct: false
+      }));
     }
 
-    if (type === 'true_false') {
-      return {
-        ...base,
-        correct_answer: typeof q?.correct_answer === 'boolean'
-          ? q.correct_answer
-          : String(q?.correct_answer || '').toLowerCase() === 'true'
-      };
-    }
-
-    // short_answer
     return {
-      ...base,
-      model_answer: q?.model_answer || q?.sample_answer || null
+      id: q.id || q.question_id || index + 1,
+      type: 'multiple_choice',
+      question: q.question || q.question_text || `Question ${index + 1}`,
+      choices: choices,
+      points: q.points || 1,
+      question_number: q.question_number ?? index,
+      difficulty: q.difficulty || 'medium',
+      explanation: q.explanation || null,
     };
   };
 
-  // -------- data loaders ----------
-  const fetchAndPopulate = async (qid, sid = null) => {
-    const res = await getAdaptiveQuiz(qid); // may 403
-    const data = res.data;
-
-    // title & time
-    setResolvedTitle(data?.title || data?.name || quizEnv.quizTitle);
-    setTimeRemaining(getSecondsFromDuration(data?.time_limit || quizEnv.time_limit || quizEnv.quizDuration || 15));
-
-    // questions
-    let qs = [];
-    if (Array.isArray(data?.questions)) qs = data.questions;
-    else if (Array.isArray(data?.adaptive_questions)) qs = data.adaptive_questions;
-
-    if (!Array.isArray(qs) || qs.length === 0) {
-      throw new Error('No questions found in this quiz.');
+  // Check current attempts for this quiz
+  const checkAttempts = async (qid) => {
+    try {
+      const { data: progress } = await studentAdaptiveProgress();
+      const attemptsRaw = Array.isArray(progress) 
+        ? progress 
+        : progress?.attempts || progress?.recent_attempts || [];
+      
+      const quizAttempts = attemptsRaw.filter(a => 
+        (a.adaptive_quiz_id || a.quiz_id) === qid
+      );
+      
+      return quizAttempts.length;
+    } catch (e) {
+      console.warn('Failed to check attempts:', e);
+      return 0;
     }
-
-    const processed = qs.map((q, idx) => normalizeOneQuestion(q, idx));
-    setQuestions(processed);
-    setFatalError(null);
-    setGateInfo(null);
-
-    // persist IDs and URL
-    localStorage.setItem('last_quiz_id', String(qid));
-    if (sid != null) localStorage.setItem('last_slide_id', String(sid));
-    const params = new URLSearchParams();
-    params.set('quizId', String(qid));
-    if (sid != null) params.set('slideId', String(sid));
-    window.history.replaceState({}, '', `/QuizInterface?${params.toString()}`);
   };
 
-  const suggestPrerequisite = async (targetQuizId, targetSlideId) => {
+  // Find next level quiz
+  const findNextLevelQuiz = async (currentSlideId, currentDifficulty) => {
     try {
       const av = await getStudentAvailableQuizzes();
       const slides = Array.isArray(av?.data?.slides) ? av.data.slides : [];
-      const flat = [];
-      let targetDifficulty = null;
-
+      
       for (const s of slides) {
         const slideInfo = s?.slide_info || {};
+        if (slideInfo.slide_id !== currentSlideId) continue;
+        
         const qs = Array.isArray(s?.quizzes) ? s.quizzes : [];
-        for (const q of qs) {
-          const item = {
-            quiz_id: q.quiz_id,
-            slide_id: slideInfo.slide_id ?? null,
-            difficulty: (q.difficulty || '').toLowerCase(),
-            accessible: !!q.accessible,
-            topic_name: slideInfo.topic_name,
-            course_code: slideInfo.course_code,
+        const currentOrder = DIFF_ORDER[currentDifficulty] || 1;
+        
+        // Find next difficulty level
+        const nextLevel = qs.find(q => {
+          const qDiff = (q.difficulty || '').toLowerCase();
+          return DIFF_ORDER[qDiff] === currentOrder + 1;
+        });
+        
+        if (nextLevel) {
+          return {
+            quiz_id: nextLevel.quiz_id,
+            slide_id: slideInfo.slide_id,
+            difficulty: nextLevel.difficulty,
+            topic_name: slideInfo.topic_name
           };
-          flat.push(item);
-          if (q.quiz_id === targetQuizId) {
-            targetDifficulty = item.difficulty;
-            targetSlideId = targetSlideId ?? item.slide_id ?? null;
-          }
         }
       }
-
-      if (!targetSlideId || !targetDifficulty) {
-        const firstAcc = flat.find(x => x.accessible);
-        return firstAcc ? { message: 'Please start with an available quiz first.', suggested: firstAcc } : null;
-      }
-
-      const sameSlide = flat.filter(x => x.slide_id === targetSlideId);
-      const accessible = sameSlide.filter(x => x.accessible);
-      if (accessible.length === 0) return null;
-
-      const tOrder = DIFF_ORDER[targetDifficulty] ?? 99;
-      const byDiff = (a, b) => (DIFF_ORDER[a.difficulty] ?? 99) - (DIFF_ORDER[b.difficulty] ?? 99);
-      const exactPrev = accessible.find(x => (DIFF_ORDER[x.difficulty] ?? -1) === tOrder - 1);
-      const suggested = exactPrev || accessible.sort(byDiff)[0];
-
-      if (!suggested) return null;
-      const humanDiff = suggested.difficulty ? suggested.difficulty[0].toUpperCase() + suggested.difficulty.slice(1) : '';
-      const msg = `You need to complete the ${humanDiff} quiz first for this slide.`;
-      return { message: msg, suggested };
+      
+      return null;
     } catch (e) {
-      console.warn('suggestPrerequisite failed:', e);
+      console.warn('Failed to find next level:', e);
       return null;
     }
   };
 
-  const switchToSuggested = async (obj) => {
-    if (!obj?.quiz_id) return;
-    setLoading(true);
-    setAnswers({});
-    setCurrentQuestionIndex(0);
-    setQuizEnv(prev => ({ ...prev, quizId: obj.quiz_id, slideId: obj.slide_id ?? prev.slideId ?? null }));
+  // Load quiz data
+  const fetchQuiz = async (qid) => {
     try {
-      await fetchAndPopulate(obj.quiz_id, obj.slide_id ?? null);
+      const res = await getAdaptiveQuiz(qid);
+      const data = res.data;
+
+      console.log('Full API Response:', data);
+
+      setResolvedTitle(data?.title || data?.name || quizEnv.quizTitle);
+      setQuizDifficulty((data?.difficulty || '').toLowerCase());
+      setTimeRemaining(getSecondsFromDuration(data?.time_limit || quizEnv.time_limit || quizEnv.quizDuration));
+
+      // Extract questions
+      let qs = [];
+      if (Array.isArray(data?.questions)) {
+        qs = data.questions;
+      } else if (Array.isArray(data?.adaptive_questions)) {
+        qs = data.adaptive_questions;
+      }
+
+      if (qs.length === 0) {
+        throw new Error('No questions found in this quiz.');
+      }
+
+      const processed = qs.map((q, idx) => normalizeQuestion(q, idx));
+      
+      console.log('Processed questions with choices:', processed);
+      
+      // Validate that we have choices
+      const questionsWithoutChoices = processed.filter(q => !q.choices || q.choices.length === 0);
+      if (questionsWithoutChoices.length > 0) {
+        console.error('Questions missing choices:', questionsWithoutChoices);
+        throw new Error('Questions are missing answer choices.');
+      }
+      
+      setQuestions(processed);
+      
+      // Check attempts
+      const attempts = await checkAttempts(qid);
+      setCurrentAttempts(attempts);
     } catch (err) {
-      console.error('Failed to load suggested quiz:', err);
-      setFatalError(err?.message || 'Failed to load suggested quiz.');
-    } finally {
-      setLoading(false);
+      console.error('Error fetching quiz:', err);
+      throw err;
     }
   };
 
-  // initial load
+  // Initial load
   useEffect(() => {
-    const ensureQuizIdAndLoad = async () => {
+    const loadQuiz = async () => {
       try {
         setLoading(true);
         setFatalError(null);
-        setGateInfo(null);
 
         let qid = quizEnv.quizId;
-        let sid = quizEnv.slideId;
 
         if (!qid) {
-          const av = await getStudentAvailableQuizzes();
-          let first = null;
-          if (Array.isArray(av?.data?.slides)) {
-            for (const s of av.data.slides) {
-              const info = s?.slide_info || {};
-              const qs = Array.isArray(s?.quizzes) ? s.quizzes : [];
-              for (const q of qs) {
-                if (q?.accessible) {
-                  first = { quiz_id: q.quiz_id, slide_id: info.slide_id ?? null };
-                  break;
-                }
-              }
-              if (first) break;
-            }
-          }
-          if (!first) {
-            setFatalError('No accessible quizzes for this student.');
-            setLoading(false);
-            return;
-          }
-          qid = first.quiz_id;
-          sid = first.slide_id;
-          setQuizEnv(prev => ({ ...prev, quizId: qid, slideId: sid ?? prev.slideId ?? null }));
+          setFatalError('No quiz ID provided. Please select a quiz from the dashboard.');
+          setLoading(false);
+          return;
         }
 
-        try {
-          await fetchAndPopulate(qid, sid ?? null);
-        } catch (err) {
-          if (err?.response?.status === 403) {
-            const serverMsg = err?.response?.data?.error || 'Quiz not accessible.';
-            const suggestion = await suggestPrerequisite(qid, sid ?? null);
-            if (suggestion?.suggested) {
-              setGateInfo({ message: serverMsg, suggested: suggestion.suggested });
-              setFatalError(null);
-            } else {
-              setFatalError(serverMsg);
-            }
-          } else {
-            setFatalError(err?.message || 'Failed to initialize quiz');
-          }
-        }
+        await fetchQuiz(qid);
+      } catch (err) {
+        console.error('Quiz load error:', err);
+        const serverMsg = err?.response?.data?.error || err?.response?.data?.detail || err?.message;
+        setFatalError(serverMsg || 'Failed to load quiz');
       } finally {
         setLoading(false);
       }
     };
 
-    ensureQuizIdAndLoad();
+    loadQuiz();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // timer
+  // Timer
   useEffect(() => {
-    if (timeRemaining > 0 && !isSubmitted && !loading && !fatalError && !gateInfo) {
+    if (timeRemaining > 0 && !isSubmitted && !loading && !fatalError) {
       const t = setTimeout(() => setTimeRemaining((prev) => prev - 1), 1000);
       return () => clearTimeout(t);
     }
-    if (timeRemaining === 0 && !isSubmitted && !fatalError && !gateInfo) {
+    if (timeRemaining === 0 && !isSubmitted && !fatalError) {
       handleSubmitQuiz();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeRemaining, isSubmitted, loading, fatalError, gateInfo]);
+  }, [timeRemaining, isSubmitted, loading, fatalError]);
 
-  // -------- helpers for submit ----------
-  const indexToLetter = (idx) => String.fromCharCode(65 + idx); // 0 -> 'A'
-
-  const mcqAnswerToLetter = (question, value) => {
-    const choices = question?.choices || [];
-    if (choices.length === 0) return null;
-
-    // Already a letter? accept A-Z
-    if (typeof value === 'string' && /^[A-Z]$/.test(value.trim().toUpperCase())) {
-      return value.trim().toUpperCase();
-    }
-
-    // If user stored the text itself
-    if (typeof value === 'string') {
-      const byText = choices.findIndex(c => (c.text || '').trim() === value.trim());
-      if (byText >= 0) return indexToLetter(byText);
-    }
-
-    // If we have an id (number or string)
-    let id = null;
-    if (typeof value === 'number' || typeof value === 'string') {
-      const n = Number(value);
-      if (Number.isFinite(n)) id = n;
-    } else if (value && typeof value === 'object' && 'id' in value) {
-      const n = Number(value.id);
-      if (Number.isFinite(n)) id = n;
-    }
-
-    if (id != null) {
-      const idx = choices.findIndex(c => String(c.id) === String(id));
-      if (idx >= 0) return indexToLetter(idx);
-    }
-
-    // Fallback: pick first as last resort (but better to send null and let server handle)
-    return null;
-  };
-
-  // -------- handlers ----------
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const r = s % 60;
@@ -383,80 +239,105 @@ const QuizInterface = () => {
   };
 
   const handleNextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) setCurrentQuestionIndex(currentQuestionIndex + 1);
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    }
   };
+
   const handlePreviousQuestion = () => {
-    if (currentQuestionIndex > 0) setCurrentQuestionIndex(currentQuestionIndex - 1);
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
   };
-  const handleQuestionJump = (i) => setCurrentQuestionIndex(i);
 
   const handleSubmitQuiz = async () => {
     setIsSubmitted(true);
     setShowSubmitModal(false);
 
     try {
-      const adaptiveQuizId =
-        Number(quizEnv.quizId) ||
-        Number(quizIdFromQuery) ||
-        Number(quizIdFromStorage);
+      const adaptiveQuizId = Number(quizEnv.quizId);
 
-      if (!adaptiveQuizId || Number.isNaN(adaptiveQuizId)) {
+      if (!adaptiveQuizId || isNaN(adaptiveQuizId)) {
         setIsSubmitted(false);
-        setFatalError('Cannot submit: missing quiz id. Please reopen the quiz from the dashboard.');
+        setFatalError('Cannot submit: missing quiz ID.');
         return;
       }
 
-      // Backend expects:
-      // answers: { "<question_id>": "A" | "B" | ... | "True" | "False" | "<text>" }
+      // Convert answers to letter format (A, B, C, D)
+      // Backend expects answers like: { "question_0": "A", "question_1": "B", "question_2": "C" }
       const answersDict = {};
-      Object.entries(answers).forEach(([qidStr, value]) => {
-        const q = questions.find(qq => String(qq.id) === String(qidStr));
-        if (!q) return;
-        if (q.type === 'multiple_choice') {
-          const letter = mcqAnswerToLetter(q, value);
-          if (letter) answersDict[qidStr] = letter;       // e.g., "A"
-        } else if (q.type === 'true_false') {
-          answersDict[qidStr] = value ? 'True' : 'False';  // strings, not booleans
-        } else {
-          answersDict[qidStr] = value != null ? String(value) : '';
+      
+      questions.forEach((question, questionIndex) => {
+        const userAnswer = answers[question.id];
+        
+        if (userAnswer !== undefined && userAnswer !== null) {
+          // Find which choice was selected
+          const choiceIndex = question.choices.findIndex(
+            choice => String(choice.id) === String(userAnswer)
+          );
+          
+          if (choiceIndex >= 0) {
+            // Convert index to letter: 0->A, 1->B, 2->C, 3->D
+            const letterAnswer = String.fromCharCode(65 + choiceIndex);
+            // KEY FIX: Use "question_X" as key to match backend expectation
+            answersDict[`question_${questionIndex}`] = letterAnswer;
+          }
         }
       });
 
       const payload = {
         adaptive_quiz_id: adaptiveQuizId,
-        slide_id:
-          quizEnv.slideId ??
-          (slideIdFromQuery ? Number(slideIdFromQuery) : (slideIdFromStorage ? Number(slideIdFromStorage) : null)),
         answers: answersDict
       };
 
+      if (quizEnv.slideId) {
+        payload.slide_id = quizEnv.slideId;
+      }
+
+      console.log('Submitting quiz with payload:', payload);
+      console.log('Answers being submitted:', answersDict);
+
       const submitResp = await submitAdaptiveQuiz(payload);
+      const resultData = submitResp.data;
 
-      const submissionResult = {
-        ...submitResp.data,
-        questions,
-        answers, // keep raw for review
-        quizData: { ...quizEnv, isAIQuiz: true, quizId: adaptiveQuizId }
-      };
+      console.log('Quiz submission response:', resultData);
 
-      navigate('/QuizResultsPage', { state: submissionResult });
-    } catch (err) {
-      const serverMsg =
-        err?.response?.data?.error ||
-        err?.response?.data?.detail ||
-        (typeof err?.response?.data === 'string' ? err.response.data : null) ||
-        (() => {
-          const d = err?.response?.data;
-          if (d && typeof d === 'object') {
-            const k = Object.keys(d)[0];
-            if (k) {
-              const v = Array.isArray(d[k]) ? d[k][0] : d[k];
-              return `${k}: ${typeof v === 'string' ? v : 'invalid'}`;
-            }
+      // Calculate if this is the 3rd attempt
+      const attemptNumber = resultData.attempt_number || currentAttempts + 1;
+      const isThirdAttempt = attemptNumber >= MAX_ATTEMPTS;
+
+      // Check if next level should be unlocked
+      let nextLevelInfo = null;
+      if (isThirdAttempt || resultData.unlocked_next) {
+        nextLevelInfo = await findNextLevelQuiz(quizEnv.slideId, quizDifficulty);
+      }
+
+      // Navigate to results with all data
+      navigate('/QuizResultsPage', {
+        state: {
+          ...resultData,
+          questions,
+          answers,
+          answersDict, // Pass the letter-based answers for results display
+          quizData: {
+            ...quizEnv,
+            quizId: adaptiveQuizId,
+            quizTitle: resolvedTitle,
+            difficulty: quizDifficulty
+          },
+          attempts_meta: {
+            attempt_number: attemptNumber,
+            attempts_count: attemptNumber,
+            max_attempts: MAX_ATTEMPTS,
+            is_final_attempt: isThirdAttempt,
+            next_level_unlocked: isThirdAttempt && nextLevelInfo !== null,
+            next_level_info: nextLevelInfo
           }
-          return null;
-        })() ||
-        'Failed to submit quiz. Please try again.';
+        }
+      });
+    } catch (err) {
+      console.error('Submit error:', err);
+      const serverMsg = err?.response?.data?.error || err?.response?.data?.detail || 'Failed to submit quiz';
       setIsSubmitted(false);
       setFatalError(serverMsg);
     }
@@ -465,7 +346,6 @@ const QuizInterface = () => {
   const getAnsweredCount = () => Object.keys(answers).length;
   const getUnanswered = () => questions.filter(q => !answers[q.id]);
 
-  // -------- renders ----------
   if (loading) {
     return (
       <div className="quiz-interface-container">
@@ -478,37 +358,15 @@ const QuizInterface = () => {
     );
   }
 
-  if (gateInfo) {
-    const sug = gateInfo.suggested;
-    const label =
-      `${(sug.topic_name || 'Topic')} • ${sug.difficulty ? sug.difficulty[0].toUpperCase() + sug.difficulty.slice(1) : ''}`;
-    return (
-      <div className="quiz-interface-container">
-        <div className="error-content">
-          <h2>Prerequisite Required</h2>
-          <p>{gateInfo.message}</p>
-          <div style={{ marginTop: 12, marginBottom: 12 }}>
-            <button
-              className="nav-btn"
-              onClick={() => switchToSuggested(sug)}
-              style={{ padding: '10px 16px', background: '#1935CA', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
-            >
-              Start {label}
-            </button>
-          </div>
-          <button onClick={() => navigate(-1)} className="nav-btn">Go Back</button>
-        </div>
-      </div>
-    );
-  }
-
   if (fatalError) {
     return (
       <div className="quiz-interface-container">
         <div className="error-content">
           <h2>Error</h2>
           <p>{fatalError}</p>
-          <button onClick={() => navigate('/Dashboard')} className="nav-btn">Return to Dashboard</button>
+          <button onClick={() => navigate('/Dashboard')} className="nav-btn">
+            Return to Dashboard
+          </button>
         </div>
       </div>
     );
@@ -519,34 +377,15 @@ const QuizInterface = () => {
       <div className="quiz-interface-container">
         <div className="no-questions-content">
           <h2>No Questions Available</h2>
+          <button onClick={() => navigate('/Dashboard')} className="nav-btn">
+            Return to Dashboard
+          </button>
         </div>
       </div>
     );
   }
 
   const current = questions[currentQuestionIndex];
-
-  const renderQuestion = () => {
-    const common = {
-      question: current.question,
-      selectedAnswer: answers[current.id],
-      onAnswerSelect: handleAnswerSelect,
-      questionNumber: currentQuestionIndex + 1,
-      totalQuestions: questions.length,
-      isSubmitted: false,
-      points: current.points
-    };
-    switch (current.type) {
-      case 'multiple_choice':
-        return <MultipleChoiceQuestion {...common} choices={current.choices || []} />;
-      case 'true_false':
-        return <TrueFalseQuestion {...common} correctAnswer={current.correct_answer} />;
-      case 'short_answer':
-        return <ShortAnswerQuestion {...common} autoSave={true} maxLength={500} modelAnswer={current.model_answer} />;
-      default:
-        return <div>Unknown question type: {current.type}</div>;
-    }
-  };
 
   if (isSubmitted) {
     return (
@@ -557,6 +396,7 @@ const QuizInterface = () => {
           <p>Your answers have been recorded. Redirecting to results...</p>
           <div className="submission-summary">
             <p>Questions answered: {getAnsweredCount()}/{questions.length}</p>
+            <p>Attempt: {currentAttempts + 1} of {MAX_ATTEMPTS}</p>
           </div>
         </div>
       </div>
@@ -565,17 +405,22 @@ const QuizInterface = () => {
 
   return (
     <div className="quiz-interface-container">
-      {/* Header */}
       <div className="quiz-header">
         <div className="quiz-info">
           <h1 className="quiz-title">
             {resolvedTitle}
-            <span className="ai-badge">AI</span>
+            {quizDifficulty && (
+              <span className={`difficulty-badge ${quizDifficulty}`}>
+                {quizDifficulty.toUpperCase()}
+              </span>
+            )}
           </h1>
           <div className="quiz-progress">
             <span>Question {currentQuestionIndex + 1} of {questions.length}</span>
             <span>•</span>
             <span>{getAnsweredCount()} answered</span>
+            <span>•</span>
+            <span>Attempt {currentAttempts + 1} of {MAX_ATTEMPTS}</span>
           </div>
         </div>
 
@@ -587,7 +432,6 @@ const QuizInterface = () => {
         </div>
       </div>
 
-      {/* Dots navigation */}
       <div className="question-navigation">
         <div className="question-dots">
           {questions.map((_, i) => (
@@ -605,13 +449,26 @@ const QuizInterface = () => {
         </div>
       </div>
 
-      {/* Question */}
-      <div className="question-area">{renderQuestion()}</div>
+      <div className="question-area">
+        <MultipleChoiceQuestion
+          question={current.question}
+          choices={current.choices}
+          selectedAnswer={answers[current.id]}
+          onAnswerSelect={handleAnswerSelect}
+          questionNumber={currentQuestionIndex + 1}
+          totalQuestions={questions.length}
+          isSubmitted={false}
+          points={current.points}
+        />
+      </div>
 
-      {/* Controls */}
       <div className="quiz-controls">
         <div className="navigation-buttons">
-          <button className="nav-btn prev-btn" onClick={handlePreviousQuestion} disabled={currentQuestionIndex === 0}>
+          <button 
+            className="nav-btn prev-btn" 
+            onClick={handlePreviousQuestion} 
+            disabled={currentQuestionIndex === 0}
+          >
             ← Previous
           </button>
 
@@ -627,17 +484,28 @@ const QuizInterface = () => {
         </div>
 
         <div className="quiz-progress-bar">
-          <div className="progress-fill" style={{ width: `${(getAnsweredCount() / questions.length) * 100}%` }}></div>
+          <div 
+            className="progress-fill" 
+            style={{ width: `${(getAnsweredCount() / questions.length) * 100}%` }}
+          ></div>
         </div>
       </div>
 
-      {/* Confirm submit */}
       {showSubmitModal && (
         <div className="modal-overlay">
           <div className="submit-modal">
             <h3>Submit Quiz?</h3>
             <div className="submission-summary">
-              <p>You have answered <strong>{getAnsweredCount()}</strong> out of <strong>{questions.length}</strong> questions.</p>
+              <p>
+                You have answered <strong>{getAnsweredCount()}</strong> out of{' '}
+                <strong>{questions.length}</strong> questions.
+              </p>
+              <p>This is attempt <strong>{currentAttempts + 1}</strong> of <strong>{MAX_ATTEMPTS}</strong>.</p>
+              {currentAttempts + 1 >= MAX_ATTEMPTS && (
+                <p className="final-attempt-warning">
+                  ⚠️ This is your final attempt. After submission, you'll be able to view results and proceed to the next level.
+                </p>
+              )}
               {getUnanswered().length > 0 && (
                 <div className="unanswered-warning">
                   <p>⚠️ Unanswered question(s):</p>
@@ -645,7 +513,9 @@ const QuizInterface = () => {
                     {getUnanswered().slice(0, 5).map((q) => (
                       <li key={q.id}>Question {questions.indexOf(q) + 1}</li>
                     ))}
-                    {getUnanswered().length > 5 && <li>... and {getUnanswered().length - 5} more</li>}
+                    {getUnanswered().length > 5 && (
+                      <li>... and {getUnanswered().length - 5} more</li>
+                    )}
                   </ul>
                 </div>
               )}
@@ -654,8 +524,12 @@ const QuizInterface = () => {
             <p>Are you sure you want to submit? This action cannot be undone.</p>
 
             <div className="modal-actions">
-              <button className="modal-btn cancel-btn" onClick={() => setShowSubmitModal(false)}>Cancel</button>
-              <button className="modal-btn confirm-btn" onClick={handleSubmitQuiz}>Submit</button>
+              <button className="modal-btn cancel-btn" onClick={() => setShowSubmitModal(false)}>
+                Cancel
+              </button>
+              <button className="modal-btn confirm-btn" onClick={handleSubmitQuiz}>
+                Submit
+              </button>
             </div>
           </div>
         </div>
