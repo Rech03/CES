@@ -1,0 +1,74 @@
+/* StudentQnAJoin.css - Mobile Responsive Fix */
+
+/* Ensure buttons work properly on mobile */
+button {
+  -webkit-tap-highlight-color: rgba(25, 53, 202, 0.2);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Only apply fixes on mobile devices */
+@media (max-width: 768px) {
+  /* Ensure input is interactive on touch devices */
+  input[type="text"],
+  textarea {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    position: relative !important;
+    z-index: 9999 !important;
+    font-size: 16px !important; /* Prevent iOS zoom */
+  }
+
+  /* Force focus on touch */
+  input[type="text"]:active,
+  input[type="text"]:focus,
+  textarea:active,
+  textarea:focus {
+    pointer-events: auto !important;
+    z-index: 9999 !important;
+  }
+  
+  /* Ensure buttons are clickable */
+  button {
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    position: relative;
+    z-index: 1001;
+  }
+  
+  /* When navbar is open, reduce z-index of content */
+  body.nav-open button,
+  body.nav-open input,
+  body.nav-open textarea {
+    pointer-events: none !important;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  input[type="text"],
+  textarea {
+    font-size: 16px !important;
+    padding: 14px !important;
+  }
+  
+  button {
+    min-height: 44px;
+    padding: 12px 16px !important;
+  }
+}
+
+@keyframes slideIn {
+  from { 
+    transform: translateX(100%); 
+    opacity: 0; 
+  }
+  to { 
+    transform: translateX(0); 
+    opacity: 1; 
+  }
+}

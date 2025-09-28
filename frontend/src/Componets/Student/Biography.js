@@ -1,16 +1,14 @@
 // src/Components/Profile/Biography.js
 import { useState, useEffect } from 'react';
 
-// PROFILE
-import { getProfile } from '../../api/users'; // users/profile/
+// Profile API
+import { getProfile, getDashboard as getUserDashboard } from '../../api/users';
 
-// PRIMARY STATS
-import { getStats as getAchievementStats } from '../../api/achievements'; // achievements/stats/
+// Primary stats source - achievements
+import { getStats as getAchievementStats } from '../../api/achievements';
 
-/** FALLBACKS (in order) **/
-import { studentDashboard as getStudentAnalyticsDashboard } from '../../api/analytics'; // analytics/student/dashboard/
-import { getStudentDashboard as getCoursesStudentDashboard } from '../../api/courses'; // courses/student/dashboard/
-import { getMyAttempts } from '../../api/quizzes'; // quizzes/student/my-attempts/
+// Fallback sources
+import { getStudentDashboard as getCoursesStudentDashboard } from '../../api/courses';
 
 import './Biography.css';
 
@@ -20,7 +18,9 @@ function Biography({
   avatar,
   quizzesCompleted,
   correctAnswers,
-  currentStreak
+  currentStreak,
+  compact = false,
+  showLoading = true
 }) {
   const [profileData, setProfileData] = useState({
     name: name || "Student",
@@ -31,174 +31,141 @@ function Biography({
     currentStreak: (currentStreak ?? "0").toString(),
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Helper to extract numbers from various response formats
+  const extractNumber = (obj, ...keys) => {
+    for (const key of keys) {
+      const val = obj?.[key];
+      if (val === 0 || (typeof val === 'number' && !Number.isNaN(val))) {
+        return val;
+      }
+      if (typeof val === 'string' && !isNaN(val) && val !== '') {
+        return parseInt(val, 10);
+      }
+    }
+    return 0;
+  };
 
   useEffect(() => {
     const fetchStudentStats = async () => {
-      // Only auto-fetch if the caller didn't pass explicit props
-      if (
-        name == null &&
-        title == null &&
-        quizzesCompleted == null &&
-        correctAnswers == null &&
-        currentStreak == null
-      ) {
+      // Only auto-fetch if no explicit props provided
+      const hasExplicitProps = name != null || title != null || 
+                              quizzesCompleted != null || 
+                              correctAnswers != null || 
+                              currentStreak != null;
+
+      if (!hasExplicitProps) {
         setLoading(true);
+        setError(null);
+        
         try {
-          // 1) Profile basics
-          let userName = "Student";
-          let userTitle = "Student";
-          let userAvatar = "/ID.jpeg";
+          // 1) Fetch Profile Information
+          let userName = name || "Student";
+          let userTitle = title || "Student";
+          let userAvatar = avatar || "/ID.jpeg";
 
           try {
             const { data: user } = await getProfile();
-            console.log('Profile API response:', user); // Debug log
             
-            // Try multiple possible field names for the user's name
+            // Based on Django backend serializers, extract user data
             userName =
               user?.full_name ||
-              user?.name ||
-              `${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
+              (user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}`.trim() : null) ||
               user?.username ||
               user?.email?.split("@")[0] ||
               "Student";
             
-            // Try multiple possible field names for title/role
+            // Extract title/role - the Django backend returns user_type
             userTitle = 
+              user?.user_type === 'student' ? 'Student' :
+              user?.user_type === 'lecturer' ? 'Lecturer' :
+              user?.user_type === 'admin' ? 'Admin' :
               user?.title ||
               user?.role ||
-              user?.program || 
-              user?.course || 
-              user?.department ||
-              user?.user_type ||
               "Student";
             
-            // Try multiple possible field names for avatar
+            // Extract avatar
             userAvatar = 
               user?.profile_picture || 
               user?.avatar || 
-              user?.photo ||
-              user?.image ||
               "/ID.jpeg";
               
-            console.log('Processed user data:', { userName, userTitle, userAvatar }); // Debug log
           } catch (e) {
-            console.error('Profile API error:', e); // Debug log
-            // keep defaults if profile call fails
+            console.warn('Biography: Profile fetch failed, using defaults/props');
           }
 
-          // Helpers to normalize keys coming from different dashboards
-          const pickNumber = (...vals) => {
-            for (const v of vals) {
-              if (v === 0 || (typeof v === 'number' && !Number.isNaN(v))) return v;
-            }
-            return undefined;
-          };
-
-          // 2) Try Achievements → Stats (primary)
+          // 2) Fetch Statistics - Try multiple sources
           let stats = { quizzesCompleted: 0, correctAnswers: 0, currentStreak: 0 };
-          let filledFrom = 'achievements';
+          let statsSource = 'default';
 
+          // Try achievements API first (most comprehensive)
           try {
-            const { data: stat } = await getAchievementStats();
-            stats.quizzesCompleted = pickNumber(
-              stat?.quizzes_completed,
-              stat?.total_quizzes_completed,
-              stat?.quizzesCompleted
-            ) ?? 0;
+            const { data: achievementStats } = await getAchievementStats();
+            
+            stats.quizzesCompleted = extractNumber(achievementStats,
+              'quizzes_completed', 'total_quizzes_completed', 'completed_quizzes',
+              'quizzesCompleted', 'quiz_count', 'quizzes'
+            );
 
-            stats.correctAnswers = pickNumber(
-              stat?.correct_answers,
-              stat?.total_correct_answers,
-              stat?.correctAnswers
-            ) ?? 0;
+            stats.correctAnswers = extractNumber(achievementStats,
+              'correct_answers', 'total_correct_answers', 'total_correct',
+              'correctAnswers', 'correct_count', 'score_total'
+            );
 
-            stats.currentStreak = pickNumber(
-              stat?.current_streak,
-              stat?.streak_days,
-              stat?.day_streak
-            ) ?? 0;
-          } catch (e1) {
-            // 3) Fallback: Analytics → Student Dashboard
+            stats.currentStreak = extractNumber(achievementStats,
+              'current_streak', 'streak_days', 'day_streak',
+              'currentStreak', 'streak', 'consecutive_days'
+            );
+
+            statsSource = 'achievements';
+            
+          } catch (achievementError) {
+            console.warn('Biography: Achievements API failed, trying user dashboard...');
+            
+            // Fallback to user dashboard
             try {
-              const { data: aDash } = await getStudentAnalyticsDashboard();
-              filledFrom = 'analytics';
-              stats.quizzesCompleted = pickNumber(
-                aDash?.quizzes_completed,
-                aDash?.total_quizzes_completed
-              ) ?? 0;
-              stats.correctAnswers = pickNumber(
-                aDash?.total_correct_answers,
-                aDash?.correct_answers
-              ) ?? 0;
-              stats.currentStreak = pickNumber(
-                aDash?.current_streak,
-                aDash?.streak_days
-              ) ?? 0;
+              const { data: userDash } = await getUserDashboard();
+              
+              stats.quizzesCompleted = extractNumber(userDash,
+                'quizzes_completed', 'total_quizzes', 'quiz_count'
+              );
 
-              // 4) Fallback: Courses → Student Dashboard (if still missing)
-              if (
-                !stats.quizzesCompleted &&
-                !stats.correctAnswers &&
-                !stats.currentStreak
-              ) {
-                const { data: cDash } = await getCoursesStudentDashboard();
-                filledFrom = 'courses';
-                stats.quizzesCompleted = pickNumber(
-                  cDash?.quizzes_completed,
-                  cDash?.total_quizzes_completed
-                ) ?? 0;
-                stats.correctAnswers = pickNumber(
-                  cDash?.total_correct_answers,
-                  cDash?.correct_answers
-                ) ?? 0;
-                stats.currentStreak = pickNumber(
-                  cDash?.current_streak,
-                  cDash?.streak_days
-                ) ?? 0;
+              stats.correctAnswers = extractNumber(userDash,
+                'correct_answers', 'total_correct', 'score_total'
+              );
+
+              stats.currentStreak = extractNumber(userDash,
+                'current_streak', 'streak_days', 'streak'
+              );
+
+              statsSource = 'user_dashboard';
+              
+            } catch (userDashError) {
+              console.warn('Biography: User dashboard failed, trying courses dashboard...');
+              
+              // Final fallback to courses student dashboard
+              try {
+                const { data: coursesDash } = await getCoursesStudentDashboard();
+                
+                stats.quizzesCompleted = extractNumber(coursesDash,
+                  'quizzes_completed', 'total_quizzes', 'quiz_count'
+                );
+
+                stats.correctAnswers = extractNumber(coursesDash,
+                  'correct_answers', 'total_correct', 'score_total'
+                );
+
+                stats.currentStreak = extractNumber(coursesDash,
+                  'current_streak', 'streak_days', 'streak'
+                );
+
+                statsSource = 'courses_dashboard';
+                
+              } catch (coursesDashError) {
+                console.warn('Biography: All stat sources failed, using defaults');
+                statsSource = 'fallback';
               }
-
-              // 5) Last resort: Note that getMyAttempts is referenced but not provided in your API files
-              // So this fallback will be commented out until the quizzes API is available
-              /*
-              if (
-                !stats.quizzesCompleted &&
-                !stats.correctAnswers &&
-                !stats.currentStreak
-              ) {
-                const { data } = await getMyAttempts();
-                const attempts = Array.isArray(data) ? data : data?.results || [];
-                if (attempts?.length) {
-                  const completedQuizIds = new Set();
-                  let totalCorrect = 0;
-
-                  attempts.forEach((attempt) => {
-                    const completed =
-                      attempt?.is_completed || attempt?.status === 'completed';
-                    if (completed) {
-                      completedQuizIds.add(attempt?.quiz ?? attempt?.quiz_id);
-
-                      if (typeof attempt?.correct_answers === 'number') {
-                        totalCorrect += attempt.correct_answers;
-                      } else if (
-                        typeof attempt?.score === 'number' &&
-                        typeof attempt?.total_questions === 'number'
-                      ) {
-                        totalCorrect += Math.round(
-                          (attempt.score / 100) * attempt.total_questions
-                        );
-                      }
-                    }
-                  });
-
-                  stats.quizzesCompleted = completedQuizIds.size;
-                  stats.correctAnswers = totalCorrect;
-                  stats.currentStreak = calculateStreak(attempts);
-                  filledFrom = 'attempts';
-                }
-              }
-              */
-            } catch {
-              // Ignore; we'll keep defaults
             }
           }
 
@@ -206,11 +173,16 @@ function Biography({
             name: userName,
             title: userTitle,
             avatar: userAvatar,
-            quizzesCompleted: String(stats.quizzesCompleted ?? 0),
-            correctAnswers: String(stats.correctAnswers ?? 0),
-            currentStreak: String(stats.currentStreak ?? 0),
-            _source: filledFrom,
+            quizzesCompleted: String(stats.quizzesCompleted),
+            correctAnswers: String(stats.correctAnswers),
+            currentStreak: String(stats.currentStreak),
+            _statsSource: statsSource,
           });
+
+        } catch (err) {
+          console.error('Biography: Error fetching data:', err);
+          setError('Could not load profile data');
+          // Keep defaults
         } finally {
           setLoading(false);
         }
@@ -218,73 +190,35 @@ function Biography({
     };
 
     fetchStudentStats();
-  }, [name, title, quizzesCompleted, correctAnswers, currentStreak]);
+  }, [name, title, avatar, quizzesCompleted, correctAnswers, currentStreak]);
 
-  // Helper: compute day streak from attempts list
-  const calculateStreak = (attempts) => {
-    if (!attempts?.length) return 0;
-
-    const days = Array.from(
-      new Set(
-        attempts
-          .map((a) => a?.created_at || a?.date_created)
-          .filter(Boolean)
-          .map((d) => new Date(d).toDateString())
-      )
-    ).sort((a, b) => new Date(b) - new Date(a));
-
-    if (!days.length) return 0;
-
-    let streak = 0;
-    const today = new Date();
-    const prev = new Date(today);
-    const todayStr = today.toDateString();
-    prev.setDate(today.getDate() - 1);
-    const prevStr = prev.toDateString();
-
-    if (days.includes(todayStr) || days.includes(prevStr)) {
-      let cursor = days.includes(todayStr) ? new Date(today) : new Date(prev);
-      streak = 1;
-      while (true) {
-        const next = new Date(cursor);
-        next.setDate(cursor.getDate() - 1);
-        const key = next.toDateString();
-        if (days.includes(key)) {
-          streak += 1;
-          cursor = next;
-        } else break;
-      }
-    }
-    return streak;
-  };
-
-  if (loading) {
+  if (loading && showLoading) {
     return (
-      <div className="biography-container">
+      <div className={`biography-container ${compact ? 'compact' : ''}`}>
         <div className="biography-avatar skeleton"></div>
         <div className="biography-name skeleton">Loading...</div>
         <div className="biography-title skeleton">Loading...</div>
         <div className="quiz-section">
           <div className="quiz-icon-container"><div className="quiz-icon"></div></div>
           <div className="quiz-count skeleton">--</div>
-          <div className="quiz-label">Quizzes Completed</div>
+          <div className="quiz-label">Quizzes</div>
         </div>
         <div className="students-section">
           <div className="students-icon-container"><div className="students-icon"></div></div>
           <div className="students-count skeleton">--</div>
-          <div className="students-label">Correct Answers</div>
+          <div className="students-label">Correct</div>
         </div>
         <div className="streak-section">
           <div className="streak-icon-container"><div className="streak-icon"></div></div>
           <div className="streak-count skeleton">--</div>
-          <div className="streak-label">Day Streak</div>
+          <div className="streak-label">Streak</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="biography-container">
+    <div className={`biography-container ${compact ? 'compact' : ''}`}>
       <img
         className="biography-avatar"
         src={profileData.avatar}
@@ -296,22 +230,45 @@ function Biography({
       <div className="biography-title">{profileData.title}</div>
 
       <div className="quiz-section">
-        <div className="quiz-icon-container"><div className="quiz-icon"></div></div>
+        <div className="quiz-icon-container">
+          <div className="quiz-icon"></div>
+        </div>
         <div className="quiz-count">{profileData.quizzesCompleted}</div>
-        <div className="quiz-label">Quizzes Completed</div>
+        <div className="quiz-label">
+          {compact ? 'Quizzes' : 'Quizzes Completed'}
+        </div>
       </div>
 
       <div className="students-section">
-        <div className="students-icon-container"><div className="students-icon"></div></div>
+        <div className="students-icon-container">
+          <div className="students-icon"></div>
+        </div>
         <div className="students-count">{profileData.correctAnswers}</div>
-        <div className="students-label">Correct Answers</div>
+        <div className="students-label">
+          {compact ? 'Correct' : 'Correct Answers'}
+        </div>
       </div>
 
       <div className="streak-section">
-        <div className="streak-icon-container"><div className="streak-icon"></div></div>
+        <div className="streak-icon-container">
+          <div className="streak-icon"></div>
+        </div>
         <div className="streak-count">{profileData.currentStreak}</div>
-        <div className="streak-label">Day Streak</div>
+        <div className="streak-label">
+          {compact ? 'Streak' : 'Day Streak'}
+        </div>
       </div>
+
+      {error && (
+        <div className="biography-error" style={{ 
+          fontSize: '10px', 
+          color: '#999', 
+          marginTop: '8px',
+          textAlign: 'center' 
+        }}>
+          Using defaults
+        </div>
+      )}
     </div>
   );
 }

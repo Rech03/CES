@@ -1,7 +1,11 @@
-/* NavBar.css - Clean Navigation Design */
+/* NavBar.css - Mobile Responsive with Hamburger Menu */
+
+/* ============================================ */
+/* === DESKTOP NAVIGATION BAR === */
+/* ============================================ */
 
 .Navigation_Bar {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 280px;
@@ -13,16 +17,19 @@
   overflow-y: auto;
   padding: 20px;
   padding-bottom: 10px;
+  background: linear-gradient(145deg, rgba(248, 249, 250, 0.98) 0%, rgba(255, 255, 255, 0.98) 100%);
+  transition: transform 0.3s ease;
 }
 
+/* === LOGO === */
 .Navigation_Bar .Logo {
   width: 180px;
   margin: 10px auto 10px auto;
-  
   display: block;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
 }
 
+/* === NAVIGATION LINKS LIST === */
 .Navigation_Bar ul {
   list-style-type: none;
   padding: 0;
@@ -38,6 +45,7 @@
   position: relative;
 }
 
+/* === LINK STYLING === */
 .Navigation_Bar li a {
   display: flex;
   align-items: center;
@@ -52,11 +60,10 @@
   position: relative;
   background: rgba(255, 255, 255, 0.6);
   border: 1px solid rgba(0, 0, 0, 0.04);
-
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-/* Hover effects */
+/* Hover effect for links */
 .Navigation_Bar li a:hover {
   color: #1565D8;
   background: rgba(255, 255, 255, 0.9);
@@ -65,7 +72,7 @@
   box-shadow: 0 8px 25px rgba(21, 101, 216, 0.15);
 }
 
-/* Active state */
+/* Active link styling */
 .Navigation_Bar li a.active {
   color: white;
   background: linear-gradient(135deg, #1565D8 0%, #1976D2 100%);
@@ -78,7 +85,6 @@
   font-weight: 600;
 }
 
-/* Active hover effects */
 .Navigation_Bar li a.active:hover {
   background: linear-gradient(135deg, #1976D2 0%, #1565D8 100%);
   transform: translateX(8px) translateY(-1px);
@@ -88,7 +94,117 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-/* Responsive Design */
+/* === LOGOUT BUTTON === */
+.LogoutButton {
+  margin-top: 20px;
+  margin-left: 50px;
+  color: #1565D8;
+  border: none;
+  padding: 10px 20px;
+  font-size: 15px;
+  background-color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.LogoutButton:hover {
+  color: white;
+  background: linear-gradient(135deg, #1565D8 0%, #1976D2 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 8px 25px rgba(21, 101, 216, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateX(8px);
+  font-weight: 600;
+}
+
+/* ============================================ */
+/* === HAMBURGER MENU (Mobile Only) === */
+/* ============================================ */
+
+.hamburger-menu {
+  display: none;
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  z-index: 1003;
+  background: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+
+  transition: all 0.3s ease;
+}
+
+.hamburger-menu:hover {
+  
+  transform: scale(1.05);
+}
+
+/* === THREE LINE ICON === */
+.hamburger-icon {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 24px;
+}
+
+/* Each line of the hamburger */
+.hamburger-icon span {
+  width: 100%;
+  height: 3px;
+  background: #1565D8;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+/* === ANIMATED X WHEN OPEN === */
+.hamburger-menu.active .hamburger-icon span:nth-child(1) {
+  transform: rotate(45deg) translate(8px, 8px);
+}
+
+.hamburger-menu.active .hamburger-icon span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-menu.active .hamburger-icon span:nth-child(3) {
+  transform: rotate(-45deg) translate(7px, -7px);
+}
+
+/* ============================================ */
+/* === DARK OVERLAY (Mobile Only) === */
+/* ============================================ */
+
+.nav-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1001;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.nav-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ============================================ */
+/* === RESPONSIVE BREAKPOINTS === */
+/* ============================================ */
+
+/* === TABLETS (1024px and below) === */
 @media (max-width: 1024px) {
   .Navigation_Bar {
     width: 260px;
@@ -100,13 +216,31 @@
   }
 }
 
+/* === MOBILE (768px and below) === */
 @media (max-width: 768px) {
-  .Navigation_Bar {
-    width: 240px;
-    transform: translateX(-100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Show hamburger button */
+  .hamburger-menu {
+    display: block;
   }
   
+  /* Show overlay */
+  .nav-overlay {
+    display: block;
+  }
+  
+  /* Navbar hidden off-screen by default */
+  .Navigation_Bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    transform: translateX(-100%);
+    z-index: 1002;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Navbar slides in when open */
   .Navigation_Bar.mobile-open {
     transform: translateX(0);
   }
@@ -120,94 +254,52 @@
     padding: 14px 18px;
     font-size: 13px;
   }
+  
+  .LogoutButton {
+    margin-left: 20px;
+    width: calc(100% - 40px);
+  }
 }
 
+/* === SMALL MOBILE (480px and below) === */
 @media (max-width: 480px) {
+  .hamburger-menu {
+    top: 15px;
+    left: 15px;
+    padding: 10px;
+  }
+  
   .Navigation_Bar {
-    width: 100%;
-    height: auto;
-    position: fixed;
-    bottom: 0;
-    top: auto;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    padding: 12px;
-    background: linear-gradient(145deg, rgba(248, 249, 250, 0.95) 0%, rgba(255, 255, 255, 0.95) 100%);
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
-    border-right: none;
+    width: 280px;
   }
   
   .Navigation_Bar .Logo {
-    display: none;
-  }
-  
-  .Navigation_Bar ul {
-    display: flex;
-    flex-direction: row;
-    gap: 8px;
-    padding: 0;
-    justify-content: center;
-    width: auto;
-  }
-  
-  .Navigation_Bar li {
-    width: auto;
+    width: 120px;
   }
   
   .Navigation_Bar li a {
     padding: 12px 16px;
-    margin: 0;
-    font-size: 11px;
-    border-radius: 8px;
-    white-space: nowrap;
-    min-width: 60px;
-    text-align: center;
-    flex-direction: column;
-    gap: 4px;
-  }
-  
-  .Navigation_Bar li a:hover,
-  .Navigation_Bar li a.active {
-    transform: translateY(-4px);
+    font-size: 12px;
   }
 }
 
-/* Loading animation */
-@keyframes slideInLeft {
-  from {
-    transform: translateX(-100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+/* ============================================ */
+/* === SCROLLBAR STYLING === */
+/* ============================================ */
+
+.Navigation_Bar::-webkit-scrollbar {
+  width: 6px;
 }
 
-.Navigation_Bar {
-  animation: slideInLeft 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+.Navigation_Bar::-webkit-scrollbar-track {
+  background: #f1f1f1;
 }
-.LogoutButton{
-  margin-top: 20px;
-  margin-left: 50px;
-  color: #1565D8;
-  border: none;
-  padding: 10px 20px;
-  font-size: 15px;
-  background-color: white;
-  border-radius: 8px;
-  
+
+.Navigation_Bar::-webkit-scrollbar-thumb {
+  background: #1565D8;
+  border-radius: 3px;
 }
-.LogoutButton:hover {
-  color: white;
-  background: linear-gradient(135deg, #1565D8 0%, #1976D2 100%);
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 
-    0 8px 25px rgba(21, 101, 216, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transform: translateX(8px);
-  font-weight: 600;
-  border-radius: 8px;
+
+.Navigation_Bar::-webkit-scrollbar-thumb:hover {
+  background: #0f4c9e;
 }

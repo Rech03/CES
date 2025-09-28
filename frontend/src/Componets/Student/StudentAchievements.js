@@ -287,35 +287,6 @@ const StudentAchievements = ({ studentId = null }) => {
         </div>
       </div>
 
-      {/* Streaks and Stats Grid */}
-      <div className="stats-grid">
-        <div className="streak-card">
-          <div className="streak-icon">🔥</div>
-          <div className="streak-info">
-            <span className="streak-number">{streaks.current}</span>
-            <span className="streak-label">Day Streak</span>
-          </div>
-          <div className="streak-best">Best: {streaks.longest} days</div>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-value">{stats.perfectScores}</span>
-          <span className="stat-label">Perfect Scores</span>
-          <div className="stat-icon"></div>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-value">{stats.averageScore}%</span>
-          <span className="stat-label">Average Score</span>
-          <div className="stat-icon"></div>
-        </div>
-
-        <div className="stat-card">
-          <span className="stat-value">{stats.studyHours}h</span>
-          <span className="stat-label">Study Time</span>
-          <div className="stat-icon"></div>
-        </div>
-      </div>
 
       {/* Recent Achievements */}
       {recentAchievements.length > 0 && (
