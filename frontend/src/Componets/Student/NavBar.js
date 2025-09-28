@@ -5,6 +5,19 @@ import "./NavBar.css";
 function NavBar() {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if we're on mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleLogout = () => {
     const KEYS = ["token", "authToken", "accessToken", "auth_token", "Authorization", "user", "userInfo"];
@@ -13,6 +26,7 @@ function NavBar() {
       try { sessionStorage.removeItem(k); } catch (_) {}
     });
 
+    closeMenu(); // Close menu before navigating
     try {
       navigate("/Login");
     } catch {
@@ -28,22 +42,24 @@ function NavBar() {
     setIsMenuOpen(false);
   };
 
-  // Add/remove body class when menu state changes
+  // Prevent body scroll when menu is open on mobile
   useEffect(() => {
-    if (isMenuOpen) {
-      document.body.classList.add('nav-open');
+    if (isMobile && isMenuOpen) {
+      document.body.style.overflow = 'hidden';
     } else {
-      document.body.classList.remove('nav-open');
+      document.body.style.overflow = 'unset';
     }
     
     return () => {
-      document.body.classList.remove('nav-open');
+      document.body.style.overflow = 'unset';
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, isMobile]);
 
   // Close menu when clicking outside on mobile
   useEffect(() => {
     const handleClickOutside = (event) => {
+      if (!isMobile) return;
+      
       const navbar = document.querySelector('.Navigation_Bar');
       const hamburger = document.querySelector('.hamburger-menu');
       
@@ -54,7 +70,7 @@ function NavBar() {
       }
     };
 
-    if (isMenuOpen) {
+    if (isMenuOpen && isMobile) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('touchstart', handleClickOutside);
     }
@@ -63,36 +79,59 @@ function NavBar() {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [isMenuOpen]);
+  }, [isMenuOpen, isMobile]);
 
   // Close menu on route change
   useEffect(() => {
-    closeMenu();
-  }, [navigate]);
+    const handleRouteChange = () => {
+      if (isMobile) {
+        closeMenu();
+      }
+    };
+
+    // Listen for route changes
+    window.addEventListener('popstate', handleRouteChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+    };
+  }, [isMobile]);
+
+  // Handle link clicks on mobile
+  const handleLinkClick = () => {
+    if (isMobile) {
+      closeMenu();
+    }
+  };
 
   return (
     <>
-      {/* Hamburger Menu Button */}
-      <button 
-        className={`hamburger-menu ${isMenuOpen ? 'active' : ''}`}
-        onClick={toggleMenu}
-        aria-label="Toggle navigation menu"
-      >
-        <div className="hamburger-icon">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-      </button>
+      {/* Hamburger Menu Button - Only show on mobile */}
+      {isMobile && (
+        <button 
+          className={`hamburger-menu ${isMenuOpen ? 'active' : ''}`}
+          onClick={toggleMenu}
+          aria-label="Toggle navigation menu"
+          type="button"
+        >
+          <div className="hamburger-icon">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </button>
+      )}
 
-      {/* Overlay for mobile */}
-      <div 
-        className={`nav-overlay ${isMenuOpen ? 'active' : ''}`}
-        onClick={closeMenu}
-      />
+      {/* Overlay for mobile - Only show on mobile when menu is open */}
+      {isMobile && (
+        <div 
+          className={`nav-overlay ${isMenuOpen ? 'active' : ''}`}
+          onClick={closeMenu}
+        />
+      )}
 
       {/* Navigation Bar */}
-      <div className={`Navigation_Bar ${isMenuOpen ? 'mobile-open' : ''}`}>
+      <div className={`Navigation_Bar ${isMobile && isMenuOpen ? 'mobile-open' : ''} ${isMobile && !isMenuOpen ? 'mobile-hidden' : ''}`}>
         <img src="/Amandla.png" alt="Logo" className="Logo" />
 
         <ul className="NavLinks">
@@ -100,7 +139,7 @@ function NavBar() {
             <NavLink 
               to="/StudentDashboard" 
               className={({ isActive }) => (isActive ? "active" : "")}
-              onClick={closeMenu}
+              onClick={handleLinkClick}
             >
               Dashboard
             </NavLink>
@@ -109,7 +148,7 @@ function NavBar() {
             <NavLink 
               to="/QnA" 
               className={({ isActive }) => (isActive ? "active" : "")}
-              onClick={closeMenu}
+              onClick={handleLinkClick}
             >
               Live QnA
             </NavLink>
@@ -118,7 +157,7 @@ function NavBar() {
             <NavLink 
               to="/Analytics" 
               className={({ isActive }) => (isActive ? "active" : "")}
-              onClick={closeMenu}
+              onClick={handleLinkClick}
             >
               Analytics
             </NavLink>
@@ -127,7 +166,7 @@ function NavBar() {
             <NavLink 
               to="/Achievements" 
               className={({ isActive }) => (isActive ? "active" : "")}
-              onClick={closeMenu}
+              onClick={handleLinkClick}
             >
               Achievements
             </NavLink>
@@ -135,7 +174,7 @@ function NavBar() {
         </ul>
 
         <div className="NavActions">
-          <button className="LogoutButton" onClick={handleLogout} aria-label="Log out">
+          <button className="LogoutButton" onClick={handleLogout} aria-label="Log out" type="button">
             <svg className="LogoutIcon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M12 21H6a3 3 0 01-3-3V6a3 3 0 013-3h6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
