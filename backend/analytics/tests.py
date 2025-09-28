@@ -1,9 +1,3 @@
-# analytics/test_urls.py
-"""
-Comprehensive tests for all analytics URLs and endpoints.
-Tests each URL pattern to ensure proper routing and functionality.
-"""
-
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -26,7 +20,7 @@ class AnalyticsURLTestCase(APITestCase):
     
     def setUp(self):
         """Set up test data for URL testing"""
-        print("\n🔧 Setting up URL test data...")
+        print("\nSetting up URL test data...")
         
         # Create users
         self.lecturer = User.objects.create_user(
@@ -144,7 +138,7 @@ class SystemManagementURLTests(AnalyticsURLTestCase):
     
     def test_update_metrics_url(self):
         """Test POST /api/analytics/update-metrics/"""
-        print("\n🧪 Testing update-metrics URL...")
+        print("\nTesting update-metrics URL...")
         
         # Test as lecturer (should work)
         self.client.force_authenticate(user=self.lecturer, token=self.lecturer_token)
@@ -169,7 +163,7 @@ class LecturerAnalyticsURLTests(AnalyticsURLTestCase):
     
     def test_lecturer_dashboard_url(self):
         """Test GET /api/analytics/lecturer/dashboard/"""
-        print("\n🧪 Testing lecturer dashboard URL...")
+        print("\nTesting lecturer dashboard URL...")
         
         # Test as lecturer (should work)
         self.client.force_authenticate(user=self.lecturer, token=self.lecturer_token)
@@ -218,7 +212,7 @@ class LecturerAnalyticsURLTests(AnalyticsURLTestCase):
     
     def test_lecturer_course_options_url(self):
         """Test GET /api/analytics/lecturer/course-options/"""
-        print("\n🧪 Testing lecturer course options URL...")
+        print("\nTesting lecturer course options URL...")
         
         self.client.force_authenticate(user=self.lecturer, token=self.lecturer_token)
         response = self.client.get('/api/analytics/lecturer/course-options/')
@@ -264,7 +258,7 @@ class StudentAnalyticsURLTests(AnalyticsURLTestCase):
     
     def test_student_engagement_heatmap_url(self):
         """Test GET /api/analytics/student/engagement-heatmap/"""
-        print("\n🧪 Testing student engagement heatmap URL...")
+        print("\nTesting student engagement heatmap URL...")
         
         # Mark some engagement first
         DailyEngagement.mark_engagement(self.student)
@@ -296,7 +290,7 @@ class DetailedStatisticsURLTests(AnalyticsURLTestCase):
     
     def test_quiz_statistics_url(self):
         """Test GET /api/analytics/quiz/<int:quiz_id>/stats/"""
-        print("\n🧪 Testing quiz statistics URL...")
+        print("\nTesting quiz statistics URL...")
         
         self.client.force_authenticate(user=self.lecturer, token=self.lecturer_token)
         response = self.client.get(f'/api/analytics/quiz/{self.quiz.id}/stats/')
@@ -332,7 +326,7 @@ class DetailedStatisticsURLTests(AnalyticsURLTestCase):
     
     def test_course_statistics_url(self):
         """Test GET /api/analytics/course/<int:course_id>/stats/"""
-        print("\n🧪 Testing course statistics URL...")
+        print("\nTesting course statistics URL...")
         
         self.client.force_authenticate(user=self.lecturer, token=self.lecturer_token)
         response = self.client.get(f'/api/analytics/course/{self.course.id}/stats/')
@@ -348,7 +342,7 @@ class DetailedStatisticsURLTests(AnalyticsURLTestCase):
     
     def test_student_engagement_detail_url(self):
         """Test GET /api/analytics/student/<int:student_id>/engagement/"""
-        print("\n🧪 Testing student engagement detail URL...")
+        print("\nTesting student engagement detail URL...")
         
         self.client.force_authenticate(user=self.lecturer, token=self.lecturer_token)
         response = self.client.get(f'/api/analytics/student/{self.student.id}/engagement/')
@@ -378,7 +372,7 @@ class DataExportURLTests(AnalyticsURLTestCase):
     
     def test_export_analytics_data_url(self):
         """Test GET /api/analytics/export/"""
-        print("\n🧪 Testing export analytics data URL...")
+        print("\nTesting export analytics data URL...")
         
         self.client.force_authenticate(user=self.lecturer, token=self.lecturer_token)
         
@@ -399,7 +393,7 @@ class DataExportURLTests(AnalyticsURLTestCase):
     
     def test_export_quiz_results_url(self):
         """Test GET /api/analytics/quiz/<int:quiz_id>/export/"""
-        print("\n🧪 Testing export quiz results URL...")
+        print("\nTesting export quiz results URL...")
         
         self.client.force_authenticate(user=self.lecturer, token=self.lecturer_token)
         
@@ -420,7 +414,7 @@ class DataExportURLTests(AnalyticsURLTestCase):
     
     def test_export_course_data_url(self):
         """Test GET /api/analytics/course/<int:course_id>/export/"""
-        print("\n🧪 Testing export course data URL...")
+        print("\nTesting export course data URL...")
         
         self.client.force_authenticate(user=self.lecturer, token=self.lecturer_token)
         
@@ -438,7 +432,7 @@ class RealTimeAnalyticsURLTests(AnalyticsURLTestCase):
     
     def test_live_quiz_stats_url(self):
         """Test GET /api/analytics/quiz/<int:quiz_id>/live-stats/"""
-        print("\n🧪 Testing live quiz stats URL...")
+        print("\nTesting live quiz stats URL...")
         
         self.client.force_authenticate(user=self.lecturer, token=self.lecturer_token)
         response = self.client.get(f'/api/analytics/quiz/{self.quiz.id}/live-stats/')
@@ -473,7 +467,7 @@ class RealTimeAnalyticsURLTests(AnalyticsURLTestCase):
     
     def test_performance_trends_url(self):
         """Test GET /api/analytics/trends/performance/"""
-        print("\n🧪 Testing performance trends URL...")
+        print("\nTesting performance trends URL...")
         
         self.client.force_authenticate(user=self.lecturer, token=self.lecturer_token)
         response = self.client.get('/api/analytics/trends/performance/')
@@ -491,7 +485,7 @@ class ComparativeAnalyticsURLTests(AnalyticsURLTestCase):
     
     def test_compare_quizzes_url(self):
         """Test POST /api/analytics/compare/quizzes/"""
-        print("\n🧪 Testing compare quizzes URL...")
+        print("\nTesting compare quizzes URL...")
         
         # Create another quiz for comparison
         quiz2 = AdaptiveQuiz.objects.create(
@@ -567,7 +561,7 @@ class AnalyticsURLPermissionTests(AnalyticsURLTestCase):
     
     def test_unauthenticated_access(self):
         """Test that unauthenticated users cannot access analytics endpoints"""
-        print("\n🧪 Testing unauthenticated access to analytics URLs...")
+        print("\nTesting unauthenticated access to analytics URLs...")
         
         endpoints = [
             '/api/analytics/lecturer/dashboard/',
@@ -585,7 +579,7 @@ class AnalyticsURLPermissionTests(AnalyticsURLTestCase):
     
     def test_cross_role_access_restrictions(self):
         """Test that users cannot access endpoints for other roles"""
-        print("\n🧪 Testing cross-role access restrictions...")
+        print("\nTesting cross-role access restrictions...")
         
         # Student trying to access lecturer endpoints
         self.client.force_authenticate(user=self.student, token=self.student_token)
@@ -650,7 +644,7 @@ class AnalyticsURLErrorHandlingTests(AnalyticsURLTestCase):
     
     def test_malformed_requests(self):
         """Test handling of malformed requests"""
-        print("\n🧪 Testing malformed requests to analytics URLs...")
+        print("\nTesting malformed requests to analytics URLs...")
         
         self.client.force_authenticate(user=self.lecturer, token=self.lecturer_token)
         
@@ -676,7 +670,7 @@ class AnalyticsURLTestSuite:
     
     def run_all_tests(self):
         """Run all analytics URL tests"""
-        print("\n🚀 Running Complete Analytics URL Test Suite")
+        print("\ Running Complete Analytics URL Test Suite")
         print("=" * 60)
         
         test_classes = [
@@ -692,8 +686,8 @@ class AnalyticsURLTestSuite:
         ]
         
         for test_class in test_classes:
-            print(f"\n📋 Running {test_class.__name__}...")
+            print(f"\nRunning {test_class.__name__}...")
             # Individual test classes would be run by Django's test runner
         
-        print("\n🎉 Analytics URL Test Suite Complete!")
+        print("\nAnalytics URL Test Suite Complete!")
         print("All 20 analytics endpoints have been thoroughly tested.")
