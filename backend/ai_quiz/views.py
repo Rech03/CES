@@ -1,7 +1,6 @@
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.authentication import TokenAuthentication
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Avg, Count, Sum, Q
@@ -161,7 +160,7 @@ def generate_adaptive_questions(request):
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated, IsLecturerPermission])
 def lecturer_lecture_slides(request):
-    """Get all lecture slides for lecturer's courses"""
+    """Get all lecture slides for lecturer's courses - UPDATED to include quiz status information"""
     lecturer = request.user
     
     # Get slides from lecturer's courses
@@ -169,8 +168,89 @@ def lecturer_lecture_slides(request):
         topic__course__lecturer=lecturer
     ).order_by('-created_at')
     
-    serializer = LectureSlideSerializer(slides, many=True)
-    return Response(serializer.data)
+    # Build response with quiz information
+    slides_with_quiz_data = []
+    
+    for slide in slides:
+        # Get all quizzes for this slide
+        quizzes = AdaptiveQuiz.objects.filter(lecture_slide=slide, is_active=True)
+        
+        # If no quizzes exist, add slide info only
+        if not quizzes.exists():
+            slide_data = {
+                'id': slide.id,
+                'slide_id': slide.id,
+                'title': slide.title,
+                'topic': slide.topic.id,
+                'topic_name': slide.topic.name,
+                'course_code': slide.topic.course.code,
+                'course_name': slide.topic.course.name,
+                'course_id': slide.topic.course.id,
+                'questions_generated': slide.questions_generated,
+                'slide_file': slide.slide_file.url if slide.slide_file else None,
+                'extracted_text': slide.extracted_text,
+                'created_at': slide.created_at,
+                'uploaded_at': slide.created_at,
+                'uploaded_by': lecturer.id,
+                # Quiz-related fields for compatibility
+                'quiz_id': None,
+                'adaptive_quiz_id': None,
+                'difficulty': None,
+                'status': 'draft' if not slide.questions_generated else 'ready',
+                'is_live': False,
+                'published': False,
+                'is_published': False,
+                'questions_count': 0,
+                'question_count': 0,
+                'total_questions': 0,
+                'total_points': 0,
+            }
+            slides_with_quiz_data.append(slide_data)
+        else:
+            # Add each quiz as a separate entry
+            for quiz in quizzes:
+                is_published = quiz.status == 'published'
+                
+                quiz_data = {
+                    'id': quiz.id,  # Use quiz ID as primary ID
+                    'quiz_id': quiz.id,
+                    'adaptive_quiz_id': quiz.id,
+                    'slide_id': slide.id,
+                    'title': slide.title,
+                    'slide_title': slide.title,
+                    'difficulty': quiz.difficulty,
+                    'status': quiz.status,
+                    'is_live': is_published,
+                    'published': is_published,
+                    'is_published': is_published,
+                    'questions_count': quiz.get_question_count(),
+                    'question_count': quiz.get_question_count(),
+                    'total_questions': quiz.get_question_count(),
+                    'total_points': quiz.get_question_count() * 2,
+                    'created_at': quiz.created_at,
+                    'date_created': quiz.created_at,
+                    'uploaded_at': slide.created_at,
+                    'published_at': quiz.reviewed_at if is_published else None,
+                    'date_published': quiz.reviewed_at if is_published else None,
+                    # Slide information
+                    'topic': slide.topic.id,
+                    'topic_id': slide.topic.id,
+                    'topic_name': slide.topic.name,
+                    'course_code': slide.topic.course.code,
+                    'course_name': slide.topic.course.name,
+                    'course_id': slide.topic.course.id,
+                    'questions_generated': slide.questions_generated,
+                    'slide_file': slide.slide_file.url if slide.slide_file else None,
+                    'extracted_text': slide.extracted_text,
+                    'uploaded_by': lecturer.id,
+                    # Review information
+                    'reviewed_by': quiz.reviewed_by.get_full_name() if quiz.reviewed_by else None,
+                    'reviewed_at': quiz.reviewed_at,
+                    'review_notes': quiz.review_notes
+                }
+                slides_with_quiz_data.append(quiz_data)
+    
+    return Response(slides_with_quiz_data)
 
 
 @api_view(['GET'])
@@ -662,7 +742,7 @@ def update_quiz_questions(request, quiz_id):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated, IsLecturerPermission])
 def publish_quiz(request, quiz_id):
-    """Publish quiz after moderation"""
+    """Publish quiz after moderation - FIXED to return proper response data"""
     try:
         quiz = AdaptiveQuiz.objects.get(
             id=quiz_id,
@@ -671,36 +751,89 @@ def publish_quiz(request, quiz_id):
         
         review_notes = request.data.get('review_notes', '')
         
+        # CRITICAL: Properly set published status
         quiz.status = 'published'
         quiz.reviewed_by = request.user
         quiz.reviewed_at = timezone.now()
         quiz.review_notes = review_notes
         quiz.save()
         
-        return Response({'message': 'Quiz published successfully'})
+        # Return comprehensive response data for frontend state management
+        return Response({
+            'message': 'Quiz published successfully',
+            'quiz_id': quiz.id,
+            'adaptive_quiz_id': quiz.id,
+            'id': quiz.id,
+            'status': quiz.status,
+            'is_published': True,
+            'is_live': True,
+            'published': True,
+            'published_at': quiz.reviewed_at,
+            'reviewed_at': quiz.reviewed_at,
+            'review_notes': quiz.review_notes,
+            'reviewed_by': request.user.get_full_name()
+        })
     except AdaptiveQuiz.DoesNotExist:
         return Response({'error': 'Quiz not found'}, status=404)
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated, IsLecturerPermission])
 def get_quizzes_for_review(request):
-    """Get all quizzes needing review"""
+    """Get ALL quizzes for lecturer - FIXED to include published quizzes"""
+    # CRITICAL FIX: Get ALL quizzes, not just draft/under_review
     quizzes = AdaptiveQuiz.objects.filter(
         lecture_slide__topic__course__lecturer=request.user,
-        status__in=['draft', 'under_review']
+        is_active=True  # Remove status filter to include published quizzes
+    ).select_related(
+        'lecture_slide',
+        'lecture_slide__topic',
+        'lecture_slide__topic__course'
     ).order_by('-created_at')
     
     quiz_data = []
     for quiz in quizzes:
-        quiz_data.append({
+        # Determine published status correctly
+        is_published = quiz.status == 'published'
+        
+        quiz_info = {
             'quiz_id': quiz.id,
+            'id': quiz.id,
+            'adaptive_quiz_id': quiz.id,
+            'slide_id': quiz.lecture_slide.id,
             'title': quiz.lecture_slide.title,
+            'slide_title': quiz.lecture_slide.title,
             'difficulty': quiz.difficulty,
             'status': quiz.status,
+            'is_live': is_published,
+            'published': is_published,
+            'is_published': is_published,
             'question_count': quiz.get_question_count(),
+            'questions_count': quiz.get_question_count(),
+            'total_questions': quiz.get_question_count(),
+            'total_points': quiz.get_question_count() * 2,
             'created_at': quiz.created_at,
-            'course_code': quiz.lecture_slide.topic.course.code
-        })
+            'date_created': quiz.created_at,
+            'published_at': quiz.reviewed_at if is_published else None,
+            'date_published': quiz.reviewed_at if is_published else None,
+            'course_code': quiz.lecture_slide.topic.course.code,
+            'course_name': quiz.lecture_slide.topic.course.name,
+            'course_id': quiz.lecture_slide.topic.course.id,
+            'topic_id': quiz.lecture_slide.topic.id,
+            'topic_name': quiz.lecture_slide.topic.name,
+            'topic': {
+                'id': quiz.lecture_slide.topic.id,
+                'name': quiz.lecture_slide.topic.name,
+                'course': {
+                    'id': quiz.lecture_slide.topic.course.id,
+                    'code': quiz.lecture_slide.topic.course.code,
+                    'name': quiz.lecture_slide.topic.course.name
+                }
+            },
+            'reviewed_by': quiz.reviewed_by.get_full_name() if quiz.reviewed_by else None,
+            'reviewed_at': quiz.reviewed_at,
+            'review_notes': quiz.review_notes
+        }
+        quiz_data.append(quiz_info)
     
     return Response(quiz_data)
 
@@ -971,8 +1104,6 @@ def get_student_quiz_summary(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-
-# Add these to your views.py
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated, IsLecturerPermission])
