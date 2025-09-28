@@ -539,7 +539,7 @@ function StudentAnalytics() {
         }
 
         .analytics-header h2 {
-          color: #1e40af;
+          color: #000000ff;
           font-size: 1.75rem;
           margin: 0;
         }
@@ -552,11 +552,11 @@ function StudentAnalytics() {
 
         .course-selector select {
           padding: 0.5rem 1rem;
-          border: 2px solid #2563eb;
+          border: 2px solid #000000ff;
           border-radius: 6px;
           font-size: 1rem;
           background: white;
-          color: #1e40af;
+          color: #060606ff;
           cursor: pointer;
         }
 
@@ -596,7 +596,7 @@ function StudentAnalytics() {
         .metric-value {
           font-size: 2rem;
           font-weight: bold;
-          color: #1e40af;
+          color: #020202ff;
         }
 
         .metric-label {
@@ -625,7 +625,7 @@ function StudentAnalytics() {
         }
 
         .section-card h3 {
-          color: #1e40af;
+          color: #000000ff;
           margin: 0 0 1.5rem 0;
           font-size: 1.25rem;
         }

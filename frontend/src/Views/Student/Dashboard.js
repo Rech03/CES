@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import {
-  getStudentAvailableQuizzes,   // ✅ use student-visible quizzes
-  // getAdaptiveQuiz,            // not needed to list; we derive title from slide/topic/difficulty
-  studentAdaptiveProgress       // optional; not required but can be useful later
+  getStudentAvailableQuizzes,
+  studentAdaptiveProgress
 } from '../../api/ai-quiz';
 
 import { getMyCourses } from '../../api/courses';
@@ -16,6 +15,8 @@ import NavBar from "../../Componets/Student/NavBar";
 import QuizTile from "../../Componets/Student/QuizTile";
 import SearchBar from "../../Componets/Student/SearchBar";
 import "./Dashboard.css";
+
+const MAX_ATTEMPTS = 3;
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Flatten the /available-quizzes/ response (slides[*].quizzes[*] → flat list)
+  // helper to flatten available-quizzes response
   const flattenAvailableQuizzes = (data) => {
     const out = [];
     const slides = Array.isArray(data?.slides) ? data.slides : [];
@@ -43,13 +44,12 @@ function Dashboard() {
       for (const q of qs) {
         out.push({
           quiz_id: q.quiz_id,
-          difficulty: q.difficulty,
+          difficulty: (q.difficulty || '').toLowerCase(),
           accessible: !!q.accessible,
           access_reason: q.access_reason,
           status: q.status,
           question_count: q.question_count,
           progress: q.progress || {},
-          // carry slide context
           slide_id: info.slide_id,
           slide_title: info.title,
           topic_name: info.topic_name,
@@ -59,70 +59,41 @@ function Dashboard() {
         });
       }
     }
-    // Also handle any (unlikely) flat shapes {results:[]}/{quizzes:[]}
-    const flat = [];
-    if (Array.isArray(data)) flat.push(...data);
-    if (Array.isArray(data?.results)) flat.push(...data.results);
-    if (Array.isArray(data?.quizzes)) flat.push(...data.quizzes);
-    // If any flat items exist with quiz_id, bring them in
-    for (const q of flat) {
-      if (q && (q.quiz_id || q.id)) {
-        out.push({
-          quiz_id: q.quiz_id || q.id,
-          difficulty: q.difficulty || 'medium',
-          accessible: q.accessible ?? true,
-          access_reason: q.access_reason || 'Available',
-          status: q.status || 'in_progress',
-          question_count: q.question_count || q.total_questions || 5,
-          progress: q.progress || {},
-          slide_id: q.slide_id || null,
-          slide_title: q.slide_title || q.title || 'Quiz',
-          topic_name: q.topic_name || 'Topic',
-          course_code: (q.course_code || 'default'),
-          course_name: q.course_name || '',
-          created_at: q.created_at || null,
-        });
-      }
-    }
     return out;
   };
 
-  const buildCards = (flat) => {
-    // Show only accessible quizzes (available to student)
+  const buildCards = (flat, attemptsMap) => {
     const onlyAccessible = flat.filter(q => q.accessible);
 
     return onlyAccessible.map((item) => {
-      const attempts = item.progress?.attempts_count ?? 0;
-      const bestScore = item.progress?.best_score;
-      const bestScoreTxt = bestScore != null ? `${Math.round(bestScore)}%` : null;
+      const attemptsUsed = attemptsMap[item.quiz_id]?.attempts_count ?? item.progress?.attempts_count ?? 0;
+      const bestScore = attemptsMap[item.quiz_id]?.best_score ?? item.progress?.best_score ?? null;
+      const completed = attemptsMap[item.quiz_id]?.completed ?? item.progress?.completed ?? false;
 
-      const status = item.progress?.completed
-        ? 'completed'
-        : (item.accessible ? 'available' : 'locked');
+      const status = completed ? 'completed' : (attemptsUsed >= MAX_ATTEMPTS ? 'locked' : 'available');
 
       const titleFromContext =
         (item.topic_name ? `${item.topic_name}` : (item.course_code || 'Quiz')) +
-        ` • ${String(item.difficulty || '').toUpperCase() || 'LEVEL'}`;
+        ` • ${(item.difficulty || 'level').toUpperCase()}`;
 
       return {
         adaptiveQuizId: item.quiz_id,
         slideId: item.slide_id ?? null,
         title: titleFromContext,
-        duration: '15 min', // not in payload; use sensible default
+        duration: '15 min',
         totalQuestions: item.question_count || 5,
         dueDate: 'Self-paced',
         status,
         courseCode: (item.course_code || 'default').toLowerCase(),
         topicName: item.topic_name || item.slide_title || 'Topic',
         difficulty: item.difficulty || 'medium',
-        attempts: `${attempts}/3`, // max not provided; show 3 as default cap
-        bestScore: bestScoreTxt,
+        attempts: `${Math.min(attemptsUsed, MAX_ATTEMPTS)}/${MAX_ATTEMPTS}`,
+        bestScore: bestScore != null ? `${Math.round(bestScore)}%` : null,
         isLive: false,
-        canAccess: true,
+        canAccess: attemptsUsed < MAX_ATTEMPTS,
         createdAt: item.created_at || null,
       };
     }).sort((a, b) => {
-      // Simple sort: available first, then recent
       const pr = { available: 0, completed: 1, locked: 2, missed: 3 };
       const pa = pr[a.status] ?? 99, pb = pr[b.status] ?? 99;
       if (pa !== pb) return pa - pb;
@@ -136,13 +107,33 @@ function Dashboard() {
     setDebugInfo('Fetching available quizzes...');
 
     try {
-      // 1) Authoritative list
-      const avqResp = await getStudentAvailableQuizzes();
+      const [avqResp, progResp] = await Promise.all([
+        getStudentAvailableQuizzes(),
+        studentAdaptiveProgress().catch(() => ({ data: {} }))
+      ]);
+
       const flat = flattenAvailableQuizzes(avqResp.data);
-      const cards = buildCards(flat);
+
+      // map attempts/best per quiz from progress
+      const attemptsMap = {};
+      const attemptsRaw = Array.isArray(progResp?.data)
+        ? progResp.data
+        : progResp?.data?.attempts || progResp?.data?.recent_attempts || [];
+
+      (attemptsRaw || []).forEach((a) => {
+        const qid = a.adaptive_quiz_id || a.quiz_id;
+        if (!qid) return;
+        const score = Number.isFinite(Number(a.score)) ? Number(a.score) : null;
+        const entry = attemptsMap[qid] || { attempts_count: 0, best_score: null, completed: false };
+        entry.attempts_count += 1;
+        if (score != null) entry.best_score = Math.max(entry.best_score ?? 0, score);
+        entry.completed = entry.completed || (a.is_completed ?? a.status === 'completed');
+        attemptsMap[qid] = entry;
+      });
+
+      const cards = buildCards(flat, attemptsMap);
       setQuizzes(cards);
 
-      // 2) Optional sidebar courses
       try {
         const coursesResp = await getMyCourses();
         const fetchedCourses = Array.isArray(coursesResp.data)
@@ -175,12 +166,11 @@ function Dashboard() {
 
   const handleStartQuiz = (quiz) => {
     if (!quiz?.adaptiveQuizId) return;
+    if (!quiz.canAccess) return; // lock when attempts hit 3
 
-    // Save for fallback
     localStorage.setItem('last_quiz_id', String(quiz.adaptiveQuizId));
     if (quiz.slideId != null) localStorage.setItem('last_slide_id', String(quiz.slideId));
 
-    // Navigate with state and deep-link fallback
     navigate('/QuizInterface', {
       state: {
         quizTitle: quiz.title,
@@ -303,7 +293,7 @@ function Dashboard() {
                 attempts={quiz.attempts}
                 bestScore={quiz.bestScore}
                 isLive={quiz.isLive}
-                canAccess={true}
+                canAccess={quiz.canAccess}
                 onStartQuiz={() => handleStartQuiz(quiz)}
                 onViewResults={() => handleViewResults(quiz)}
                 onClick={() => handleStartQuiz(quiz)}

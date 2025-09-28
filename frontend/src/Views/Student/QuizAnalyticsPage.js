@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-// ✅ Use only student endpoints
+// ✅ Student-only endpoints (no “AI” wording in UI)
 import { studentAdaptiveProgress } from '../../api/ai-quiz';
 import { getMyCourses } from '../../api/courses';
 
@@ -22,7 +22,6 @@ function QuizAnalyticsPage() {
 
   const toNum = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
-  // Normalize attempt objects into the shape we need
   const normalizeAttempt = (a) => ({
     id: a.id ?? a.attempt_id ?? a.progress_id ?? a.pk ?? Math.random(),
     quiz_id: a.adaptive_quiz_id || a.quiz_id || a.quiz || a.quizId,
@@ -38,12 +37,11 @@ function QuizAnalyticsPage() {
     attempt_number: toNum(a.attempt_number, 1),
   });
 
-  // Client-side class stats per quiz
   const computeClassStatsForQuiz = (attempts, quizId) => {
     const scoped = attempts.filter(a => a.quiz_id === quizId && a.is_completed);
     if (scoped.length === 0) return null;
     const scores = scoped.map(a => toNum(a.score, 0));
-    const average = scores.reduce((s, v) => s + v, 0) / scores.length;
+    const average = scores.reduce((s, v) => s + v, 0) / scoped.length;
     const highest = Math.max(...scores);
     const passes = scoped.filter(a => toNum(a.score, 0) >= 50).length;
     const passRate = (passes / scoped.length) * 100;
@@ -61,16 +59,17 @@ function QuizAnalyticsPage() {
       setLoading(true);
       setError(null);
       try {
-        // ✅ Get student attempts/progress
+        // ✅ Student progress/attempts
         const { data: progress } = await studentAdaptiveProgress();
+        const attemptsRaw = Array.isArray(progress)
+          ? progress
+          : progress?.attempts || progress?.recent_attempts || [];
 
-        const attemptsRaw =
-          Array.isArray(progress) ? progress : progress?.attempts || progress?.recent_attempts || [];
-
-        const processed = (attemptsRaw || []).map(normalizeAttempt).filter(a => a.quiz_id);
+        const processed = (attemptsRaw || [])
+          .map(normalizeAttempt)
+          .filter(a => a.quiz_id);
         setQuizAttempts(processed);
 
-        // Pick most recent completed as default
         const completed = processed.filter(a => a.is_completed);
         if (completed.length > 0) {
           const mostRecent = [...completed].sort(
@@ -81,7 +80,7 @@ function QuizAnalyticsPage() {
           setQuizStatistics(computeClassStatsForQuiz(processed, mostRecent.quiz_id));
         }
 
-        // Sidebar courses
+        // Sidebar courses (best-effort)
         try {
           const { data: coursesResp } = await getMyCourses();
           const fetchedCourses = Array.isArray(coursesResp)
@@ -102,7 +101,6 @@ function QuizAnalyticsPage() {
     fetchData();
   }, []);
 
-  // Re-compute stats when selection changes
   useEffect(() => {
     if (!selectedQuizId) {
       setQuizStatistics(null);
