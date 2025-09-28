@@ -8,13 +8,15 @@ import CoursesList from "../../Componets/Student/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
 import StarRating from "../../Componets/Student/StarRating";
 import StudentAnalytics from '../../Componets/Student/QuizAnalytics';
-import "./AIQuizzes.css";
+import StudentInsights from '../../Componets/Student/StudentInsights';
+import "./Analytics.css";
 
 function Analytics() {
   const [selectedStudentId, setSelectedStudentId] = useState(null);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('insights'); // insights or analytics
 
   useEffect(() => {
     const fetchData = async () => {
@@ -91,37 +93,63 @@ function Analytics() {
           <NavBar />
         </div>
         <div className="loading-container">
-          <div className="spinner"></div>
-          <p>Loading analytics...</p>
+          <div className="loading-spinner">
+            <div className="spinner"></div>
+            <p>Loading analytics...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="analytics-page">
       <div className="NavBar">
         <NavBar />
       </div>
       
-      {/* Main Container - everything inside will be contained */}
-      <div className="ContainerAI">
+      {/* Main Container using your existing CSS classes */}
+      <div className="ContainerAn">
+        <div className="Boigraphy">
+          <Biography />
+        </div>
+
         {error && (
           <div className="error-banner">
-            <p>{error}</p>
-            <button onClick={handleRefresh}>Retry</button>
+            <div className="error-content">
+              <p>{error}</p>
+              <button onClick={handleRefresh} className="retry-button">
+                Try Again
+              </button>
+            </div>
           </div>
         )}
-        <div className="StudentAnalyticsWrapper">
-          <StudentAnalytics studentId={selectedStudentId} />
+        
+
+        {/* Tab Content */}
+        <div className="tab-content">
+          {activeTab === 'insights' && (
+            <div className="StudentInsightsWrapper">
+              <StudentInsights studentId={selectedStudentId} />
+            </div>
+          )}
+          
+          {activeTab === 'analytics' && (
+            <div className="StudentAnalyticsWrapper">
+              <StudentAnalytics studentId={selectedStudentId} />
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Side panel remains outside */}
-      <div className="SideAI">
+      {/* Side panels using your existing CSS classes */}
+      <div className="SideAn">
+        <div className="List">
           <CoursesList courses={courses} />
+        </div>
       </div>
-      <div className="BoiAI">
+      
+      <div className="BoiAn">
         <Bio />
       </div>
     </div>

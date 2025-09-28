@@ -207,24 +207,7 @@ function QuizTile({
 
         {status === 'completed' && (
           <div className="completed-actions" style={{ display: 'flex', gap: '8px', width: '100%' }}>
-            <button
-              className="action-btn results-btn"
-              onClick={handleViewResults}
-              style={{
-                flex: '1',
-                background: 'linear-gradient(135deg, #3498DB 0%, #5DADE2 100%)',
-                color: 'white',
-                border: 'none',
-                padding: '10px 8px',
-                borderRadius: '6px',
-                fontSize: '10px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                cursor: 'pointer'
-              }}
-            >
-              View Results
-            </button>
+  
             <button
               className="action-btn retake-btn"
               onClick={handleRetakeQuiz}
