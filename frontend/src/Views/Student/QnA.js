@@ -18,11 +18,14 @@ function QnA() {
         </div>
         
         <div className="SideAI">
-          <CoursesList />
+          <CoursesList 
+            compact={true}
+            showLoading={true}
+          />
         </div>
         
         <div className="BoiAI">
-          <Bio />
+          <Bio showLoading={true} />
         </div>
       </div>
     </div> 

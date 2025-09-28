@@ -6,9 +6,7 @@ import {
   studentAdaptiveProgress
 } from '../../api/ai-quiz';
 
-import { getMyCourses } from '../../api/courses';
-
-import Bio from "../../Componets/Lacture/bio";
+import Bio from "../../Componets/Student/bio";
 import Biography from "../../Componets/Student/Biography";
 import CoursesList from "../../Componets/Student/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
@@ -22,7 +20,6 @@ function Dashboard() {
   const navigate = useNavigate();
 
   const [quizzes, setQuizzes] = useState([]);
-  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -133,18 +130,8 @@ function Dashboard() {
 
       const cards = buildCards(flat, attemptsMap);
       setQuizzes(cards);
-
-      try {
-        const coursesResp = await getMyCourses();
-        const fetchedCourses = Array.isArray(coursesResp.data)
-          ? coursesResp.data
-          : (coursesResp.data?.courses || coursesResp.data?.results || []);
-        setCourses(fetchedCourses);
-      } catch (e) {
-        console.warn('getMyCourses failed:', e);
-      }
-
       setDebugInfo(`Accessible quizzes: ${cards.length}`);
+      
     } catch (err) {
       console.error(err);
       setError(`Failed to load quizzes: ${err.message}`);
@@ -226,7 +213,10 @@ function Dashboard() {
 
       <div className="ContainerD">
         <div className="Boigraphy">
-          <Biography />
+          <Biography 
+            showLoading={true}
+            compact={false}
+          />
         </div>
 
         {error && (
@@ -306,7 +296,7 @@ function Dashboard() {
                 No accessible quizzes right now
               </h3>
               <p style={{ color: '#666', marginBottom: '20px' }}>
-                Your lecturers haven’t made any quizzes available yet. Check back later!
+                Your lecturers haven't made any quizzes available yet. Check back later!
               </p>
               <button
                 onClick={fetchData}
@@ -327,11 +317,14 @@ function Dashboard() {
       </div>
 
       <div className="SideD">
-        <CoursesList courses={courses} />
+        <CoursesList 
+          compact={true}
+          showLoading={true}
+        />
       </div>
 
       <div className="BoiD">
-        <Bio />
+        <Bio showLoading={true} />
       </div>
     </div>
   );
