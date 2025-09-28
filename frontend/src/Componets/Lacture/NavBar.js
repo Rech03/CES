@@ -52,11 +52,7 @@ function NavBar() {
             Student Analysis
           </NavLink>
         </li>
-        <li>
-          <NavLink to="/LecturerQuizHistory" className={({ isActive }) => (isActive ? "active" : "")}>
-            Quiz History
-          </NavLink>
-        </li>
+   
       </ul>
 
       <div className="NavActions">

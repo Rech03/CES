@@ -1,59 +1,36 @@
-// src/Views/Lecture/StudentAnalytics.js
+// src/Views/Lacture/StudentAnalytics.js
 import { useState, useEffect, useMemo } from "react";
-
-// NOTE: keeping these relative paths exactly as you have them
-import BarChart from "../../Componets/Lacture/BarChart";
 import Bio from "../../Componets/Lacture/bio";
 import CoursesList from "../../Componets/Lacture/CoursesList";
-import MetricCard from "../../Componets/Lacture/MetricCard";
 import NavBar from "../../Componets/Lacture/NavBar";
-import StarRating from "../../Componets/Lacture/StarRating";
 
-// Updated to use AI quiz specific analytics endpoints
 import {
   lecturerDashboard,
-  lecturerChart,
   lecturerCourseOptions,
+  updateStudentMetrics,
+  getCourseStatistics,
   getEngagementTrends,
   getPerformanceTrends,
-  updateStudentMetrics,
-  // AI Quiz specific endpoints
-  getAIQuizStatistics,
-  getCourseStatistics,
-  getStudentEngagement,
-  getDifficultyProgression,
-  getAdaptiveLearningEffectiveness,
   getStudentsNeedingAttention,
-  getEngagementAlerts,
   triggerInterventionEmail,
-  getDifficultyDistribution,
-  getQuestionAnalysis
+  getEngagementAlerts,
 } from "../../api/analytics";
 
-// Import course API for fallback
 import { getMyCourses } from "../../api/courses";
-
 import "./StudentAnalytics.css";
 
-/**
- * Lecturer Student Analytics - AI Quiz Focused
- * - Uses AI quiz specific analytics endpoints
- * - Integrates with adaptive learning metrics
- * - Provides insights on AI quiz performance and student engagement
- */
 function StudentAnalytics() {
-  const [analyticsData, setAnalyticsData] = useState(null);
   const [courses, setCourses] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState("");
-  const [chartData, setChartData] = useState({});
-  const [studentsNeedingAttention, setStudentsNeedingAttention] = useState([]);
-  const [engagementAlerts, setEngagementAlerts] = useState([]);
-  const [difficultyDistribution, setDifficultyDistribution] = useState(null);
+  const [courseData, setCourseData] = useState(null);
+  const [engagementData, setEngagementData] = useState(null);
+  const [performanceData, setPerformanceData] = useState(null);
+  const [studentsNeedingHelp, setStudentsNeedingHelp] = useState([]);
+  const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingCourse, setLoadingCourse] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState({});
   const [error, setError] = useState("");
 
-  // Normalize to number for requests that expect numeric IDs
   const normalizedCourseId = useMemo(() => {
     if (!selectedCourseId) return null;
     const asNum = Number(selectedCourseId);
@@ -61,20 +38,16 @@ function StudentAnalytics() {
   }, [selectedCourseId]);
 
   useEffect(() => {
-    // Optionally ask backend to recompute/refresh aggregates
     updateStudentMetrics()
-      .catch((err) => console.log('Metrics update failed:', err.message))
-      .finally(() => {
-        loadInitialData();
-      });
+      .catch(() => {})
+      .finally(() => loadInitialData());
   }, []);
 
   useEffect(() => {
-    if (normalizedCourseId !== null) {
-      loadCourseAnalytics(normalizedCourseId);
+    if (normalizedCourseId) {
+      loadCourseData(normalizedCourseId);
     } else {
-      // Load global data when no specific course is selected
-      loadGlobalAnalytics();
+      loadAllCoursesData();
     }
   }, [normalizedCourseId]);
 
@@ -83,148 +56,85 @@ function StudentAnalytics() {
       setLoading(true);
       setError("");
 
-      // Try lecturer course options first, fallback to general courses API
       let coursesData = [];
       try {
-        console.log('Loading lecturer course options...');
-        const courseOptsRes = await lecturerCourseOptions();
-        const payload = courseOptsRes?.data;
-
-        if (Array.isArray(payload)) {
-          coursesData = payload;
-        } else if (payload?.courses && Array.isArray(payload.courses)) {
-          coursesData = payload.courses;
-        }
-        console.log('Lecturer courses loaded:', coursesData);
-      } catch (courseError) {
-        console.log('Lecturer course options failed, trying general courses API');
-        try {
-          const fallbackCoursesRes = await getMyCourses();
-          const fallbackPayload = fallbackCoursesRes?.data;
-          
-          if (Array.isArray(fallbackPayload)) {
-            coursesData = fallbackPayload;
-          } else if (fallbackPayload?.courses && Array.isArray(fallbackPayload.courses)) {
-            coursesData = fallbackPayload.courses;
-          }
-          console.log('Fallback courses loaded:', coursesData);
-        } catch (fallbackError) {
-          console.error('Both course APIs failed:', fallbackError);
-        }
+        const res = await lecturerCourseOptions();
+        coursesData = res?.data?.courses || res?.data || [];
+      } catch {
+        const res = await getMyCourses();
+        coursesData = res?.data || [];
       }
 
       setCourses(coursesData);
-
-      // Load lecturer dashboard
-      try {
-        console.log('Loading lecturer dashboard...');
-        const dashboardRes = await lecturerDashboard();
-        setAnalyticsData(dashboardRes?.data ?? null);
-        console.log('Dashboard data loaded:', dashboardRes?.data);
-      } catch (dashboardError) {
-        console.error('Dashboard loading failed:', dashboardError);
-        // Continue without dashboard data
+      if (coursesData.length > 0) {
+        setSelectedCourseId(String(coursesData[0].id));
       }
 
       // Load engagement alerts
       try {
         const alertsRes = await getEngagementAlerts();
-        setEngagementAlerts(alertsRes?.data || []);
-      } catch (alertsError) {
-        console.log('Engagement alerts failed:', alertsError.message);
+        setAlerts(alertsRes?.data || []);
+      } catch (err) {
+        console.log('Failed to load alerts:', err);
       }
-
-      // Auto-select the first available course
-      if (coursesData.length > 0) {
-        setSelectedCourseId(String(coursesData[0].id));
-      } else {
-        setSelectedCourseId("");
-        setChartData({});
-      }
-
     } catch (err) {
-      console.error("Error loading initial analytics data:", err);
-      const msg =
-        err?.response?.data?.detail ||
-        err?.response?.statusText ||
-        "Failed to load analytics data";
-      setError(msg);
+      setError("Failed to load courses");
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadGlobalAnalytics() {
+  async function loadAllCoursesData() {
     try {
-      setLoadingCourse(true);
-
-      // Load global AI quiz analytics
-      const [
-        difficultyRes,
-        adaptiveEffectivenessRes
-      ] = await Promise.all([
-        getDifficultyDistribution({}).catch(() => null),
-        getAdaptiveLearningEffectiveness({}).catch(() => null)
+      const [dashboardRes, engagementRes, performanceRes] = await Promise.all([
+        lecturerDashboard().catch(() => null),
+        getEngagementTrends({ period: "30" }).catch(() => null),
+        getPerformanceTrends({ period: "30" }).catch(() => null),
       ]);
 
-      setDifficultyDistribution(difficultyRes?.data);
-      setChartData({
-        adaptiveEffectiveness: adaptiveEffectivenessRes?.data,
-        global: true
-      });
+      setCourseData(dashboardRes?.data || null);
+      setEngagementData(engagementRes?.data || null);
+      setPerformanceData(performanceRes?.data || null);
 
+      // Load at-risk students from all courses
+      const allStudents = [];
+      for (const course of courses) {
+        try {
+          const studentsRes = await getStudentsNeedingAttention(course.id);
+          const students = studentsRes?.data || [];
+          students.forEach(student => {
+            allStudents.push({
+              ...student,
+              course_code: course.code,
+              course_name: course.name,
+              course_id: course.id
+            });
+          });
+        } catch (err) {
+          console.log(`Failed to load students for course ${course.id}`);
+        }
+      }
+      setStudentsNeedingHelp(allStudents);
     } catch (err) {
-      console.error("Error loading global analytics:", err);
-    } finally {
-      setLoadingCourse(false);
+      console.error("Error loading all courses data:", err);
     }
   }
 
-  async function loadCourseAnalytics(courseId) {
+  async function loadCourseData(courseId) {
     try {
-      setLoadingCourse(true);
-      console.log('Loading analytics for course:', courseId);
-
-      const [
-        courseStatsRes,
-        studentsNeedingAttentionRes,
-        engagementTrendsRes,
-        performanceTrendsRes,
-        difficultyProgressionRes,
-        difficultyDistributionRes,
-        adaptiveEffectivenessRes
-      ] = await Promise.all([
+      const [courseRes, engagementRes, performanceRes, studentsRes] = await Promise.all([
         getCourseStatistics(courseId).catch(() => null),
+        getEngagementTrends({ period: "30", course_id: courseId }).catch(() => null),
+        getPerformanceTrends({ period: "30", course_id: courseId }).catch(() => null),
         getStudentsNeedingAttention(courseId).catch(() => null),
-        getEngagementTrends({ period: "month", course_id: courseId }).catch(() => null),
-        getPerformanceTrends({ period: "month", course_id: courseId }).catch(() => null),
-        getDifficultyProgression({ course_id: courseId }).catch(() => null),
-        getDifficultyDistribution({ course_id: courseId }).catch(() => null),
-        getAdaptiveLearningEffectiveness({ course_id: courseId }).catch(() => null)
       ]);
 
-      console.log('Course analytics loaded:', {
-        courseStats: courseStatsRes?.data,
-        studentsNeeding: studentsNeedingAttentionRes?.data,
-        engagement: engagementTrendsRes?.data,
-        performance: performanceTrendsRes?.data
-      });
-
-      setStudentsNeedingAttention(studentsNeedingAttentionRes?.data || []);
-      setDifficultyDistribution(difficultyDistributionRes?.data);
-
-      setChartData({
-        courseStats: courseStatsRes?.data,
-        engagement: engagementTrendsRes?.data,
-        performance: performanceTrendsRes?.data,
-        difficultyProgression: difficultyProgressionRes?.data,
-        adaptiveEffectiveness: adaptiveEffectivenessRes?.data
-      });
-
+      setCourseData(courseRes?.data || null);
+      setEngagementData(engagementRes?.data || null);
+      setPerformanceData(performanceRes?.data || null);
+      setStudentsNeedingHelp(studentsRes?.data || []);
     } catch (err) {
-      console.error("Error loading course analytics:", err);
-    } finally {
-      setLoadingCourse(false);
+      console.error("Error loading course data:", err);
     }
   }
 
@@ -232,110 +142,116 @@ function StudentAnalytics() {
     setSelectedCourseId(e.target.value);
   };
 
-  const handleInterventionEmail = async (studentId) => {
-    if (!normalizedCourseId) return;
+  const handleSendHelpEmail = async (student) => {
+    const studentId = student.student_id || student.id;
+    const courseId = student.course_id || normalizedCourseId;
     
+    if (!courseId) {
+      alert('Unable to send email: Course information missing');
+      return;
+    }
+    
+    setSendingEmail(prev => ({ ...prev, [studentId]: true }));
+
     try {
-      await triggerInterventionEmail({ 
-        student_id: studentId, 
-        course_id: normalizedCourseId 
+      await triggerInterventionEmail({
+        student_id: studentId,
+        course_id: courseId
       });
-      // Refresh students needing attention
-      const updatedRes = await getStudentsNeedingAttention(normalizedCourseId);
-      setStudentsNeedingAttention(updatedRes?.data || []);
+      alert(`Support email sent to ${student.name || student.student_name}`);
+      
+      // Reload students based on current view
+      if (normalizedCourseId) {
+        await loadCourseData(normalizedCourseId);
+      } else {
+        await loadAllCoursesData();
+      }
     } catch (err) {
-      console.error('Failed to send intervention email:', err);
+      alert('Failed to send email. Please try again.');
+      console.error('Email error:', err);
+    } finally {
+      setSendingEmail(prev => ({ ...prev, [studentId]: false }));
     }
   };
 
-  // ===== Helpers to shape chart data safely =====
-  function processAIQuizParticipationData() {
-    const courseStats = chartData?.courseStats;
-    if (!courseStats?.quiz_participation) return [];
-    
-    return courseStats.quiz_participation.map((q) => ({
-      quiz: q.title || `AI Quiz ${q.id}`,
-      attempted: Number(q.attempted_count || 0),
-      total: Number(q.total_students || 0),
-      difficulty: q.difficulty || 'medium'
-    }));
-  }
+  // Extract key metrics
+  const getMetrics = () => {
+    if (!courseData) return { enrolled: 0, attempts: 0, avgScore: 0, quizzes: 0, needsHelp: 0 };
 
-  function processPerformanceData() {
-    const trends = chartData?.performance?.trends || chartData?.performance;
-    if (!Array.isArray(trends)) return [];
-    
-    return trends.map((t) => ({
-      month: new Date(t.date || t.period).toLocaleDateString("en", { month: "short" }),
-      score: Math.round(Number(t.average_score || t.avg_score || 0)),
-      adaptiveScore: Math.round(Number(t.adaptive_score || 0))
-    }));
-  }
+    if (courseData.course_overview) {
+      const totals = courseData.course_overview.reduce(
+        (acc, course) => ({
+          enrolled: acc.enrolled + (course.total_students || 0),
+          attempts: acc.attempts + (course.total_attempts || 0),
+          avgScore: acc.avgScore + (course.average_score || 0),
+          quizzes: acc.quizzes + (course.total_ai_quizzes || 0),
+        }),
+        { enrolled: 0, attempts: 0, avgScore: 0, quizzes: 0 }
+      );
+      return {
+        ...totals,
+        avgScore: courseData.course_overview.length > 0 
+          ? totals.avgScore / courseData.course_overview.length 
+          : 0,
+        needsHelp: courseData.recent_performance?.students_needing_attention || 0,
+      };
+    } else {
+      return {
+        enrolled: courseData.student_engagement?.total_enrolled || 0,
+        attempts: courseData.total_attempts || 0,
+        avgScore: courseData.overall_average || 0,
+        quizzes: courseData.total_ai_quizzes || 0,
+        needsHelp: courseData.student_engagement?.students_needing_attention || 0,
+      };
+    }
+  };
 
-  function processDifficultyProgression() {
-    const progression = chartData?.difficultyProgression;
-    if (!progression?.levels) return [];
-    
-    return progression.levels.map((level) => ({
-      difficulty: level.difficulty,
-      completed: Number(level.completed_students || 0),
-      average_score: Math.round(Number(level.average_score || 0)),
-      total_students: Number(level.total_students || 0)
-    }));
-  }
+  const metrics = getMetrics();
 
-  function processEngagementData() {
-    const engagement = chartData?.engagement;
-    if (!engagement?.daily_engagement) return [];
-    
-    return engagement.daily_engagement.slice(-7).map((day) => ({
-      date: new Date(day.date).toLocaleDateString("en", { weekday: "short" }),
-      interactions: Number(day.interactions || 0),
-      quiz_attempts: Number(day.quiz_attempts || 0)
-    }));
-  }
+  // Get recent activity (last 7 days)
+  const getRecentActivity = () => {
+    if (!engagementData?.daily_engagement) return [];
+    return engagementData.daily_engagement.slice(-7);
+  };
 
-  // ===== Derived UI data =====
-  const metrics = analyticsData?.metrics || {};
-  const aiQuizParticipation = processAIQuizParticipationData();
-  const performanceSeries = processPerformanceData();
-  const difficultyProgression = processDifficultyProgression();
-  const engagementSeries = processEngagementData();
-  const courseStats = chartData?.courseStats || {};
+  const recentActivity = getRecentActivity();
 
-  if (loading && !analyticsData) {
+  // Calculate engagement rate
+  const calculateEngagementRate = () => {
+    if (!engagementData?.summary) return 0;
+    const { total_attempts } = engagementData.summary;
+    const enrolled = metrics.enrolled;
+    if (enrolled === 0) return 0;
+    return Math.min(100, Math.round((total_attempts / enrolled) * 10));
+  };
+
+  // Get performance distribution
+  const getPerformanceDistribution = () => {
+    if (!courseData) return null;
+
+    if (courseData.student_distribution) {
+      return courseData.student_distribution;
+    } else if (courseData.student_engagement?.performance_distribution) {
+      const dist = courseData.student_engagement.performance_distribution;
+      return [
+        { performance_category: 'excellent', count: dist.excellent || 0, percentage: 0 },
+        { performance_category: 'good', count: dist.good || 0, percentage: 0 },
+        { performance_category: 'danger', count: dist.danger || 0, percentage: 0 },
+      ].filter(item => item.count > 0);
+    }
+    return null;
+  };
+
+  const distribution = getPerformanceDistribution();
+  const totalStudents = distribution?.reduce((sum, d) => sum + d.count, 0) || 0;
+
+  if (loading) {
     return (
       <div>
-        <div className="NavBar">
-          <NavBar />
-        </div>
+        <div className="NavBar"><NavBar /></div>
         <div className="Container">
           <div className="analytics-content">
-            <div className="loading-state">
-              <h3>Loading Quiz Analytics...</h3>
-              <div className="loading-spinner"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div>
-        <div className="NavBar">
-          <NavBar />
-        </div>
-        <div className="Container">
-          <div className="analytics-content">
-            <div className="error-state">
-              <h3>Error Loading Analytics</h3>
-              <p>{error}</p>
-              <button onClick={loadInitialData} className="retry-btn">
-                Retry
-              </button>
-            </div>
+            <div className="loading-state">Loading Analytics...</div>
           </div>
         </div>
       </div>
@@ -344,24 +260,17 @@ function StudentAnalytics() {
 
   return (
     <div>
-      <div className="NavBar">
-        <NavBar />
-      </div>
+      <div className="NavBar"><NavBar /></div>
 
       <div className="Container">
         <div className="analytics-content">
+          {/* Header */}
           <div className="analytics-header">
-            <h2>Quiz Student Analytics</h2>
-
-            {/* Course Selector */}
+            <h2>Student Quiz Analytics</h2>
             {courses.length > 0 && (
               <div className="course-selector">
-                <label htmlFor="course-select">Analyze Course:</label>
-                <select
-                  id="course-select"
-                  value={selectedCourseId}
-                  onChange={handleCourseChange}
-                >
+                <label htmlFor="course-select">Course:</label>
+                <select id="course-select" value={selectedCourseId} onChange={handleCourseChange}>
                   <option value="">All Courses</option>
                   {courses.map((c) => (
                     <option key={c.id} value={String(c.id)}>
@@ -373,290 +282,658 @@ function StudentAnalytics() {
             )}
           </div>
 
-          {/* Enhanced Metrics Grid for AI Quiz */}
-          <div className="metrics-grid">
-            <MetricCard
-              title="Students Needing Support"
-              value={studentsNeedingAttention.length || metrics.students_needing_support || "0"}
-              subtitle="Based on quiz performance"
-              trend={metrics.support_trend || 0}
-            />
-            <MetricCard
-              title="Adaptive Learning Progress"
-              value={`${courseStats.adaptive_completion_rate || metrics.adaptive_progress || 0}%`}
-              subtitle="Students progressing through levels"
-              trend={metrics.adaptive_trend || 0}
-            />
-            <MetricCard
-              title="AI Quiz Participation"
-              value={`${courseStats.participation_rate || metrics.participation_rate || 0}%`}
-              subtitle="Recent quiz attempts"
-              trend={metrics.participation_trend || 0}
-            />
-            <MetricCard
-              title="Average Difficulty Level"
-              value={courseStats.average_difficulty_level || "Medium"}
-              subtitle="Current student progression"
-              trend={courseStats.difficulty_trend || 0}
-            />
+          {/* Key Metrics */}
+          <div className="metrics-grid-clean">
+            <div className="metric-card">
+              <div className="metric-icon">👥</div>
+              <div className="metric-data">
+                <div className="metric-value">{metrics.enrolled}</div>
+                <div className="metric-label">Students Enrolled</div>
+              </div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-icon">📝</div>
+              <div className="metric-data">
+                <div className="metric-value">{metrics.quizzes}</div>
+                <div className="metric-label">Quizzes Available</div>
+              </div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-icon">✍️</div>
+              <div className="metric-data">
+                <div className="metric-value">{metrics.attempts}</div>
+                <div className="metric-label">Total Attempts</div>
+              </div>
+            </div>
+            <div className="metric-card">
+              <div className="metric-icon">📊</div>
+              <div className="metric-data">
+                <div className="metric-value">{Math.round(metrics.avgScore)}%</div>
+                <div className="metric-label">Average Score</div>
+              </div>
+            </div>
+            <div className="metric-card alert">
+              <div className="metric-icon">⚠️</div>
+              <div className="metric-data">
+                <div className="metric-value">{metrics.needsHelp}</div>
+                <div className="metric-label">Need Support</div>
+              </div>
+            </div>
           </div>
 
-          {/* Enhanced Charts Grid for AI Quiz */}
-          <div className="charts-grid">
-            {/* AI Quiz Participation by Difficulty */}
-            <div className="chart-section">
-              {aiQuizParticipation.length > 0 ? (
-                <BarChart
-                  data={aiQuizParticipation}
-                  title="AI Quiz Participation by Difficulty"
-                />
-              ) : (
-                <div className="chart-placeholder">
-                  <h4>Quiz Participation</h4>
-                  <p>No quiz participation data available</p>
-                </div>
-              )}
-            </div>
-
-            {/* Adaptive Performance Trend */}
-            <div className="chart-section">
-              <div className="chart-container">
-                <div className="chart-title">Adaptive Learning Performance</div>
-                {performanceSeries.length > 0 ? (
-                  <div className="line-chart adaptive-chart">
-                    {performanceSeries.map((pt, idx) => (
-                      <div key={idx} className="performance-point">
-                        <div className="point-value">{pt.score}%</div>
-                        <div
-                          className="point-bar adaptive"
-                          style={{ height: `${Math.max(pt.score, 10)}%` }}
-                        ></div>
-                        <div className="point-label">{pt.month}</div>
-                        {pt.adaptiveScore > 0 && (
-                          <div className="adaptive-indicator">
-                            Adaptive: {pt.adaptiveScore}%
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="chart-placeholder">
-                    <p>No performance trend data available</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Difficulty Progression */}
-            <div className="chart-section">
-              <div className="chart-container">
-                <div className="chart-title">Difficulty Level Progression</div>
-                {difficultyProgression.length > 0 ? (
-                  <div className="difficulty-progression">
-                    {difficultyProgression.map((level, idx) => {
-                      const completionRate = level.total_students > 0 
-                        ? Math.round((level.completed / level.total_students) * 100)
-                        : 0;
-                      return (
-                        <div key={idx} className="difficulty-level">
-                          <div className="level-header">
-                            <span className={`difficulty-label ${level.difficulty}`}>
-                              {level.difficulty.toUpperCase()}
-                            </span>
-                            <span className="completion-rate">{completionRate}%</span>
-                          </div>
-                          <div className="progress-bar">
-                            <div
-                              className="progress-fill"
-                              style={{ width: `${completionRate}%` }}
-                            ></div>
-                          </div>
-                          <div className="level-details">
-                            <span>{level.completed}/{level.total_students} completed</span>
-                            <span>Avg: {level.average_score}%</span>
-                          </div>
+          {/* Students Needing Help - Always Show */}
+          {studentsNeedingHelp.length > 0 && (
+            <div className="section-card urgent">
+              <h3>Students Requiring Immediate Attention ({studentsNeedingHelp.length})</h3>
+              <div className="students-help-grid">
+                {studentsNeedingHelp.map((student, idx) => {
+                  const studentId = student.student_id || student.id;
+                  const studentName = student.name || student.student_name || 'Unknown Student';
+                  const studentNumber = student.student_number || 'N/A';
+                  const lastScore = Math.round(student.last_score || student.latest_score || 0);
+                  const attempts = student.quiz_attempts || student.total_attempts || 0;
+                  const missed = student.consecutive_missed || student.consecutive_missed_quizzes || 0;
+                  const courseInfo = student.course_code ? `${student.course_code}` : '';
+                  
+                  return (
+                    <div key={idx} className="student-help-card">
+                      <div className="student-header">
+                        <div className="student-avatar">
+                          {studentName[0].toUpperCase()}
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="chart-placeholder">
-                    <p>No difficulty progression data available</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Students Requiring Support */}
-            <div className="chart-section">
-              <div className="chart-container">
-                <div className="chart-title">Students Requiring Learning Support</div>
-                {studentsNeedingAttention.length > 0 ? (
-                  <div className="support-list">
-                    {studentsNeedingAttention.slice(0, 6).map((s, idx) => (
-                      <div key={idx} className="support-item ai-support">
-                        <div className={`trend-indicator ${s.trend || 'declining'}`}></div>
                         <div className="student-info">
-                          <div className="student-name">{s.name || s.student_name || 'Anonymous'}</div>
-                          <div className="student-details">
-                            <span className="last-score">
-                              Last: {Math.round(Number(s.last_score || s.latest_score || 0))}%
-                            </span>
-                            <span className="difficulty-stuck">
-                              Stuck at: {s.difficulty_level || s.current_level || 'Unknown'}
-                            </span>
-                            <span className="quiz-attempts">
-                              Attempts: {s.quiz_attempts || s.total_attempts || 0}
-                            </span>
-                          </div>
+                          <div className="student-name">{studentName}</div>
+                          <div className="student-number">{studentNumber}</div>
+                          {courseInfo && <div className="student-course">{courseInfo}</div>}
                         </div>
-                        <button 
-                          className="action-button"
-                          onClick={() => handleInterventionEmail(s.student_id || s.id)}
-                        >
-                          Send Help
-                        </button>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="chart-placeholder">
-                    <p>All students are progressing well with quizzes</p>
-                  </div>
-                )}
+                      <div className="student-stats">
+                        <div className="stat-item">
+                          <span className="stat-label">Last Score:</span>
+                          <span className="stat-value danger">{lastScore}%</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">Quiz Attempts:</span>
+                          <span className="stat-value">{attempts}</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">Consecutive Missed:</span>
+                          <span className="stat-value">{missed} quizzes</span>
+                        </div>
+                      </div>
+                      <button 
+                        className="help-button"
+                        onClick={() => handleSendHelpEmail(student)}
+                        disabled={sendingEmail[studentId]}
+                      >
+                        {sendingEmail[studentId] ? 'Sending...' : 'Send Support Email'}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          </div>
-
-          {/* Loading indicator for course-specific data */}
-          {loadingCourse && (
-            <div className="loading-overlay">
-              <div className="loading-message">Loading course analytics...</div>
             </div>
           )}
 
-          {/* AI Quiz Specific Support Actions */}
-          <div className="support-actions">
-            <h3>AI Learning Support Actions</h3>
-            <div className="actions-grid">
-              <div className="action-card urgent">
-                <div className="action-header">
-                  <div className="action-icon">🎯</div>
-                  <div className="action-title">Difficulty Adjustment</div>
-                </div>
-                <div className="action-content">
-                  <p>
-                    {courseStats.students_stuck_on_difficulty || 0} students stuck on higher difficulty levels
-                  </p>
-                  <button className="action-btn">Adjust AI Parameters</button>
-                </div>
-              </div>
-
-              <div className="action-card moderate">
-                <div className="action-header">
-                  <div className="action-icon">🧠</div>
-                  <div className="action-title">Adaptive Coaching</div>
-                </div>
-                <div className="action-content">
-                  <p>Provide personalized learning paths for struggling students</p>
-                  <button className="action-btn">Generate Learning Plans</button>
-                </div>
-              </div>
-
-              <div className="action-card positive">
-                <div className="action-header">
-                  <div className="action-icon">📈</div>
-                  <div className="action-title">Progress Celebration</div>
-                </div>
-                <div className="action-content">
-                  <p>
-                    {courseStats.students_advancing || metrics.improving_students || 0} students advancing through difficulty levels
-                  </p>
-                  <button className="action-btn">Send Badges</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* AI Learning Insights */}
-          <div className="insights-section">
-            <h3>AI Learning Insights</h3>
-            <div className="insights-grid">
-              <div className="insight-card">
-                <div className="insight-icon">🔄</div>
-                <div className="insight-content">
-                  <div className="insight-title">Adaptive Effectiveness</div>
-                  <div className="insight-description">
-                    {chartData?.adaptiveEffectiveness?.insight ||
-                      "AI difficulty adjustment improves learning outcomes by 23% on average"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="insight-card">
-                <div className="insight-icon">⚡</div>
-                <div className="insight-content">
-                  <div className="insight-title">Engagement Patterns</div>
-                  <div className="insight-description">
-                    {analyticsData?.insights?.engagement_insight ||
-                      "Students engage 40% more with AI quizzes vs traditional assessments"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="insight-card">
-                <div className="insight-icon">🎯</div>
-                <div className="insight-content">
-                  <div className="insight-title">Difficulty Optimization</div>
-                  <div className="insight-description">
-                    {difficultyDistribution?.insight ||
-                      "Optimal difficulty progression reduces dropout by 15%"}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Engagement Alerts */}
-          {engagementAlerts.length > 0 && (
-            <div className="alerts-section">
-              <h3>Engagement Alerts</h3>
-              <div className="alerts-list">
-                {engagementAlerts.map((alert, idx) => (
-                  <div key={idx} className={`alert-item ${alert.severity || 'medium'}`}>
-                    <div className="alert-content">
-                      <div className="alert-title">{alert.title}</div>
-                      <div className="alert-description">{alert.message}</div>
-                      <div className="alert-timestamp">
-                        {new Date(alert.created_at).toLocaleDateString()}
+          {/* Performance Overview Chart */}
+          {distribution && totalStudents > 0 && (
+            <div className="section-card">
+              <h3>Student Performance Overview</h3>
+              <div className="chart-container">
+                <div className="donut-chart">
+                  {distribution.map((item, idx) => {
+                    const percentage = Math.round((item.count / totalStudents) * 100);
+                    const colors = {
+                      excellent: '#2563eb',
+                      good: '#60a5fa',
+                      danger: '#f87171'
+                    };
+                    const labels = {
+                      excellent: 'Excellent',
+                      good: 'Good',
+                      danger: 'At Risk'
+                    };
+                    
+                    return (
+                      <div key={idx} className="chart-segment">
+                        <div className="chart-bar-wrapper">
+                          <div className="chart-label-group">
+                            <div 
+                              className="color-indicator" 
+                              style={{ backgroundColor: colors[item.performance_category] }}
+                            />
+                            <span className="chart-label">{labels[item.performance_category]}</span>
+                          </div>
+                          <div className="chart-bar-bg">
+                            <div 
+                              className="chart-bar-fill"
+                              style={{ 
+                                width: `${percentage}%`,
+                                backgroundColor: colors[item.performance_category]
+                              }}
+                            />
+                          </div>
+                          <span className="chart-percentage">{item.count} ({percentage}%)</span>
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Engagement Trend */}
+          <div className="section-card">
+            <h3>Weekly Engagement Trend</h3>
+            {recentActivity.length > 0 ? (
+              <div className="trend-chart">
+                {recentActivity.map((day, idx) => {
+                  const maxAttempts = Math.max(...recentActivity.map(d => d.total_attempts), 1);
+                  const heightPercent = (day.total_attempts / maxAttempts) * 100;
+                  
+                  return (
+                    <div key={idx} className="trend-bar-wrapper">
+                      <div className="trend-bar-container">
+                        <div 
+                          className="trend-bar"
+                          style={{ height: `${Math.max(heightPercent, 5)}%` }}
+                          title={`${day.total_attempts} attempts`}
+                        />
+                      </div>
+                      <div className="trend-label">
+                        {new Date(day.date).toLocaleDateString("en", { weekday: "short" })}
+                      </div>
+                      <div className="trend-value">{day.total_attempts}</div>
                     </div>
-                    <button className="alert-action">Take Action</button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="no-data">No activity data available</p>
+            )}
+          </div>
+
+          {/* Weekly Performance */}
+          {performanceData?.weekly_performance && performanceData.weekly_performance.length > 0 && (
+            <div className="section-card">
+              <h3>Performance Trend (Weekly Averages)</h3>
+              <div className="performance-chart">
+                {performanceData.weekly_performance.map((week, idx) => (
+                  <div key={idx} className="performance-item">
+                    <div className="week-label">
+                      {new Date(week.week_start).toLocaleDateString("en", { month: "short", day: "numeric" })}
+                    </div>
+                    <div className="score-bar-bg">
+                      <div 
+                        className="score-bar"
+                        style={{ 
+                          width: `${Math.round(week.average_score)}%`,
+                          backgroundColor: week.average_score >= 70 ? '#2563eb' : week.average_score >= 50 ? '#60a5fa' : '#f87171'
+                        }}
+                      />
+                    </div>
+                    <div className="score-value">{Math.round(week.average_score)}%</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
+
+          {/* Engagement Alerts */}
+          {alerts.length > 0 && (
+            <div className="section-card alert">
+              <h3>Engagement Alerts</h3>
+              <div className="alerts-list">
+                {alerts.map((alert, idx) => (
+                  <div key={idx} className={`alert-item severity-${alert.severity || 'medium'}`}>
+                    <div className="alert-icon">⚠️</div>
+                    <div className="alert-content">
+                      <div className="alert-title">{alert.title || 'Alert'}</div>
+                      <div className="alert-message">{alert.message}</div>
+                      <div className="alert-time">
+                        {new Date(alert.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {metrics.attempts === 0 && (
+            <div className="empty-state">
+              <div className="empty-icon">📚</div>
+              <h3>No Quiz Data Available</h3>
+              <p>Students haven't taken any quizzes yet. Once they start, you'll see detailed analytics here.</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Right rail */}
+      {/* Sidebar */}
       <div className="SideST">
-
-          <CoursesList
-            courses={courses}
-            selectedCourse={courses.find(
-              (c) => String(c.id) === String(selectedCourseId)
-            )}
-            onCourseSelect={(course) => setSelectedCourseId(String(course.id))}
-          />
-        
+        <CoursesList
+          courses={courses}
+          selectedCourse={courses.find(c => String(c.id) === String(selectedCourseId))}
+          onCourseSelect={(course) => setSelectedCourseId(String(course.id))}
+        />
       </div>
 
       <div className="BoiST">
         <Bio />
       </div>
+
+      <style jsx>{`
+        .analytics-content {
+          padding: 2rem;
+          max-width: 1400px;
+        }
+
+        .analytics-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 2rem;
+        }
+
+        .analytics-header h2 {
+          color: #1e40af;
+          font-size: 1.75rem;
+          margin: 0;
+        }
+
+        .course-selector {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .course-selector select {
+          padding: 0.5rem 1rem;
+          border: 2px solid #2563eb;
+          border-radius: 6px;
+          font-size: 1rem;
+          background: white;
+          color: #1e40af;
+          cursor: pointer;
+        }
+
+        /* Metrics Grid */
+        .metrics-grid-clean {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 2rem;
+        }
+
+        .metric-card {
+          background: white;
+          border: 2px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 1.5rem;
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          transition: all 0.2s;
+        }
+
+        .metric-card:hover {
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+          transform: translateY(-2px);
+        }
+
+        .metric-card.alert {
+          border-color: #fbbf24;
+          background: #fef3c7;
+        }
+
+        .metric-icon {
+          font-size: 2rem;
+        }
+
+        .metric-value {
+          font-size: 2rem;
+          font-weight: bold;
+          color: #1e40af;
+        }
+
+        .metric-label {
+          font-size: 0.875rem;
+          color: #6b7280;
+          margin-top: 0.25rem;
+        }
+
+        /* Section Cards */
+        .section-card {
+          background: white;
+          border: 2px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 1.5rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .section-card.urgent {
+          border-color: #fbbf24;
+          background: linear-gradient(to bottom, #fffbeb, white);
+        }
+
+        .section-card.alert {
+          border-color: #f87171;
+          background: #fef2f2;
+        }
+
+        .section-card h3 {
+          color: #1e40af;
+          margin: 0 0 1.5rem 0;
+          font-size: 1.25rem;
+        }
+
+        /* Students Help Cards */
+        .students-help-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 1rem;
+        }
+
+        .student-help-card {
+          background: white;
+          border: 2px solid #fbbf24;
+          border-radius: 8px;
+          padding: 1rem;
+        }
+
+        .student-header {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-bottom: 1rem;
+        }
+
+        .student-avatar {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: #2563eb;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.25rem;
+          font-weight: bold;
+        }
+
+        .student-name {
+          font-weight: 600;
+          color: #1f2937;
+        }
+
+        .student-number {
+          font-size: 0.875rem;
+          color: #6b7280;
+        }
+
+        .student-course {
+          font-size: 0.75rem;
+          color: #2563eb;
+          font-weight: 600;
+          margin-top: 0.25rem;
+        }
+
+        .student-stats {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          margin-bottom: 1rem;
+          padding: 0.75rem;
+          background: #f9fafb;
+          border-radius: 6px;
+        }
+
+        .stat-item {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.875rem;
+        }
+
+        .stat-label {
+          color: #6b7280;
+        }
+
+        .stat-value {
+          font-weight: 600;
+          color: #1f2937;
+        }
+
+        .stat-value.danger {
+          color: #dc2626;
+        }
+
+        .help-button {
+          width: 100%;
+          padding: 0.75rem;
+          background: #2563eb;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .help-button:hover:not(:disabled) {
+          background: #1d4ed8;
+        }
+
+        .help-button:disabled {
+          background: #9ca3af;
+          cursor: not-allowed;
+        }
+
+        /* Charts */
+        .chart-container {
+          padding: 1rem 0;
+        }
+
+        .chart-segment {
+          margin-bottom: 1.5rem;
+        }
+
+        .chart-bar-wrapper {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .chart-label-group {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .color-indicator {
+          width: 16px;
+          height: 16px;
+          border-radius: 4px;
+        }
+
+        .chart-label {
+          font-weight: 600;
+          color: #374151;
+        }
+
+        .chart-bar-bg {
+          height: 32px;
+          background: #f3f4f6;
+          border-radius: 6px;
+          overflow: hidden;
+        }
+
+        .chart-bar-fill {
+          height: 100%;
+          transition: width 0.5s ease;
+        }
+
+        .chart-percentage {
+          font-size: 0.875rem;
+          color: #6b7280;
+          align-self: flex-end;
+        }
+
+        /* Trend Chart */
+        .trend-chart {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-around;
+          height: 200px;
+          padding: 1rem;
+          gap: 0.5rem;
+        }
+
+        .trend-bar-wrapper {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          flex: 1;
+        }
+
+        .trend-bar-container {
+          width: 100%;
+          height: 150px;
+          display: flex;
+          align-items: flex-end;
+        }
+
+        .trend-bar {
+          width: 100%;
+          background: linear-gradient(to top, #2563eb, #60a5fa);
+          border-radius: 4px 4px 0 0;
+          transition: height 0.3s ease;
+        }
+
+        .trend-label {
+          font-size: 0.75rem;
+          color: #6b7280;
+          margin-top: 0.5rem;
+        }
+
+        .trend-value {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: #1e40af;
+        }
+
+        /* Performance Chart */
+        .performance-chart {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .performance-item {
+          display: grid;
+          grid-template-columns: 100px 1fr 80px;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .week-label {
+          font-size: 0.875rem;
+          color: #6b7280;
+        }
+
+        .score-bar-bg {
+          height: 32px;
+          background: #f3f4f6;
+          border-radius: 6px;
+          overflow: hidden;
+        }
+
+        .score-bar {
+          height: 100%;
+          transition: width 0.5s ease;
+        }
+
+        .score-value {
+          font-weight: 600;
+          color: #1e40af;
+          text-align: right;
+        }
+
+        /* Alerts */
+        .alerts-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .alert-item {
+          display: flex;
+          gap: 1rem;
+          padding: 1rem;
+          background: white;
+          border: 2px solid #fbbf24;
+          border-radius: 8px;
+        }
+
+        .alert-icon {
+          font-size: 1.5rem;
+        }
+
+        .alert-title {
+          font-weight: 600;
+          color: #1f2937;
+          margin-bottom: 0.25rem;
+        }
+
+        .alert-message {
+          color: #6b7280;
+          font-size: 0.875rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .alert-time {
+          font-size: 0.75rem;
+          color: #9ca3af;
+        }
+
+        /* Empty State */
+        .empty-state {
+          text-align: center;
+          padding: 4rem 2rem;
+          background: white;
+          border: 2px dashed #e5e7eb;
+          border-radius: 12px;
+        }
+
+        .empty-icon {
+          font-size: 4rem;
+          margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+          color: #1e40af;
+          margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+          color: #6b7280;
+        }
+
+        .no-data {
+          text-align: center;
+          padding: 2rem;
+          color: #6b7280;
+        }
+
+        .loading-state {
+          text-align: center;
+          padding: 4rem;
+          color: #2563eb;
+          font-size: 1.25rem;
+        }
+      `}</style>
     </div>
   );
 }
