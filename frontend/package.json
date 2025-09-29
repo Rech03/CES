@@ -2,7 +2,7 @@
   "name": "ces",
   "version": "0.1.0",
   "private": true,
-  "proxy": "http://196.42.125.241:8000",
+  "proxy": "https://ces-4.cs.uct.ac.za",
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.7.0",

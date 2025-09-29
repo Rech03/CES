@@ -4,7 +4,7 @@ import axios from 'axios';
 // Use proxy in development, full URL in production
 const BASE_URL = process.env.NODE_ENV === 'development' 
   ? '/api/'  // This will use the proxy in package.json
-  : (process.env.REACT_APP_API_URL || 'http://196.42.127.6:8000/api/');
+  : (process.env.REACT_APP_API_URL || 'https://ces-4.cs.uct.ac.za');
 
 // Debug logging
 console.log('=== CLIENT.JS DEBUG ===');
