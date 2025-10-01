@@ -283,7 +283,7 @@ function QuizTile({
               disabled={isLoading}
               style={{ backgroundColor: '#27AE60' }}
             >
-              View Results
+              Quiz Analysis
             </button>
            
           </>

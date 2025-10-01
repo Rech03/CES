@@ -313,7 +313,7 @@ function Dashboard() {
 
   // Display all quizzes (both published and unpublished)
   const currentQuizzes = sortedQuizzes;
-  const recentQuizzes = currentQuizzes.slice(0, 15); // Show up to 15 quizzes
+  const recentQuizzes = currentQuizzes.slice(0, 1000); // Show up to 15 quizzes
 
   return (
     <div className="dashboard-container">
@@ -369,7 +369,7 @@ function Dashboard() {
             {loading ? 'Loading...' : `AI Quizzes (${currentQuizzes.length})`}
           </div>
           <div className="header-actions">
-            {currentQuizzes.length > 15 && (
+            {currentQuizzes.length > 100 && (
               <button 
                 className="More" 
                 onClick={() => window.location.href = '/LecturerQuizHistory'}

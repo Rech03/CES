@@ -5,15 +5,8 @@ import CoursesList from "../../Componets/Lacture/CoursesList";
 import NavBar from "../../Componets/Lacture/NavBar";
 
 import {
-  lecturerDashboard,
   lecturerCourseOptions,
-  updateStudentMetrics,
-  getCourseStatistics,
-  getEngagementTrends,
-  getPerformanceTrends,
-  getStudentsNeedingAttention,
-  triggerInterventionEmail,
-  getEngagementAlerts,
+  getAIQuizStatistics,
 } from "../../api/analytics";
 
 import { getMyCourses } from "../../api/courses";
@@ -22,14 +15,14 @@ import "./StudentAnalytics.css";
 function StudentAnalytics() {
   const [courses, setCourses] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState("");
-  const [courseData, setCourseData] = useState(null);
-  const [engagementData, setEngagementData] = useState(null);
-  const [performanceData, setPerformanceData] = useState(null);
-  const [studentsNeedingHelp, setStudentsNeedingHelp] = useState([]);
-  const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sendingEmail, setSendingEmail] = useState({});
   const [error, setError] = useState("");
+  
+  // Quiz analytics state
+  const [quizzes, setQuizzes] = useState([]);
+  const [selectedQuiz, setSelectedQuiz] = useState(null);
+  const [quizStats, setQuizStats] = useState(null);
+  const [loadingQuiz, setLoadingQuiz] = useState(false);
 
   const normalizedCourseId = useMemo(() => {
     if (!selectedCourseId) return null;
@@ -38,18 +31,8 @@ function StudentAnalytics() {
   }, [selectedCourseId]);
 
   useEffect(() => {
-    updateStudentMetrics()
-      .catch(() => {})
-      .finally(() => loadInitialData());
+    loadInitialData();
   }, []);
-
-  useEffect(() => {
-    if (normalizedCourseId) {
-      loadCourseData(normalizedCourseId);
-    } else {
-      loadAllCoursesData();
-    }
-  }, [normalizedCourseId]);
 
   async function loadInitialData() {
     try {
@@ -60,6 +43,20 @@ function StudentAnalytics() {
       try {
         const res = await lecturerCourseOptions();
         coursesData = res?.data?.courses || res?.data || [];
+        
+        // Extract all quizzes from courses
+        const allQuizzes = coursesData.flatMap(course =>
+          (course.topics || []).flatMap(topic =>
+            (topic.quizzes || []).map(quiz => ({
+              ...quiz,
+              topicName: topic.name,
+              courseCode: course.code,
+              courseId: course.id,
+              topicId: topic.id
+            }))
+          )
+        );
+        setQuizzes(allQuizzes);
       } catch {
         const res = await getMyCourses();
         coursesData = res?.data || [];
@@ -69,14 +66,6 @@ function StudentAnalytics() {
       if (coursesData.length > 0) {
         setSelectedCourseId(String(coursesData[0].id));
       }
-
-      // Load engagement alerts
-      try {
-        const alertsRes = await getEngagementAlerts();
-        setAlerts(alertsRes?.data || []);
-      } catch (err) {
-        console.log('Failed to load alerts:', err);
-      }
     } catch (err) {
       setError("Failed to load courses");
     } finally {
@@ -84,166 +73,31 @@ function StudentAnalytics() {
     }
   }
 
-  async function loadAllCoursesData() {
+  async function loadQuizStatistics(quizId) {
     try {
-      const [dashboardRes, engagementRes, performanceRes] = await Promise.all([
-        lecturerDashboard().catch(() => null),
-        getEngagementTrends({ period: "30" }).catch(() => null),
-        getPerformanceTrends({ period: "30" }).catch(() => null),
-      ]);
-
-      setCourseData(dashboardRes?.data || null);
-      setEngagementData(engagementRes?.data || null);
-      setPerformanceData(performanceRes?.data || null);
-
-      // Load at-risk students from all courses
-      const allStudents = [];
-      for (const course of courses) {
-        try {
-          const studentsRes = await getStudentsNeedingAttention(course.id);
-          const students = studentsRes?.data || [];
-          students.forEach(student => {
-            allStudents.push({
-              ...student,
-              course_code: course.code,
-              course_name: course.name,
-              course_id: course.id
-            });
-          });
-        } catch (err) {
-          console.log(`Failed to load students for course ${course.id}`);
-        }
-      }
-      setStudentsNeedingHelp(allStudents);
+      setLoadingQuiz(true);
+      const response = await getAIQuizStatistics(quizId);
+      setQuizStats(response?.data || response);
+      setSelectedQuiz(quizId);
     } catch (err) {
-      console.error("Error loading all courses data:", err);
-    }
-  }
-
-  async function loadCourseData(courseId) {
-    try {
-      const [courseRes, engagementRes, performanceRes, studentsRes] = await Promise.all([
-        getCourseStatistics(courseId).catch(() => null),
-        getEngagementTrends({ period: "30", course_id: courseId }).catch(() => null),
-        getPerformanceTrends({ period: "30", course_id: courseId }).catch(() => null),
-        getStudentsNeedingAttention(courseId).catch(() => null),
-      ]);
-
-      setCourseData(courseRes?.data || null);
-      setEngagementData(engagementRes?.data || null);
-      setPerformanceData(performanceRes?.data || null);
-      setStudentsNeedingHelp(studentsRes?.data || []);
-    } catch (err) {
-      console.error("Error loading course data:", err);
+      console.error('Error loading quiz statistics:', err);
+      alert('Failed to load quiz statistics');
+    } finally {
+      setLoadingQuiz(false);
     }
   }
 
   const handleCourseChange = (e) => {
     setSelectedCourseId(e.target.value);
+    setSelectedQuiz(null);
+    setQuizStats(null);
   };
 
-  const handleSendHelpEmail = async (student) => {
-    const studentId = student.student_id || student.id;
-    const courseId = student.course_id || normalizedCourseId;
-    
-    if (!courseId) {
-      alert('Unable to send email: Course information missing');
-      return;
-    }
-    
-    setSendingEmail(prev => ({ ...prev, [studentId]: true }));
-
-    try {
-      await triggerInterventionEmail({
-        student_id: studentId,
-        course_id: courseId
-      });
-      alert(`Support email sent to ${student.name || student.student_name}`);
-      
-      // Reload students based on current view
-      if (normalizedCourseId) {
-        await loadCourseData(normalizedCourseId);
-      } else {
-        await loadAllCoursesData();
-      }
-    } catch (err) {
-      alert('Failed to send email. Please try again.');
-      console.error('Email error:', err);
-    } finally {
-      setSendingEmail(prev => ({ ...prev, [studentId]: false }));
-    }
-  };
-
-  // Extract key metrics
-  const getMetrics = () => {
-    if (!courseData) return { enrolled: 0, attempts: 0, avgScore: 0, quizzes: 0, needsHelp: 0 };
-
-    if (courseData.course_overview) {
-      const totals = courseData.course_overview.reduce(
-        (acc, course) => ({
-          enrolled: acc.enrolled + (course.total_students || 0),
-          attempts: acc.attempts + (course.total_attempts || 0),
-          avgScore: acc.avgScore + (course.average_score || 0),
-          quizzes: acc.quizzes + (course.total_ai_quizzes || 0),
-        }),
-        { enrolled: 0, attempts: 0, avgScore: 0, quizzes: 0 }
-      );
-      return {
-        ...totals,
-        avgScore: courseData.course_overview.length > 0 
-          ? totals.avgScore / courseData.course_overview.length 
-          : 0,
-        needsHelp: courseData.recent_performance?.students_needing_attention || 0,
-      };
-    } else {
-      return {
-        enrolled: courseData.student_engagement?.total_enrolled || 0,
-        attempts: courseData.total_attempts || 0,
-        avgScore: courseData.overall_average || 0,
-        quizzes: courseData.total_ai_quizzes || 0,
-        needsHelp: courseData.student_engagement?.students_needing_attention || 0,
-      };
-    }
-  };
-
-  const metrics = getMetrics();
-
-  // Get recent activity (last 7 days)
-  const getRecentActivity = () => {
-    if (!engagementData?.daily_engagement) return [];
-    return engagementData.daily_engagement.slice(-7);
-  };
-
-  const recentActivity = getRecentActivity();
-
-  // Calculate engagement rate
-  const calculateEngagementRate = () => {
-    if (!engagementData?.summary) return 0;
-    const { total_attempts } = engagementData.summary;
-    const enrolled = metrics.enrolled;
-    if (enrolled === 0) return 0;
-    return Math.min(100, Math.round((total_attempts / enrolled) * 10));
-  };
-
-  // Get performance distribution
-  const getPerformanceDistribution = () => {
-    if (!courseData) return null;
-
-    if (courseData.student_distribution) {
-      return courseData.student_distribution;
-    } else if (courseData.student_engagement?.performance_distribution) {
-      const dist = courseData.student_engagement.performance_distribution;
-      return [
-        { performance_category: 'excellent', count: dist.excellent || 0, percentage: 0 },
-        { performance_category: 'good', count: dist.good || 0, percentage: 0 },
-        { performance_category: 'danger', count: dist.danger || 0, percentage: 0 },
-      ].filter(item => item.count > 0);
-    }
-    return null;
-  };
-
-  const distribution = getPerformanceDistribution();
-  const totalStudents = distribution?.reduce((sum, d) => sum + d.count, 0) || 0;
+  // Filter quizzes based on selected course
+  const filteredQuizzes = useMemo(() => {
+    if (!normalizedCourseId) return quizzes;
+    return quizzes.filter(q => q.courseId === normalizedCourseId);
+  }, [quizzes, normalizedCourseId]);
 
   if (loading) {
     return (
@@ -266,7 +120,7 @@ function StudentAnalytics() {
         <div className="analytics-content">
           {/* Header */}
           <div className="analytics-header">
-            <h2>Student Quiz Analytics</h2>
+            <h2>Quiz Analytics</h2>
             {courses.length > 0 && (
               <div className="course-selector">
                 <label htmlFor="course-select">Course:</label>
@@ -282,233 +136,175 @@ function StudentAnalytics() {
             )}
           </div>
 
-          {/* Key Metrics */}
-          <div className="metrics-grid-clean">
-            <div className="metric-card">
-              <div className="metric-icon">👥</div>
-              <div className="metric-data">
-                <div className="metric-value">{metrics.enrolled}</div>
-                <div className="metric-label">Students Enrolled</div>
-              </div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-icon">📝</div>
-              <div className="metric-data">
-                <div className="metric-value">{metrics.quizzes}</div>
-                <div className="metric-label">Quizzes Available</div>
-              </div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-icon">✍️</div>
-              <div className="metric-data">
-                <div className="metric-value">{metrics.attempts}</div>
-                <div className="metric-label">Total Attempts</div>
-              </div>
-            </div>
-            <div className="metric-card">
-              <div className="metric-icon">📊</div>
-              <div className="metric-data">
-                <div className="metric-value">{Math.round(metrics.avgScore)}%</div>
-                <div className="metric-label">Average Score</div>
-              </div>
-            </div>
-            <div className="metric-card alert">
-              <div className="metric-icon">⚠️</div>
-              <div className="metric-data">
-                <div className="metric-value">{metrics.needsHelp}</div>
-                <div className="metric-label">Need Support</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Students Needing Help - Always Show */}
-          {studentsNeedingHelp.length > 0 && (
-            <div className="section-card urgent">
-              <h3>Students Requiring Immediate Attention ({studentsNeedingHelp.length})</h3>
-              <div className="students-help-grid">
-                {studentsNeedingHelp.map((student, idx) => {
-                  const studentId = student.student_id || student.id;
-                  const studentName = student.name || student.student_name || 'Unknown Student';
-                  const studentNumber = student.student_number || 'N/A';
-                  const lastScore = Math.round(student.last_score || student.latest_score || 0);
-                  const attempts = student.quiz_attempts || student.total_attempts || 0;
-                  const missed = student.consecutive_missed || student.consecutive_missed_quizzes || 0;
-                  const courseInfo = student.course_code ? `${student.course_code}` : '';
-                  
-                  return (
-                    <div key={idx} className="student-help-card">
-                      <div className="student-header">
-                        <div className="student-avatar">
-                          {studentName[0].toUpperCase()}
-                        </div>
-                        <div className="student-info">
-                          <div className="student-name">{studentName}</div>
-                          <div className="student-number">{studentNumber}</div>
-                          {courseInfo && <div className="student-course">{courseInfo}</div>}
-                        </div>
-                      </div>
-                      <div className="student-stats">
-                        <div className="stat-item">
-                          <span className="stat-label">Last Score:</span>
-                          <span className="stat-value danger">{lastScore}%</span>
-                        </div>
-                        <div className="stat-item">
-                          <span className="stat-label">Quiz Attempts:</span>
-                          <span className="stat-value">{attempts}</span>
-                        </div>
-                        <div className="stat-item">
-                          <span className="stat-label">Consecutive Missed:</span>
-                          <span className="stat-value">{missed} quizzes</span>
-                        </div>
-                      </div>
-                      <button 
-                        className="help-button"
-                        onClick={() => handleSendHelpEmail(student)}
-                        disabled={sendingEmail[studentId]}
-                      >
-                        {sendingEmail[studentId] ? 'Sending...' : 'Send Support Email'}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Performance Overview Chart */}
-          {distribution && totalStudents > 0 && (
+          {/* Quiz Analytics Section */}
+          <div className="quiz-analytics-section">
+            {/* Quiz Selector */}
             <div className="section-card">
-              <h3>Student Performance Overview</h3>
-              <div className="chart-container">
-                <div className="donut-chart">
-                  {distribution.map((item, idx) => {
-                    const percentage = Math.round((item.count / totalStudents) * 100);
-                    const colors = {
-                      excellent: '#2563eb',
-                      good: '#60a5fa',
-                      danger: '#f87171'
-                    };
-                    const labels = {
-                      excellent: 'Excellent',
-                      good: 'Good',
-                      danger: 'At Risk'
-                    };
-                    
-                    return (
-                      <div key={idx} className="chart-segment">
-                        <div className="chart-bar-wrapper">
-                          <div className="chart-label-group">
-                            <div 
-                              className="color-indicator" 
-                              style={{ backgroundColor: colors[item.performance_category] }}
-                            />
-                            <span className="chart-label">{labels[item.performance_category]}</span>
-                          </div>
-                          <div className="chart-bar-bg">
-                            <div 
-                              className="chart-bar-fill"
-                              style={{ 
-                                width: `${percentage}%`,
-                                backgroundColor: colors[item.performance_category]
-                              }}
-                            />
-                          </div>
-                          <span className="chart-percentage">{item.count} ({percentage}%)</span>
+              <label htmlFor="quiz-select" className="quiz-selector-label">Select Quiz to Analyze:</label>
+              <select 
+                id="quiz-select"
+                className="quiz-selector"
+                value={selectedQuiz || ''}
+                onChange={(e) => e.target.value && loadQuizStatistics(e.target.value)}
+              >
+                <option value="">-- Choose a quiz --</option>
+                {filteredQuizzes.map(quiz => (
+                  <option key={quiz.id} value={quiz.id}>
+                    {quiz.courseCode} - {quiz.topicName} - {quiz.title}
+                  </option>
+                ))}
+              </select>
+              {filteredQuizzes.length === 0 && (
+                <p className="no-quizzes-message">No quizzes available for this course</p>
+              )}
+            </div>
+
+            {loadingQuiz && (
+              <div className="loading-state">Loading quiz statistics...</div>
+            )}
+
+            {/* Quiz Statistics */}
+            {quizStats && !loadingQuiz && (
+              <>
+               
+
+                {/* Quiz Metrics */}
+                <div className="metrics-grid-clean">
+                  <div className="metric-card">
+                    <div className="metric-icon">👥</div>
+                    <div className="metric-data">
+                      <div className="metric-value">{quizStats.unique_students || 0}</div>
+                      <div className="metric-label">Unique Students</div>
+                    </div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-icon">✍️</div>
+                    <div className="metric-data">
+                      <div className="metric-value">{quizStats.total_attempts || 0}</div>
+                      <div className="metric-label">Total Attempts</div>
+                    </div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-icon">📈</div>
+                    <div className="metric-data">
+                      <div className="metric-value">{Math.round(quizStats.average_score || 0)}%</div>
+                      <div className="metric-label">Average Score</div>
+                    </div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-icon">📊</div>
+                    <div className="metric-data">
+                      <div className="metric-value">{Math.round(quizStats.median_score || 0)}%</div>
+                      <div className="metric-label">Median Score</div>
+                    </div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-icon">🎯</div>
+                    <div className="metric-data">
+                      <div className="metric-value">{Math.round(quizStats.completion_rate || 0)}%</div>
+                      <div className="metric-label">Completion Rate</div>
+                    </div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-icon">⭐</div>
+                    <div className="metric-data">
+                      <div className="metric-value">{quizStats.highest_score || 0}%</div>
+                      <div className="metric-label">Highest Score</div>
+                    </div>
+                  </div>
+                  <div className="metric-card">
+                    <div className="metric-icon">📉</div>
+                    <div className="metric-data">
+                      <div className="metric-value">{quizStats.lowest_score || 0}%</div>
+                      <div className="metric-label">Lowest Score</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Score Distribution */}
+                {quizStats.score_distribution && (
+                  <div className="section-card">
+                    <h3>Score Distribution</h3>
+                    <div className="score-distribution-grid">
+                      <div className="score-dist-item excellent">
+                        <div className="score-dist-label">Excellent (80+)</div>
+                        <div className="score-dist-value">{quizStats.score_distribution.excellent || 0}</div>
+                        <div className="score-dist-students">students</div>
+                      </div>
+                      <div className="score-dist-item good">
+                        <div className="score-dist-label">Good (60-79)</div>
+                        <div className="score-dist-value">{quizStats.score_distribution.good || 0}</div>
+                        <div className="score-dist-students">students</div>
+                      </div>
+                      <div className="score-dist-item average">
+                        <div className="score-dist-label">Average (40-59)</div>
+                        <div className="score-dist-value">{quizStats.score_distribution.average || 0}</div>
+                        <div className="score-dist-students">students</div>
+                      </div>
+                      <div className="score-dist-item poor">
+                        <div className="score-dist-label">Poor (&lt;40)</div>
+                        <div className="score-dist-value">{quizStats.score_distribution.poor || 0}</div>
+                        <div className="score-dist-students">students</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Question Analysis */}
+                {quizStats.question_analysis && quizStats.question_analysis.length > 0 && (
+                  <div className="section-card">
+                    <h3>Question-Level Analysis</h3>
+                    <p className="section-description">
+                      Detailed breakdown showing how students answered each question. 
+                      Correct answers are highlighted in green.
+                    </p>
+                    {quizStats.question_analysis.map((question, idx) => (
+                      <div key={idx} className="question-analysis-item">
+                        <div className="question-header">
+                          <span className="question-number">Q{question.question_number + 1}</span>
+                          <span className="question-text">{question.question_text}</span>
+                          {question.difficulty && (
+                            <span className={`question-difficulty ${question.difficulty}`}>
+                              {question.difficulty}
+                            </span>
+                          )}
+                        </div>
+                        <div className="choices-analysis">
+                          {(question.choice_distribution || []).map((choice, cidx) => (
+                            <div key={cidx} className="choice-item">
+                              <div className={`choice-indicator ${choice.is_correct ? 'correct' : ''}`}>
+                                {choice.choice_key}
+                              </div>
+                              <div className="choice-content">
+                                <div className="choice-text">{choice.choice_text}</div>
+                                <div className="choice-bar-container">
+                                  <div 
+                                    className={`choice-bar ${choice.is_correct ? 'correct' : ''}`}
+                                    style={{ width: `${choice.selection_percentage}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <div className="choice-stats">
+                                {choice.selection_count} ({choice.selection_percentage.toFixed(1)}%)
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
 
-          {/* Engagement Trend */}
-          <div className="section-card">
-            <h3>Weekly Engagement Trend</h3>
-            {recentActivity.length > 0 ? (
-              <div className="trend-chart">
-                {recentActivity.map((day, idx) => {
-                  const maxAttempts = Math.max(...recentActivity.map(d => d.total_attempts), 1);
-                  const heightPercent = (day.total_attempts / maxAttempts) * 100;
-                  
-                  return (
-                    <div key={idx} className="trend-bar-wrapper">
-                      <div className="trend-bar-container">
-                        <div 
-                          className="trend-bar"
-                          style={{ height: `${Math.max(heightPercent, 5)}%` }}
-                          title={`${day.total_attempts} attempts`}
-                        />
-                      </div>
-                      <div className="trend-label">
-                        {new Date(day.date).toLocaleDateString("en", { weekday: "short" })}
-                      </div>
-                      <div className="trend-value">{day.total_attempts}</div>
-                    </div>
-                  );
-                })}
+            {!quizStats && !loadingQuiz && (
+              <div className="empty-state">
+                <div className="empty-icon">📝</div>
+                <h3>Select a Quiz to Analyze</h3>
+                <p>Choose a quiz from the dropdown above to view detailed statistics including score distribution and question-level analysis.</p>
               </div>
-            ) : (
-              <p className="no-data">No activity data available</p>
             )}
           </div>
-
-          {/* Weekly Performance */}
-          {performanceData?.weekly_performance && performanceData.weekly_performance.length > 0 && (
-            <div className="section-card">
-              <h3>Performance Trend (Weekly Averages)</h3>
-              <div className="performance-chart">
-                {performanceData.weekly_performance.map((week, idx) => (
-                  <div key={idx} className="performance-item">
-                    <div className="week-label">
-                      {new Date(week.week_start).toLocaleDateString("en", { month: "short", day: "numeric" })}
-                    </div>
-                    <div className="score-bar-bg">
-                      <div 
-                        className="score-bar"
-                        style={{ 
-                          width: `${Math.round(week.average_score)}%`,
-                          backgroundColor: week.average_score >= 70 ? '#2563eb' : week.average_score >= 50 ? '#60a5fa' : '#f87171'
-                        }}
-                      />
-                    </div>
-                    <div className="score-value">{Math.round(week.average_score)}%</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Engagement Alerts */}
-          {alerts.length > 0 && (
-            <div className="section-card alert">
-              <h3>Engagement Alerts</h3>
-              <div className="alerts-list">
-                {alerts.map((alert, idx) => (
-                  <div key={idx} className={`alert-item severity-${alert.severity || 'medium'}`}>
-                    <div className="alert-icon">⚠️</div>
-                    <div className="alert-content">
-                      <div className="alert-title">{alert.title || 'Alert'}</div>
-                      <div className="alert-message">{alert.message}</div>
-                      <div className="alert-time">
-                        {new Date(alert.created_at).toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {metrics.attempts === 0 && (
-            <div className="empty-state">
-              <div className="empty-icon">📚</div>
-              <h3>No Quiz Data Available</h3>
-              <p>Students haven't taken any quizzes yet. Once they start, you'll see detailed analytics here.</p>
-            </div>
-          )}
         </div>
       </div>
 
@@ -550,6 +346,11 @@ function StudentAnalytics() {
           gap: 0.5rem;
         }
 
+        .course-selector label {
+          font-weight: 600;
+          color: #374151;
+        }
+
         .course-selector select {
           padding: 0.5rem 1rem;
           border: 2px solid #000000ff;
@@ -560,12 +361,114 @@ function StudentAnalytics() {
           cursor: pointer;
         }
 
+        .quiz-analytics-section {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+
+        /* Section Cards */
+        .section-card {
+          background: white;
+          border: 2px solid #e5e7eb;
+          border-radius: 12px;
+          padding: 1.5rem;
+        }
+
+        .section-card h3 {
+          color: #000000ff;
+          margin: 0 0 1rem 0;
+          font-size: 1.25rem;
+        }
+
+        .section-description {
+          color: #6b7280;
+          font-size: 0.875rem;
+          margin-bottom: 1.5rem;
+        }
+
+        /* Quiz Selector */
+        .quiz-selector-label {
+          display: block;
+          margin-bottom: 0.5rem;
+          font-weight: 600;
+          color: #1f2937;
+        }
+
+        .quiz-selector {
+          width: 100%;
+          padding: 0.75rem;
+          border: 2px solid #e5e7eb;
+          border-radius: 6px;
+          font-size: 1rem;
+          background: white;
+          cursor: pointer;
+        }
+
+        .no-quizzes-message {
+          margin-top: 1rem;
+          padding: 1rem;
+          background: #fef3c7;
+          border: 1px solid #fbbf24;
+          border-radius: 6px;
+          color: #92400e;
+          text-align: center;
+        }
+
+        /* Quiz Info Banner */
+        .quiz-info-banner {
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          color: white;
+          padding: 1.5rem;
+          border-radius: 12px;
+          display: flex;
+          gap: 2rem;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .quiz-info-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .quiz-info-label {
+          font-size: 0.875rem;
+          opacity: 0.9;
+        }
+
+        .quiz-info-value {
+          font-size: 1.125rem;
+          font-weight: 600;
+        }
+
+        .quiz-difficulty-badge {
+          padding: 0.25rem 0.75rem;
+          border-radius: 6px;
+          font-size: 0.875rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          background: rgba(255, 255, 255, 0.2);
+        }
+
+        .quiz-difficulty-badge.easy {
+          background: rgba(34, 197, 94, 0.2);
+        }
+
+        .quiz-difficulty-badge.medium {
+          background: rgba(234, 179, 8, 0.2);
+        }
+
+        .quiz-difficulty-badge.hard {
+          background: rgba(239, 68, 68, 0.2);
+        }
+
         /* Metrics Grid */
         .metrics-grid-clean {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
           gap: 1.5rem;
-          margin-bottom: 2rem;
         }
 
         .metric-card {
@@ -584,11 +487,6 @@ function StudentAnalytics() {
           transform: translateY(-2px);
         }
 
-        .metric-card.alert {
-          border-color: #fbbf24;
-          background: #fef3c7;
-        }
-
         .metric-icon {
           font-size: 2rem;
         }
@@ -605,297 +503,182 @@ function StudentAnalytics() {
           margin-top: 0.25rem;
         }
 
-        /* Section Cards */
-        .section-card {
-          background: white;
-          border: 2px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 1.5rem;
-          margin-bottom: 1.5rem;
-        }
-
-        .section-card.urgent {
-          border-color: #fbbf24;
-          background: linear-gradient(to bottom, #fffbeb, white);
-        }
-
-        .section-card.alert {
-          border-color: #f87171;
-          background: #fef2f2;
-        }
-
-        .section-card h3 {
-          color: #000000ff;
-          margin: 0 0 1.5rem 0;
-          font-size: 1.25rem;
-        }
-
-        /* Students Help Cards */
-        .students-help-grid {
+        /* Score Distribution */
+        .score-distribution-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
           gap: 1rem;
         }
 
-        .student-help-card {
-          background: white;
-          border: 2px solid #fbbf24;
+        .score-dist-item {
+          padding: 1.5rem;
           border-radius: 8px;
-          padding: 1rem;
+          text-align: center;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
-        .student-header {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          margin-bottom: 1rem;
-        }
-
-        .student-avatar {
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          background: #2563eb;
+        .score-dist-item.excellent {
+          background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
           color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 1.25rem;
+        }
+
+        .score-dist-item.good {
+          background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+          color: white;
+        }
+
+        .score-dist-item.average {
+          background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+          color: white;
+        }
+
+        .score-dist-item.poor {
+          background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+          color: white;
+        }
+
+        .score-dist-label {
+          font-size: 0.875rem;
+          margin-bottom: 0.5rem;
+          opacity: 0.9;
+        }
+
+        .score-dist-value {
+          font-size: 2.5rem;
           font-weight: bold;
         }
 
-        .student-name {
-          font-weight: 600;
-          color: #1f2937;
-        }
-
-        .student-number {
-          font-size: 0.875rem;
-          color: #6b7280;
-        }
-
-        .student-course {
+        .score-dist-students {
           font-size: 0.75rem;
-          color: #2563eb;
-          font-weight: 600;
           margin-top: 0.25rem;
+          opacity: 0.8;
         }
 
-        .student-stats {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-          margin-bottom: 1rem;
-          padding: 0.75rem;
+        /* Question Analysis */
+        .question-analysis-item {
+          padding: 1.5rem;
           background: #f9fafb;
-          border-radius: 6px;
-        }
-
-        .stat-item {
-          display: flex;
-          justify-content: space-between;
-          font-size: 0.875rem;
-        }
-
-        .stat-label {
-          color: #6b7280;
-        }
-
-        .stat-value {
-          font-weight: 600;
-          color: #1f2937;
-        }
-
-        .stat-value.danger {
-          color: #dc2626;
-        }
-
-        .help-button {
-          width: 100%;
-          padding: 0.75rem;
-          background: #2563eb;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-
-        .help-button:hover:not(:disabled) {
-          background: #1d4ed8;
-        }
-
-        .help-button:disabled {
-          background: #9ca3af;
-          cursor: not-allowed;
-        }
-
-        /* Charts */
-        .chart-container {
-          padding: 1rem 0;
-        }
-
-        .chart-segment {
+          border-radius: 8px;
           margin-bottom: 1.5rem;
         }
 
-        .chart-bar-wrapper {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
+        .question-analysis-item:last-child {
+          margin-bottom: 0;
         }
 
-        .chart-label-group {
+        .question-header {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.75rem;
+          margin-bottom: 1rem;
+          flex-wrap: wrap;
         }
 
-        .color-indicator {
-          width: 16px;
-          height: 16px;
-          border-radius: 4px;
-        }
-
-        .chart-label {
-          font-weight: 600;
-          color: #374151;
-        }
-
-        .chart-bar-bg {
-          height: 32px;
-          background: #f3f4f6;
+        .question-number {
+          background: #3b82f6;
+          color: white;
+          padding: 0.25rem 0.75rem;
           border-radius: 6px;
-          overflow: hidden;
-        }
-
-        .chart-bar-fill {
-          height: 100%;
-          transition: width 0.5s ease;
-        }
-
-        .chart-percentage {
+          font-weight: 600;
           font-size: 0.875rem;
-          color: #6b7280;
-          align-self: flex-end;
         }
 
-        /* Trend Chart */
-        .trend-chart {
-          display: flex;
-          align-items: flex-end;
-          justify-content: space-around;
-          height: 200px;
-          padding: 1rem;
-          gap: 0.5rem;
+        .question-text {
+          flex: 1;
+          color: #1f2937;
+          font-weight: 500;
         }
 
-        .trend-bar-wrapper {
+        .question-difficulty {
+          padding: 0.25rem 0.75rem;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+
+        .question-difficulty.easy {
+          background: #d1fae5;
+          color: #065f46;
+        }
+
+        .question-difficulty.medium {
+          background: #fef3c7;
+          color: #92400e;
+        }
+
+        .question-difficulty.hard {
+          background: #fee2e2;
+          color: #991b1b;
+        }
+
+        .choices-analysis {
           display: flex;
           flex-direction: column;
+          gap: 1rem;
+        }
+
+        .choice-item {
+          display: flex;
           align-items: center;
+          gap: 1rem;
+          background: white;
+          padding: 1rem;
+          border-radius: 6px;
+          border: 1px solid #e5e7eb;
+        }
+
+        .choice-indicator {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: #e5e7eb;
+          color: #6b7280;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 600;
+          flex-shrink: 0;
+        }
+
+        .choice-indicator.correct {
+          background: #22c55e;
+          color: white;
+        }
+
+        .choice-content {
           flex: 1;
         }
 
-        .trend-bar-container {
-          width: 100%;
-          height: 150px;
-          display: flex;
-          align-items: flex-end;
-        }
-
-        .trend-bar {
-          width: 100%;
-          background: linear-gradient(to top, #2563eb, #60a5fa);
-          border-radius: 4px 4px 0 0;
-          transition: height 0.3s ease;
-        }
-
-        .trend-label {
-          font-size: 0.75rem;
-          color: #6b7280;
-          margin-top: 0.5rem;
-        }
-
-        .trend-value {
+        .choice-text {
           font-size: 0.875rem;
-          font-weight: 600;
-          color: #1e40af;
-        }
-
-        /* Performance Chart */
-        .performance-chart {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .performance-item {
-          display: grid;
-          grid-template-columns: 100px 1fr 80px;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .week-label {
-          font-size: 0.875rem;
-          color: #6b7280;
-        }
-
-        .score-bar-bg {
-          height: 32px;
-          background: #f3f4f6;
-          border-radius: 6px;
-          overflow: hidden;
-        }
-
-        .score-bar {
-          height: 100%;
-          transition: width 0.5s ease;
-        }
-
-        .score-value {
-          font-weight: 600;
-          color: #1e40af;
-          text-align: right;
-        }
-
-        /* Alerts */
-        .alerts-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-
-        .alert-item {
-          display: flex;
-          gap: 1rem;
-          padding: 1rem;
-          background: white;
-          border: 2px solid #fbbf24;
-          border-radius: 8px;
-        }
-
-        .alert-icon {
-          font-size: 1.5rem;
-        }
-
-        .alert-title {
-          font-weight: 600;
-          color: #1f2937;
-          margin-bottom: 0.25rem;
-        }
-
-        .alert-message {
-          color: #6b7280;
-          font-size: 0.875rem;
+          color: #374151;
           margin-bottom: 0.5rem;
         }
 
-        .alert-time {
-          font-size: 0.75rem;
-          color: #9ca3af;
+        .choice-bar-container {
+          height: 24px;
+          background: #f3f4f6;
+          border-radius: 4px;
+          overflow: hidden;
+        }
+
+        .choice-bar {
+          height: 100%;
+          background: #3b82f6;
+          transition: width 0.3s ease;
+        }
+
+        .choice-bar.correct {
+          background: #22c55e;
+        }
+
+        .choice-stats {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: #1f2937;
+          min-width: 100px;
+          text-align: right;
         }
 
         /* Empty State */
@@ -918,12 +701,6 @@ function StudentAnalytics() {
         }
 
         .empty-state p {
-          color: #6b7280;
-        }
-
-        .no-data {
-          text-align: center;
-          padding: 2rem;
           color: #6b7280;
         }
 
