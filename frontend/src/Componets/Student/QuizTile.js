@@ -8,14 +8,19 @@ function QuizTile({
   duration = "15 min",
   totalQuestions = "5",
   dueDate = "Self-paced",
-  status = "available", // available, completed, missed, locked
+  status = "available",
   courseCode = "default",
   topicName = "",
-  difficulty = "Medium", // Easy, Medium, Hard
-  attempts = "0/3",      // "current/max"
+  difficulty = "Medium",
+  attemptsUsed = 0,
+  retakesLeft = 3,
+  attemptsDisplay = "0/3 attempts",
   bestScore = null,
+  bestScoreValue = 0,
   isLive = false,
   canAccess = true,
+  accessReason = "",
+  hasExhaustedAttempts = false,
   onStartQuiz,
   onViewResults,
   onClick
@@ -26,10 +31,10 @@ function QuizTile({
     switch (status) {
       case 'available':
         return { text: isLive ? 'Live' : 'Available', color: isLive ? '#E74C3C' : '#27AE60' };
+      case 'in_progress':
+        return { text: 'In Progress', color: '#3498DB' };
       case 'completed':
-        return { text: 'Completed', color: '#3498DB' };
-      case 'missed':
-        return { text: 'Missed', color: '#E74C3C' };
+        return { text: 'Completed', color: '#27AE60' };
       case 'locked':
         return { text: 'Locked', color: '#95A5A6' };
       default:
@@ -45,28 +50,11 @@ function QuizTile({
     return '#95A5A6';
   };
 
-  // Parse attempts safely
-  let currentAttempts = 0;
-  let maxAttempts = 3;
-  try {
-    const [cur, max] = String(attempts).split('/').map(Number);
-    currentAttempts = Number.isFinite(cur) ? cur : 0;
-    maxAttempts = Number.isFinite(max) ? max : 3;
-  } catch { /* ignore */ }
-
-  const attemptCapReached = currentAttempts >= maxAttempts;
-
   const handleStartQuiz = (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (!canAccess || status === 'locked' || attemptCapReached) {
-      // If attempt cap reached, take the student to results instead
-      if (attemptCapReached) {
-        navigate('/QuizAnalyticsPage', {
-          state: { quizId, slideId, quizTitle: title, isStudent: true }
-        });
-      }
+    if (!canAccess || status === 'locked') {
       return;
     }
 
@@ -79,7 +67,7 @@ function QuizTile({
         totalQuestions,
         difficulty,
         isLive,
-        isRetake: status === 'completed',
+        isRetake: attemptsUsed > 0,
         topicName,
         courseCode
       }
@@ -97,54 +85,26 @@ function QuizTile({
     onViewResults?.();
   };
 
-  const handleRetakeQuiz = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (attemptCapReached) return;
-
-    navigate('/QuizCountdownPage', {
-      state: {
-        quizId,
-        slideId,
-        quizTitle: title,
-        quizDuration: duration,
-        totalQuestions,
-        difficulty,
-        isLive,
-        isRetake: true,
-        topicName,
-        courseCode
-      }
-    });
-  };
-
   const handleTileClick = () => {
     if (onClick) {
       onClick();
       return;
     }
-    if (status === 'available' && canAccess) {
+    if ((status === 'available' || status === 'in_progress') && canAccess) {
       handleStartQuiz({ preventDefault: () => {}, stopPropagation: () => {} });
-    } else if (status === 'completed') {
+    } else if (status === 'completed' || hasExhaustedAttempts) {
       handleViewResults({ preventDefault: () => {}, stopPropagation: () => {} });
     }
   };
 
   const statusInfo = getStatusInfo(status);
 
-  // Title + topic display
-  const displayTitle = topicName && !title.includes(topicName)
-    ? `${title} - ${topicName}`
-    : title;
-
-  const canRetake = status === 'completed' && !attemptCapReached && canAccess;
-
   return (
     <div
       className={`quiz-tile-container ${courseCode} ${status} ${!canAccess ? 'locked' : ''}`}
       onClick={handleTileClick}
       style={{
-        cursor: canAccess && (status === 'available' || status === 'completed') ? 'pointer' : 'default',
+        cursor: canAccess && (status === 'available' || status === 'in_progress' || status === 'completed') ? 'pointer' : 'default',
         opacity: canAccess ? 1 : 0.7
       }}
     >
@@ -166,26 +126,48 @@ function QuizTile({
 
       {/* Title */}
       <div className="quiz-title-containerNew">
-        <div className="quiz-title-text" title={displayTitle}>
-          {displayTitle}
+        <div className="quiz-title-text" title={title}>
+          {title}
         </div>
       </div>
 
-      {/* Student Performance Info */}
-      {status === 'completed' && bestScore && (
-        <div className="student-performance">
-          <div className="best-score">Best: {bestScore}</div>
-          <div className="attempts-info">Attempts: {attempts}</div>
+      {/* Performance Info - Show after first attempt */}
+      {attemptsUsed > 0 && canAccess && (
+        <div className="student-performance" style={{
+          position: 'absolute',
+          bottom: '65px',
+          left: '15px',
+          right: '15px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '11px',
+          padding: '8px 10px',
+          background: 'rgba(255, 255, 255, 0.9)',
+          borderRadius: '6px',
+          border: '1px solid #E0E0E0'
+        }}>
+          {bestScore && (
+            <div style={{ 
+              fontWeight: '600', 
+              color: bestScoreValue > 50 ? '#27AE60' : '#E74C3C',
+              fontSize: '12px'
+            }}>
+              Best: {bestScore}
+            </div>
+          )}
+          <div style={{ color: '#666', fontSize: '11px' }}>
+            Retakes: {retakesLeft}
+          </div>
         </div>
       )}
 
       {/* Actions */}
       <div className="quiz-actions">
-        {status === 'available' && canAccess && (
+        {(status === 'available' || status === 'in_progress') && canAccess && !hasExhaustedAttempts && (
           <button
             className="action-btn start-btn"
             onClick={handleStartQuiz}
-            disabled={attemptCapReached}
             style={{
               background: 'linear-gradient(135deg, #27AE60 0%, #2ECC71 100%)',
               color: 'white',
@@ -195,49 +177,21 @@ function QuizTile({
               fontSize: '11px',
               fontWeight: '600',
               textTransform: 'uppercase',
-              cursor: attemptCapReached ? 'not-allowed' : 'pointer',
+              cursor: 'pointer',
               transition: 'all 0.3s ease',
-              opacity: attemptCapReached ? 0.6 : 1
+              width: '100%'
             }}
-            title={attemptCapReached ? 'Attempt limit reached' : 'Start Quiz'}
           >
-            {isLive ? 'Join Live Quiz' : attemptCapReached ? 'Limit Reached' : 'Start Quiz'}
+            {attemptsUsed > 0 ? 'Retake Quiz' : 'Start Quiz'}
           </button>
         )}
 
-        {status === 'completed' && (
-          <div className="completed-actions" style={{ display: 'flex', gap: '8px', width: '100%' }}>
-  
-            <button
-              className="action-btn retake-btn"
-              onClick={handleRetakeQuiz}
-              disabled={!canRetake}
-              style={{
-                flex: '1',
-                background: 'linear-gradient(135deg, #F39C12 0%, #F8C471 100%)',
-                color: 'white',
-                border: 'none',
-                padding: '10px 8px',
-                borderRadius: '6px',
-                fontSize: '9px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                cursor: canRetake ? 'pointer' : 'not-allowed',
-                opacity: canRetake ? 1 : 0.6
-              }}
-              title={!canRetake ? 'Attempt limit reached' : 'Retake'}
-            >
-              {canRetake ? `Retake (${maxAttempts - currentAttempts})` : 'Limit Reached'}
-            </button>
-          </div>
-        )}
-
-        {status === 'missed' && (
+        {(status === 'completed' || hasExhaustedAttempts) && canAccess && (
           <button
-            className="action-btn missed-btn"
-            disabled
+            className="action-btn view-results-btn"
+            onClick={handleViewResults}
             style={{
-              background: 'linear-gradient(135deg, #E74C3C 0%, #EC7063 100%)',
+              background: 'linear-gradient(135deg, #3498DB 0%, #5DADE2 100%)',
               color: 'white',
               border: 'none',
               padding: '10px 12px',
@@ -245,11 +199,11 @@ function QuizTile({
               fontSize: '11px',
               fontWeight: '600',
               textTransform: 'uppercase',
-              cursor: 'not-allowed',
-              opacity: 0.8
+              cursor: 'pointer',
+              width: '100%'
             }}
           >
-            Quiz Missed
+            View Results
           </button>
         )}
 
@@ -257,6 +211,7 @@ function QuizTile({
           <button
             className="action-btn locked-btn"
             disabled
+            title={accessReason}
             style={{
               background: 'linear-gradient(135deg, #95A5A6 0%, #BDC3C7 100%)',
               color: 'white',
@@ -267,39 +222,14 @@ function QuizTile({
               fontWeight: '600',
               textTransform: 'uppercase',
               cursor: 'not-allowed',
-              opacity: 0.7
+              opacity: 0.7,
+              width: '100%'
             }}
           >
             Not Available
           </button>
         )}
       </div>
-
-      {/* Live indicator */}
-      {isLive && status === 'available' && canAccess && (
-        <div
-          className="live-quiz-info"
-          style={{
-            position: 'absolute',
-            bottom: '60px',
-            left: '15px',
-            right: '15px',
-            background: 'rgba(231, 76, 60, 0.9)',
-            color: 'white',
-            padding: '6px 8px',
-            borderRadius: '4px',
-            fontSize: '10px',
-            textAlign: 'center',
-            fontWeight: '600',
-            zIndex: 3
-          }}
-        >
-          <div className="live-status">Quiz is Live!</div>
-          <div className="join-prompt" style={{ fontSize: '9px', opacity: 0.9 }}>
-            Click to join now
-          </div>
-        </div>
-      )}
     </div>
   );
 }

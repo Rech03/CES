@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-// ✅ Student-only endpoints (no “AI” wording in UI)
 import { studentAdaptiveProgress } from '../../api/ai-quiz';
 import { getMyCourses } from '../../api/courses';
 
@@ -11,7 +11,12 @@ import StarRating from "../../Componets/Student/StarRating";
 import QuizResultsDisplay from '../../Componets/Student/QuizResultsDisplay';
 import "./QuizAnalyticsPage.css";
 
+const MIN_ATTEMPTS_REQUIRED = 3;
+
 function QuizAnalyticsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   const [selectedQuizId, setSelectedQuizId] = useState(null);
   const [quizAttempts, setQuizAttempts] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -19,6 +24,8 @@ function QuizAnalyticsPage() {
   const [error, setError] = useState(null);
   const [selectedAttempt, setSelectedAttempt] = useState(null);
   const [quizStatistics, setQuizStatistics] = useState(null);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [attemptsCount, setAttemptsCount] = useState(0);
 
   const toNum = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
@@ -58,8 +65,16 @@ function QuizAnalyticsPage() {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
+      setAccessDenied(false);
+      
       try {
-        // ✅ Student progress/attempts
+        // Get quiz ID from URL params or state
+        const urlParams = new URLSearchParams(window.location.search);
+        const quizIdFromUrl = urlParams.get('quizId');
+        const quizIdFromState = location.state?.quizId;
+        const targetQuizId = quizIdFromUrl || quizIdFromState;
+
+        // Fetch student progress/attempts
         const { data: progress } = await studentAdaptiveProgress();
         const attemptsRaw = Array.isArray(progress)
           ? progress
@@ -68,19 +83,47 @@ function QuizAnalyticsPage() {
         const processed = (attemptsRaw || [])
           .map(normalizeAttempt)
           .filter(a => a.quiz_id);
+        
         setQuizAttempts(processed);
 
-        const completed = processed.filter(a => a.is_completed);
-        if (completed.length > 0) {
-          const mostRecent = [...completed].sort(
+        // If a specific quiz was requested, check access
+        if (targetQuizId) {
+          const quizAttemptsForTarget = processed.filter(
+            a => String(a.quiz_id) === String(targetQuizId) && a.is_completed
+          );
+          
+          setAttemptsCount(quizAttemptsForTarget.length);
+
+          // Check if user has completed required attempts
+          if (quizAttemptsForTarget.length < MIN_ATTEMPTS_REQUIRED) {
+            setAccessDenied(true);
+            setError(`You need to complete at least ${MIN_ATTEMPTS_REQUIRED} attempts before viewing detailed analytics. You have completed ${quizAttemptsForTarget.length} attempt${quizAttemptsForTarget.length !== 1 ? 's' : ''}.`);
+            setLoading(false);
+            return;
+          }
+
+          // User has enough attempts, show analytics
+          const mostRecent = [...quizAttemptsForTarget].sort(
             (a, b) => new Date(b.created_at) - new Date(a.created_at)
           )[0];
+          
           setSelectedQuizId(mostRecent.quiz_id);
           setSelectedAttempt(mostRecent);
           setQuizStatistics(computeClassStatsForQuiz(processed, mostRecent.quiz_id));
+        } else {
+          // No specific quiz requested, show most recent
+          const completed = processed.filter(a => a.is_completed);
+          if (completed.length > 0) {
+            const mostRecent = [...completed].sort(
+              (a, b) => new Date(b.created_at) - new Date(a.created_at)
+            )[0];
+            setSelectedQuizId(mostRecent.quiz_id);
+            setSelectedAttempt(mostRecent);
+            setQuizStatistics(computeClassStatsForQuiz(processed, mostRecent.quiz_id));
+          }
         }
 
-        // Sidebar courses (best-effort)
+        // Fetch sidebar courses
         try {
           const { data: coursesResp } = await getMyCourses();
           const fetchedCourses = Array.isArray(coursesResp)
@@ -99,7 +142,7 @@ function QuizAnalyticsPage() {
     };
 
     fetchData();
-  }, []);
+  }, [location]);
 
   useEffect(() => {
     if (!selectedQuizId) {
@@ -110,8 +153,19 @@ function QuizAnalyticsPage() {
   }, [selectedQuizId, quizAttempts]);
 
   const handleQuizSelect = (attempt) => {
+    // Check if this quiz has enough attempts
+    const quizAttemptsForSelected = quizAttempts.filter(
+      a => a.quiz_id === attempt.quiz_id && a.is_completed
+    );
+
+    if (quizAttemptsForSelected.length < MIN_ATTEMPTS_REQUIRED) {
+      setError(`This quiz requires ${MIN_ATTEMPTS_REQUIRED} attempts before viewing analytics. Current attempts: ${quizAttemptsForSelected.length}`);
+      return;
+    }
+
     setSelectedQuizId(attempt.quiz_id);
     setSelectedAttempt(attempt);
+    setError(null);
   };
 
   const getQuizGroups = () => {
@@ -136,12 +190,17 @@ function QuizAnalyticsPage() {
       }
     });
 
-    return Object.values(groups).sort(
-      (a, b) => new Date(b.latest_attempt) - new Date(a.latest_attempt)
-    );
+    // Only include quizzes with enough attempts
+    return Object.values(groups)
+      .filter(group => group.attempts.length >= MIN_ATTEMPTS_REQUIRED)
+      .sort((a, b) => new Date(b.latest_attempt) - new Date(a.latest_attempt));
   };
 
   const quizGroups = getQuizGroups();
+
+  const handleBackToDashboard = () => {
+    navigate('/StudentDashboard');
+  };
 
   if (loading) {
     return (
@@ -149,9 +208,120 @@ function QuizAnalyticsPage() {
         <div className="NavBar">
           <NavBar />
         </div>
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>Loading quiz analytics...</p>
+        <div className="loading-container" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+          padding: '40px'
+        }}>
+          <div className="spinner" style={{
+            width: '40px',
+            height: '40px',
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #1935CA',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            marginBottom: '20px'
+          }}></div>
+          <p style={{ fontSize: '16px', color: '#666' }}>Loading quiz analytics...</p>
+        </div>
+        <style jsx>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Access denied screen
+  if (accessDenied) {
+    return (
+      <div>
+        <div className="NavBar">
+          <NavBar />
+        </div>
+        <div className="ContainerHA">
+          <div style={{
+            textAlign: 'center',
+            padding: '60px 40px',
+            maxWidth: '600px',
+            margin: '0 auto'
+          }}>
+            <div style={{
+              fontSize: '64px',
+              marginBottom: '20px',
+              opacity: 0.3
+            }}>
+              🔒
+            </div>
+            <h2 style={{
+              color: '#E74C3C',
+              fontSize: '24px',
+              fontWeight: '600',
+              marginBottom: '16px',
+              fontFamily: 'Poppins, sans-serif'
+            }}>
+              Analytics Locked
+            </h2>
+            <p style={{
+              color: '#666',
+              fontSize: '16px',
+              lineHeight: '1.6',
+              marginBottom: '24px',
+              fontFamily: 'Poppins, sans-serif'
+            }}>
+              {error}
+            </p>
+            <div style={{
+              background: '#F8F9FA',
+              padding: '20px',
+              borderRadius: '8px',
+              marginBottom: '30px',
+              border: '1px solid #E0E0E0'
+            }}>
+              <p style={{
+                color: '#333',
+                fontSize: '14px',
+                margin: 0,
+                fontFamily: 'Poppins, sans-serif'
+              }}>
+                Complete <strong>{MIN_ATTEMPTS_REQUIRED - attemptsCount} more attempt{MIN_ATTEMPTS_REQUIRED - attemptsCount !== 1 ? 's' : ''}</strong> to unlock detailed analytics for this quiz.
+              </p>
+            </div>
+            <button
+              onClick={handleBackToDashboard}
+              style={{
+                background: '#1935CA',
+                color: 'white',
+                border: 'none',
+                padding: '12px 32px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontFamily: 'Poppins, sans-serif',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#142B9E';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = '#1935CA';
+              }}
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        </div>
+        <div className="SideHA">
+          <CoursesList courses={courses} />
+        </div>
+        <div className="BoiHA">
+          <Bio />
         </div>
       </div>
     );
@@ -172,10 +342,32 @@ function QuizAnalyticsPage() {
       </div>
 
       <div className="ContainerHA">
-        {error && (
-          <div className="error-banner">
-            <p>{error}</p>
-            <button onClick={() => window.location.reload()}>Retry</button>
+        {error && !accessDenied && (
+          <div className="error-banner" style={{
+            background: '#FEE2E2',
+            border: '1px solid #FECACA',
+            color: '#DC2626',
+            padding: '12px 16px',
+            borderRadius: '6px',
+            marginBottom: '20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <p style={{ margin: 0, fontSize: '14px' }}>{error}</p>
+            <button 
+              onClick={() => setError(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#DC2626',
+                cursor: 'pointer',
+                fontSize: '18px',
+                fontWeight: 'bold'
+              }}
+            >
+              ×
+            </button>
           </div>
         )}
 
@@ -236,14 +428,38 @@ function QuizAnalyticsPage() {
             </div>
           </div>
         ) : (
-          <div className="no-quizzes-message">
-            <h3>No Completed Quizzes</h3>
-            <p>Complete some quizzes to see detailed analytics here.</p>
+          <div className="no-quizzes-message" style={{
+            textAlign: 'center',
+            padding: '60px 40px'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '20px', opacity: 0.3 }}>📊</div>
+            <h3 style={{ color: '#333', marginBottom: '12px', fontSize: '20px' }}>
+              No Analytics Available
+            </h3>
+            <p style={{ color: '#666', marginBottom: '24px', fontSize: '14px' }}>
+              Complete at least {MIN_ATTEMPTS_REQUIRED} attempts on any quiz to view detailed analytics.
+            </p>
+            <button
+              onClick={handleBackToDashboard}
+              style={{
+                background: '#1935CA',
+                color: 'white',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontFamily: 'Poppins, sans-serif'
+              }}
+            >
+              Go to Dashboard
+            </button>
           </div>
         )}
 
         {/* Class Stats */}
-        {quizStatistics && (
+        {quizStatistics && selectedQuizId && (
           <div className="quiz-statistics-summary">
             <h3>Class Statistics</h3>
             <div className="stats-grid">

@@ -275,18 +275,6 @@ const QuizResultsPage = () => {
             {showDetails ? 'Hide Details' : 'View Question Details'}
           </button>
 
-          <button className="analytics-btn" onClick={handleViewAnalytics}>
-            View All Analytics
-          </button>
-
-          {results.canRetake && (
-            <button
-              className="retake-btn"
-              onClick={handleRetakeQuiz}
-            >
-              Retake Quiz ({MAX_ATTEMPTS - results.attemptNumber} attempts left)
-            </button>
-          )}
 
           {results.nextLevelUnlocked && results.nextLevelInfo && (
             <button

@@ -405,7 +405,7 @@ const QuizInterface = () => {
 
   return (
     <div className="quiz-interface-container">
-      <div className="quiz-header">
+      <div className="quiz-headerA">
         <div className="quiz-info">
           <h1 className="quiz-title">
             {resolvedTitle}
