@@ -7,17 +7,18 @@ import { getMyCourses } from '../../api/courses';
 import Bio from "../../Componets/Student/bio";
 import CoursesList from "../../Componets/Student/CoursesList";
 import NavBar from "../../Componets/Student/NavBar";
-import StarRating from "../../Componets/Student/StarRating";
 import QuizResultsDisplay from '../../Componets/Student/QuizResultsDisplay';
 import "./QuizAnalyticsPage.css";
 
 const MIN_ATTEMPTS_REQUIRED = 3;
+const PASS_THRESHOLD = 50;
 
 function QuizAnalyticsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   
   const [selectedQuizId, setSelectedQuizId] = useState(null);
+  const [selectedSlideId, setSelectedSlideId] = useState(null);
   const [quizAttempts, setQuizAttempts] = useState([]);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,38 +27,68 @@ function QuizAnalyticsPage() {
   const [quizStatistics, setQuizStatistics] = useState(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [attemptsCount, setAttemptsCount] = useState(0);
+  const [bestScore, setBestScore] = useState(0);
 
   const toNum = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 
-  const normalizeAttempt = (a) => ({
-    id: a.id ?? a.attempt_id ?? a.progress_id ?? a.pk ?? Math.random(),
-    quiz_id: a.adaptive_quiz_id || a.quiz_id || a.quiz || a.quizId,
-    slide_id: a.slide_id || a.lecture_slide_id || null,
-    quiz_title: a.quiz_title || a.title || `Quiz ${a.adaptive_quiz_id || a.quiz_id || a.id}`,
-    score: toNum(a.score ?? a.percentage, 0),
-    is_completed: a.is_completed ?? a.status === 'completed' ?? true,
-    created_at: a.created_at || a.date_created || a.submitted_at || new Date().toISOString(),
-    time_taken: toNum(a.time_taken, 0),
-    correct_answers: toNum(a.correct_answers, 0),
-    total_questions: toNum(a.total_questions, 0),
-    status: a.status || ((a.is_completed ?? true) ? 'completed' : 'in_progress'),
-    attempt_number: toNum(a.attempt_number, 1),
-  });
+  const normalizeAttempt = (a, index) => {
+    // Generate a composite key from slide_title and difficulty since there's no quiz_id
+    const compositeId = `${a.slide_title}_${a.difficulty}`;
+    
+    return {
+      id: compositeId + '_' + index,
+      quiz_id: compositeId, // Use composite as quiz_id
+      slide_title: a.slide_title,
+      difficulty: a.difficulty,
+      course_code: a.course_code,
+      quiz_title: `${a.slide_title} • ${a.difficulty.charAt(0).toUpperCase() + a.difficulty.slice(1)}`,
+      score: toNum(a.best_score, 0),
+      attempts_count: toNum(a.attempts_count, 0),
+      is_completed: a.completed ?? (a.attempts_count > 0),
+      created_at: a.last_attempt_at || new Date().toISOString(),
+      latest_score: toNum(a.latest_score, 0),
+      best_score: toNum(a.best_score, 0),
+    };
+  };
 
   const computeClassStatsForQuiz = (attempts, quizId) => {
     const scoped = attempts.filter(a => a.quiz_id === quizId && a.is_completed);
     if (scoped.length === 0) return null;
-    const scores = scoped.map(a => toNum(a.score, 0));
-    const average = scores.reduce((s, v) => s + v, 0) / scoped.length;
-    const highest = Math.max(...scores);
-    const passes = scoped.filter(a => toNum(a.score, 0) >= 50).length;
-    const passRate = (passes / scoped.length) * 100;
-
+    
+    // For this data, we only have one "attempt" record per quiz (which contains attempts_count)
+    const record = scoped[0];
+    
     return {
-      average_score: average,
-      total_attempts: scoped.length,
-      pass_rate: passRate,
-      highest_score: highest
+      average_score: record.score,
+      total_attempts: record.attempts_count,
+      pass_rate: record.score > PASS_THRESHOLD ? 100 : 0,
+      highest_score: record.score
+    };
+  };
+
+  const checkQuizAccess = (quizData) => {
+    if (!quizData) {
+      return {
+        granted: false,
+        attemptCount: 0,
+        highestScore: 0,
+        hasEnoughAttempts: false,
+        hasPassed: false
+      };
+    }
+
+    const attemptCount = quizData.attempts_count || 0;
+    const highestScore = quizData.best_score || 0;
+    
+    const hasEnoughAttempts = attemptCount >= MIN_ATTEMPTS_REQUIRED;
+    const hasPassed = highestScore > PASS_THRESHOLD;
+    
+    return {
+      granted: hasEnoughAttempts || hasPassed,
+      attemptCount,
+      highestScore,
+      hasEnoughAttempts,
+      hasPassed
     };
   };
 
@@ -68,62 +99,91 @@ function QuizAnalyticsPage() {
       setAccessDenied(false);
       
       try {
-        // Get quiz ID from URL params or state
         const urlParams = new URLSearchParams(window.location.search);
         const quizIdFromUrl = urlParams.get('quizId');
+        const slideIdFromUrl = urlParams.get('slideId');
         const quizIdFromState = location.state?.quizId;
+        const slideIdFromState = location.state?.slideId;
+        
         const targetQuizId = quizIdFromUrl || quizIdFromState;
+        const targetSlideId = slideIdFromUrl || slideIdFromState;
 
-        // Fetch student progress/attempts
+        console.log('=== ANALYTICS PAGE DEBUG ===');
+        console.log('Target Quiz ID:', targetQuizId);
+        console.log('Target Slide ID:', targetSlideId);
+
         const { data: progress } = await studentAdaptiveProgress();
-        const attemptsRaw = Array.isArray(progress)
-          ? progress
-          : progress?.attempts || progress?.recent_attempts || [];
+        console.log('Raw progress data:', progress);
 
-        const processed = (attemptsRaw || [])
-          .map(normalizeAttempt)
-          .filter(a => a.quiz_id);
+        let attemptsRaw = [];
+        if (Array.isArray(progress)) {
+          attemptsRaw = progress;
+        } else if (progress?.data && Array.isArray(progress.data)) {
+          attemptsRaw = progress.data;
+        }
+
+        console.log('Attempts raw array:', attemptsRaw);
+
+        const processed = attemptsRaw.map((a, i) => normalizeAttempt(a, i));
+        
+        console.log('Processed attempts:', processed);
         
         setQuizAttempts(processed);
 
-        // If a specific quiz was requested, check access
-        if (targetQuizId) {
-          const quizAttemptsForTarget = processed.filter(
-            a => String(a.quiz_id) === String(targetQuizId) && a.is_completed
+        // If trying to access a specific quiz, check if it has progress data
+        if (targetQuizId && targetSlideId) {
+          console.log('Looking for quiz with ID:', targetQuizId, 'and slide:', targetSlideId);
+          
+          // Find the matching progress record
+          const matchingRecord = processed.find(p => 
+            String(p.quiz_id).includes(targetSlideId) || 
+            p.quiz_title.includes(targetSlideId)
           );
           
-          setAttemptsCount(quizAttemptsForTarget.length);
+          console.log('Matching record:', matchingRecord);
+          
+          if (matchingRecord) {
+            const access = checkQuizAccess(matchingRecord);
+            console.log('Access check:', access);
+            
+            setAttemptsCount(access.attemptCount);
+            setBestScore(access.highestScore);
 
-          // Check if user has completed required attempts
-          if (quizAttemptsForTarget.length < MIN_ATTEMPTS_REQUIRED) {
+            if (!access.granted) {
+              setAccessDenied(true);
+              setError(`You need ${MIN_ATTEMPTS_REQUIRED} attempts OR >${PASS_THRESHOLD}% to view analytics.\n\nCurrent: ${access.attemptCount} attempts, ${access.highestScore}% best score`);
+              setLoading(false);
+              return;
+            }
+
+            setSelectedQuizId(matchingRecord.quiz_id);
+            setSelectedSlideId(targetSlideId);
+            setSelectedAttempt(matchingRecord);
+            setQuizStatistics(computeClassStatsForQuiz(processed, matchingRecord.quiz_id));
+          } else {
             setAccessDenied(true);
-            setError(`You need to complete at least ${MIN_ATTEMPTS_REQUIRED} attempts before viewing detailed analytics. You have completed ${quizAttemptsForTarget.length} attempt${quizAttemptsForTarget.length !== 1 ? 's' : ''}.`);
+            setError('No progress found for this quiz. Complete at least one attempt first.');
             setLoading(false);
             return;
           }
-
-          // User has enough attempts, show analytics
-          const mostRecent = [...quizAttemptsForTarget].sort(
-            (a, b) => new Date(b.created_at) - new Date(a.created_at)
-          )[0];
-          
-          setSelectedQuizId(mostRecent.quiz_id);
-          setSelectedAttempt(mostRecent);
-          setQuizStatistics(computeClassStatsForQuiz(processed, mostRecent.quiz_id));
         } else {
-          // No specific quiz requested, show most recent
-          const completed = processed.filter(a => a.is_completed);
-          if (completed.length > 0) {
-            const mostRecent = [...completed].sort(
+          // No specific quiz, show most recent with access
+          const accessible = processed.filter(p => {
+            const access = checkQuizAccess(p);
+            return access.granted;
+          });
+
+          if (accessible.length > 0) {
+            const mostRecent = accessible.sort(
               (a, b) => new Date(b.created_at) - new Date(a.created_at)
             )[0];
+            
             setSelectedQuizId(mostRecent.quiz_id);
             setSelectedAttempt(mostRecent);
             setQuizStatistics(computeClassStatsForQuiz(processed, mostRecent.quiz_id));
           }
         }
 
-        // Fetch sidebar courses
         try {
           const { data: coursesResp } = await getMyCourses();
           const fetchedCourses = Array.isArray(coursesResp)
@@ -134,7 +194,7 @@ function QuizAnalyticsPage() {
           console.warn('getMyCourses failed:', e);
         }
       } catch (e) {
-        console.error(e);
+        console.error('Analytics page error:', e);
         setError('Failed to load quiz analytics data');
       } finally {
         setLoading(false);
@@ -153,13 +213,10 @@ function QuizAnalyticsPage() {
   }, [selectedQuizId, quizAttempts]);
 
   const handleQuizSelect = (attempt) => {
-    // Check if this quiz has enough attempts
-    const quizAttemptsForSelected = quizAttempts.filter(
-      a => a.quiz_id === attempt.quiz_id && a.is_completed
-    );
+    const access = checkQuizAccess(attempt);
 
-    if (quizAttemptsForSelected.length < MIN_ATTEMPTS_REQUIRED) {
-      setError(`This quiz requires ${MIN_ATTEMPTS_REQUIRED} attempts before viewing analytics. Current attempts: ${quizAttemptsForSelected.length}`);
+    if (!access.granted) {
+      setError(`This quiz requires ${MIN_ATTEMPTS_REQUIRED} attempts OR >${PASS_THRESHOLD}%. Current: ${access.attemptCount} attempts, ${access.highestScore}% score`);
       return;
     }
 
@@ -169,30 +226,19 @@ function QuizAnalyticsPage() {
   };
 
   const getQuizGroups = () => {
-    const groups = {};
-    const completed = quizAttempts.filter((a) => a.is_completed);
-
-    completed.forEach((a) => {
-      const qid = a.quiz_id;
-      if (!groups[qid]) {
-        groups[qid] = {
-          quiz_id: qid,
-          quiz_title: a.quiz_title,
-          attempts: [],
-          best_score: 0,
-          latest_attempt: a.created_at,
-        };
-      }
-      groups[qid].attempts.push(a);
-      groups[qid].best_score = Math.max(groups[qid].best_score, a.score ?? 0);
-      if (new Date(a.created_at) > new Date(groups[qid].latest_attempt)) {
-        groups[qid].latest_attempt = a.created_at;
-      }
-    });
-
-    // Only include quizzes with enough attempts
-    return Object.values(groups)
-      .filter(group => group.attempts.length >= MIN_ATTEMPTS_REQUIRED)
+    return quizAttempts
+      .filter(attempt => {
+        const access = checkQuizAccess(attempt);
+        return access.granted;
+      })
+      .map(attempt => ({
+        quiz_id: attempt.quiz_id,
+        quiz_title: attempt.quiz_title,
+        attempts_count: attempt.attempts_count,
+        best_score: attempt.best_score,
+        latest_attempt: attempt.created_at,
+        attempt: attempt
+      }))
       .sort((a, b) => new Date(b.latest_attempt) - new Date(a.latest_attempt));
   };
 
@@ -237,8 +283,11 @@ function QuizAnalyticsPage() {
     );
   }
 
-  // Access denied screen
   if (accessDenied) {
+    const needsMoreAttempts = attemptsCount < MIN_ATTEMPTS_REQUIRED;
+    const needsBetterScore = bestScore <= PASS_THRESHOLD;
+    const attemptsNeeded = MIN_ATTEMPTS_REQUIRED - attemptsCount;
+
     return (
       <div>
         <div className="NavBar">
@@ -251,13 +300,7 @@ function QuizAnalyticsPage() {
             maxWidth: '600px',
             margin: '0 auto'
           }}>
-            <div style={{
-              fontSize: '64px',
-              marginBottom: '20px',
-              opacity: 0.3
-            }}>
-              🔒
-            </div>
+            <div style={{ fontSize: '64px', marginBottom: '20px', opacity: 0.3 }}>🔒</div>
             <h2 style={{
               color: '#E74C3C',
               fontSize: '24px',
@@ -274,24 +317,68 @@ function QuizAnalyticsPage() {
               marginBottom: '24px',
               fontFamily: 'Poppins, sans-serif'
             }}>
-              {error}
+              To unlock analytics, you need to either:
             </p>
             <div style={{
               background: '#F8F9FA',
-              padding: '20px',
+              padding: '24px',
               borderRadius: '8px',
-              marginBottom: '30px',
-              border: '1px solid #E0E0E0'
+              marginBottom: '24px',
+              border: '1px solid #E0E0E0',
+              textAlign: 'left'
             }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                marginBottom: '16px',
+                color: needsMoreAttempts ? '#666' : '#27AE60'
+              }}>
+                <span style={{ fontSize: '20px', marginRight: '12px' }}>
+                  {needsMoreAttempts ? '⭕' : '✅'}
+                </span>
+                <div>
+                  <strong>Complete 3 attempts</strong>
+                  <div style={{ fontSize: '13px', marginTop: '4px' }}>
+                    Current: {attemptsCount}/3 attempts
+                  </div>
+                </div>
+              </div>
+              <div style={{
+                textAlign: 'center',
+                margin: '12px 0',
+                color: '#999',
+                fontWeight: '600'
+              }}>
+                OR
+              </div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                color: needsBetterScore ? '#666' : '#27AE60'
+              }}>
+                <span style={{ fontSize: '20px', marginRight: '12px' }}>
+                  {needsBetterScore ? '⭕' : '✅'}
+                </span>
+                <div>
+                  <strong>Pass the quiz (more than 50%)</strong>
+                  <div style={{ fontSize: '13px', marginTop: '4px' }}>
+                    Best score: {bestScore}%
+                  </div>
+                </div>
+              </div>
+            </div>
+            {needsMoreAttempts && needsBetterScore && (
               <p style={{
                 color: '#333',
                 fontSize: '14px',
-                margin: 0,
+                marginBottom: '24px',
                 fontFamily: 'Poppins, sans-serif'
               }}>
-                Complete <strong>{MIN_ATTEMPTS_REQUIRED - attemptsCount} more attempt{MIN_ATTEMPTS_REQUIRED - attemptsCount !== 1 ? 's' : ''}</strong> to unlock detailed analytics for this quiz.
+                {attemptsNeeded === 1 
+                  ? 'Complete 1 more attempt or score above 50% to unlock analytics.'
+                  : `Complete ${attemptsNeeded} more attempts or score above 50% to unlock analytics.`}
               </p>
-            </div>
+            )}
             <button
               onClick={handleBackToDashboard}
               style={{
@@ -303,14 +390,7 @@ function QuizAnalyticsPage() {
                 fontSize: '14px',
                 fontWeight: '600',
                 cursor: 'pointer',
-                fontFamily: 'Poppins, sans-serif',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#142B9E';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = '#1935CA';
+                fontFamily: 'Poppins, sans-serif'
               }}
             >
               Back to Dashboard
@@ -354,7 +434,7 @@ function QuizAnalyticsPage() {
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <p style={{ margin: 0, fontSize: '14px' }}>{error}</p>
+            <p style={{ margin: 0, fontSize: '14px', whiteSpace: 'pre-line' }}>{error}</p>
             <button 
               onClick={() => setError(null)}
               style={{
@@ -371,60 +451,30 @@ function QuizAnalyticsPage() {
           </div>
         )}
 
-        {/* Quiz Selection */}
         {quizGroups.length > 0 ? (
           <div className="quiz-selection-panel">
             <h3>Select Quiz to Analyze</h3>
             <div className="quiz-attempts-list">
-              {quizGroups.map((group) => {
-                const bestAttempt = group.attempts.reduce((best, cur) =>
-                  (cur.score ?? 0) > (best.score ?? 0) ? cur : best
-                );
-                return (
-                  <div
-                    key={group.quiz_id}
-                    className={`quiz-attempt-item ${selectedQuizId === group.quiz_id ? 'selected' : ''}`}
-                    onClick={() => handleQuizSelect(bestAttempt)}
-                  >
-                    <div className="attempt-header">
-                      <div className="attempt-title">{group.quiz_title}</div>
-                      <div className="attempt-count">
-                        {group.attempts.length} attempt{group.attempts.length !== 1 ? 's' : ''}
-                      </div>
+              {quizGroups.map((group) => (
+                <div
+                  key={group.quiz_id}
+                  className={`quiz-attempt-item ${selectedQuizId === group.quiz_id ? 'selected' : ''}`}
+                  onClick={() => handleQuizSelect(group.attempt)}
+                >
+                  <div className="attempt-header">
+                    <div className="attempt-title">{group.quiz_title}</div>
+                    <div className="attempt-count">
+                      {group.attempts_count} attempt{group.attempts_count !== 1 ? 's' : ''}
                     </div>
-                    <div className="attempt-meta">
-                      <span className="attempt-score">Best Score: {group.best_score}%</span>
-                      <span className="attempt-date">
-                        Latest: {new Date(group.latest_attempt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    {selectedQuizId === group.quiz_id && group.attempts.length > 1 && (
-                      <div className="attempts-breakdown">
-                        <h4>All Attempts:</h4>
-                        {group.attempts
-                          .slice()
-                          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                          .map((attempt) => (
-                            <div
-                              key={attempt.id}
-                              className={`attempt-detail ${attempt.id === selectedAttempt?.id ? 'active' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleQuizSelect(attempt);
-                              }}
-                            >
-                              <span className="attempt-number">Attempt #{attempt.attempt_number}</span>
-                              <span className="attempt-score-detail">{attempt.score}%</span>
-                              <span className="attempt-date-detail">
-                                {new Date(attempt.created_at).toLocaleDateString()}
-                              </span>
-                            </div>
-                          ))}
-                      </div>
-                    )}
                   </div>
-                );
-              })}
+                  <div className="attempt-meta">
+                    <span className="attempt-score">Best Score: {group.best_score}%</span>
+                    <span className="attempt-date">
+                      Latest: {new Date(group.latest_attempt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ) : (
@@ -437,7 +487,7 @@ function QuizAnalyticsPage() {
               No Analytics Available
             </h3>
             <p style={{ color: '#666', marginBottom: '24px', fontSize: '14px' }}>
-              Complete at least {MIN_ATTEMPTS_REQUIRED} attempts on any quiz to view detailed analytics.
+              Complete at least {MIN_ATTEMPTS_REQUIRED} attempts OR pass any quiz (>{PASS_THRESHOLD}%) to view detailed analytics.
             </p>
             <button
               onClick={handleBackToDashboard}
@@ -458,16 +508,15 @@ function QuizAnalyticsPage() {
           </div>
         )}
 
-        {/* Class Stats */}
         {quizStatistics && selectedQuizId && (
           <div className="quiz-statistics-summary">
-            <h3>Class Statistics</h3>
+            <h3>Quiz Statistics</h3>
             <div className="stats-grid">
               <div className="stat-card">
                 <div className="stat-value">
                   {quizStatistics.average_score != null ? quizStatistics.average_score.toFixed(1) : 'N/A'}%
                 </div>
-                <div className="stat-label">Class Average</div>
+                <div className="stat-label">Best Score</div>
               </div>
               <div className="stat-card">
                 <div className="stat-value">{quizStatistics.total_attempts ?? 0}</div>
@@ -487,7 +536,6 @@ function QuizAnalyticsPage() {
           </div>
         )}
 
-        {/* Detailed Results */}
         <div className="QuizResultsWrapper">
           {selectedQuizId && selectedAttempt ? (
             <QuizResultsDisplay quizId={selectedQuizId} attemptData={selectedAttempt} />
