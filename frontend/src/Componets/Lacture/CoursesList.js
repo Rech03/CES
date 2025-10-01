@@ -132,19 +132,7 @@ function CoursesList({
           </span>
         </div>
         
-        {(onRefresh || !propCourses) && (
-          <button 
-            className="refresh-btn"
-            onClick={handleRefreshClick}
-            disabled={effectiveLoading}
-            title="Refresh courses"
-          >
-            <svg className="refresh-icon" viewBox="0 0 24 24" fill="none">
-              <path d="M1 4v6h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-        )}
+       
       </div>
 
       {/* Error Message */}
