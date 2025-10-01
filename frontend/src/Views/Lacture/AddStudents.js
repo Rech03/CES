@@ -20,12 +20,10 @@ function AddStudents() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Load courses when component mounts
   useEffect(() => {
     loadCourses();
   }, []);
 
-  // Load enrolled students when course is selected
   useEffect(() => {
     if (selectedCourse) {
       loadEnrolledStudents(selectedCourse.id);
@@ -38,12 +36,7 @@ function AddStudents() {
     try {
       setLoading(true);
       setError("");
-      console.log('Loading lecturer courses...');
-      
       const response = await getMyCourses();
-      console.log('Courses loaded:', response.data);
-      
-      // Handle different response formats
       let coursesData = [];
       if (Array.isArray(response.data)) {
         coursesData = response.data;
@@ -52,24 +45,15 @@ function AddStudents() {
       } else if (response.data?.courses && Array.isArray(response.data.courses)) {
         coursesData = response.data.courses;
       }
-      
       setCourses(coursesData);
-      
-      // Auto-select first course if available and no course is currently selected
       if (coursesData.length > 0 && !selectedCourse) {
         setSelectedCourse(coursesData[0]);
       }
-      
     } catch (err) {
-      console.error('Error loading courses:', err);
       let errorMessage = 'Failed to load courses';
-      if (err.response?.data?.detail) {
-        errorMessage = err.response.data.detail;
-      } else if (err.response?.status === 403) {
-        errorMessage = 'You do not have permission to view courses';
-      } else if (err.response?.status === 401) {
-        errorMessage = 'Please log in to continue';
-      }
+      if (err.response?.data?.detail) errorMessage = err.response.data.detail;
+      else if (err.response?.status === 403) errorMessage = 'You do not have permission to view courses';
+      else if (err.response?.status === 401) errorMessage = 'Please log in to continue';
       setError(errorMessage);
       setCourses([]);
     } finally {
@@ -79,15 +63,9 @@ function AddStudents() {
 
   const loadEnrolledStudents = async (courseId) => {
     if (!courseId) return;
-    
     try {
       setLoading(true);
-      console.log('Loading enrolled students for course:', courseId);
-      
       const response = await getCourseStudents(courseId);
-      console.log('Enrolled students loaded:', response.data);
-      
-      // Handle different response formats
       let studentsData = [];
       if (Array.isArray(response.data)) {
         studentsData = response.data;
@@ -96,11 +74,8 @@ function AddStudents() {
       } else if (response.data?.results && Array.isArray(response.data.results)) {
         studentsData = response.data.results;
       }
-      
       setEnrolledStudents(studentsData);
-      
     } catch (err) {
-      console.error('Error loading enrolled students:', err);
       setError('Failed to load enrolled students');
       setEnrolledStudents([]);
     } finally {
@@ -113,42 +88,27 @@ function AddStudents() {
       setError('Please select a course first');
       return;
     }
-    
     try {
       setLoading(true);
       setError("");
       setSuccess("");
-      console.log('Enrolling student:', enrollmentData);
-      
-      // First check if student exists
       if (enrollmentData.student_number) {
         const checkResponse = await checkEnrollment(enrollmentData.student_number);
-        console.log('Student check result:', checkResponse.data);
-        
         if (!checkResponse.data.exists) {
           setError('Student not found with this student number');
           return;
         }
       }
-      
-      // Create CSV data for single student enrollment
-      const csvData = `student_number,password\n${enrollmentData.student_number},${enrollmentData.password}`;
+      const csvData = `first_name,last_name,student_number,password
+${enrollmentData.first_name || ''},${enrollmentData.last_name || ''},${enrollmentData.student_number},${enrollmentData.password}`;
       const csvFile = new File([csvData], 'single_student.csv', { type: 'text/csv' });
       const formData = new FormData();
       formData.append('csv_file', csvFile);
-      
-      // Use CSV upload endpoint for enrollment
       const response = await uploadStudentsCSV(selectedCourse.id, formData);
-      
-      console.log('Student enrolled successfully:', response.data);
       setSuccess('Student enrolled successfully!');
-      
-      // Reload enrolled students list
       await loadEnrolledStudents(selectedCourse.id);
-      
       return response.data;
     } catch (err) {
-      console.error('Error enrolling student:', err);
       const errorMessage = err.response?.data?.detail || 
                            err.response?.data?.message || 
                            err.response?.data?.error ||
@@ -165,23 +125,14 @@ function AddStudents() {
       setError('Please select a course first');
       return;
     }
-    
     try {
       setLoading(true);
       setError("");
       setSuccess("");
-      console.log('Removing student:', studentId);
-      
       await removeStudentFromCourse(selectedCourse.id, { student_id: studentId });
-      console.log('Student removed successfully');
-      
       setSuccess('Student removed successfully!');
-      
-      // Reload enrolled students list
       await loadEnrolledStudents(selectedCourse.id);
-      
     } catch (err) {
-      console.error('Error removing student:', err);
       const errorMessage = err.response?.data?.detail || 
                            err.response?.data?.message || 
                            'Failed to remove student';
@@ -191,35 +142,12 @@ function AddStudents() {
     }
   };
 
-  const handleRegenerateCode = async (courseId) => {
-    try {
-      setLoading(true);
-      setError("");
-      setSuccess("");
-      console.log('Regenerating enrollment code for course:', courseId);
-      
-      // This API endpoint doesn't exist in your courses.js - you may need to add it
-      setError('Regenerate enrollment code feature needs to be implemented in the API');
-      
-    } catch (err) {
-      console.error('Error regenerating code:', err);
-      const errorMessage = err.response?.data?.detail || 
-                           err.response?.data?.message || 
-                           'Failed to regenerate enrollment code';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCourseSelect = (course) => {
-    console.log('Course selected:', course);
     setSelectedCourse(course);
     setError("");
     setSuccess("");
   };
 
-  // Clear messages after 5 seconds
   useEffect(() => {
     if (error || success) {
       const timer = setTimeout(() => {
@@ -235,9 +163,7 @@ function AddStudents() {
       <div className="NavBar">
         <NavBar />
       </div>
-      
       <div className="ContainerAS">
-        {/* Success/Error Messages */}
         {error && (
           <div className="error-message" style={{
             background: '#FEE2E2',
@@ -251,7 +177,6 @@ function AddStudents() {
             {error}
           </div>
         )}
-        
         {success && (
           <div className="success-message" style={{
             background: '#D1FAE5',
@@ -265,12 +190,10 @@ function AddStudents() {
             {success}
           </div>
         )}
-        
         <div className="StudentsAdd">
           <EnrollStudents 
             onEnrollStudent={handleEnrollStudent}
             onRemoveStudent={handleRemoveStudent}
-            onRegenerateCode={handleRegenerateCode}
             courses={courses}
             selectedCourse={selectedCourse}
             enrolledStudents={enrolledStudents}
@@ -279,23 +202,19 @@ function AddStudents() {
           />
         </div>
       </div>
-
       <div className="SideAS">
-        
-          <CoursesList 
-            courses={courses}
-            selectedCourse={selectedCourse}
-            onCourseSelect={handleCourseSelect}
-            loading={loading}
-            onRefresh={loadCourses}
-            title="Courses"
-            compact={true}
-            showStats={true}
-            error={error}
-          />
-        
+        <CoursesList 
+          courses={courses}
+          selectedCourse={selectedCourse}
+          onCourseSelect={handleCourseSelect}
+          loading={loading}
+          onRefresh={loadCourses}
+          title="Courses"
+          compact={true}
+          showStats={true}
+          error={error}
+        />
       </div>
-      
       <div className="BoiAS">
         <Bio />
       </div>
