@@ -183,14 +183,15 @@ function QuizTile({
     e.stopPropagation(); // Prevent tile click
     const analyticsId = adaptiveQuizId || quizId || getOperationalId();
     // Go to results section first
-    navigate(`/quiz-analytics/${analyticsId}?section=results`);
+           
+    navigate("/StudentAnalytics");
   };
 
   const handleViewAnalytics = (e) => {
     e.stopPropagation(); // Prevent tile click
     const analyticsId = adaptiveQuizId || quizId || getOperationalId();
     // Go to general analytics page
-    navigate(`/quiz-analytics/${analyticsId}`);
+    navigate("/StudentAnalytics");
   };
 
   const colorForDifficulty = (diff) => {
@@ -283,7 +284,7 @@ function QuizTile({
               disabled={isLoading}
               style={{ backgroundColor: '#27AE60' }}
             >
-              Quiz Analysis
+              View Results
             </button>
            
           </>
