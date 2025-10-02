@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { getProfile } from '../../api/users';
+import { getProfile } from '../../api/auth';
 import "./bio.css";
 
-function Bio({ name, avatar }) {
+function Bio({ name, avatar, showLoading = true, compact = false }) {
   const [profileData, setProfileData] = useState({
     name: name || "Student",
     avatar: avatar || "/ID.jpeg"
@@ -15,22 +15,45 @@ function Bio({ name, avatar }) {
       // Only fetch if no props provided
       if (!name && !avatar) {
         setLoading(true);
+        setError(null);
+        
         try {
           const response = await getProfile();
-          const user = response.data;
+          const user = response.data.user || response.data; // Handle both formats
+          
+          // Extract name with multiple fallbacks
+          const userName = 
+            user?.full_name ||
+            (user?.first_name && user?.last_name 
+              ? `${user.first_name} ${user.last_name}`.trim() 
+              : null) ||
+            user?.username ||
+            user?.email?.split('@')[0] ||
+            "Student";
+          
+          // Extract avatar with fallback
+          const userAvatar = 
+            user?.profile_picture || 
+            user?.avatar || 
+            "/ID.jpeg";
           
           setProfileData({
-            name: user.full_name || 
-                  `${user.first_name || ''} ${user.last_name || ''}`.trim() || 
-                  user.username || 
-                  user.email?.split('@')[0] || 
-                  "Student",
-            avatar: user.profile_picture || user.avatar || "/ID.jpeg"
+            name: userName,
+            avatar: userAvatar
           });
+          
+          setError(null);
         } catch (err) {
-          console.error('Error fetching profile:', err);
-          setError('Failed to load profile');
-          // Keep default values on error
+          console.warn('Bio: Failed to fetch profile, using defaults', err.message);
+          
+          // Silently fail and use defaults - don't show error to user
+          setError(null);
+          
+          // Keep default values already set in state
+          if (err.response?.status === 404 || err.response?.status === 401) {
+            console.info('Bio: Using default profile (endpoint unavailable)');
+            return;
+          }
         } finally {
           setLoading(false);
         }
@@ -40,32 +63,35 @@ function Bio({ name, avatar }) {
     fetchProfile();
   }, [name, avatar]);
 
-  if (loading) {
+  // Show loading state only if showLoading prop is true
+  if (loading && showLoading) {
     return (
-      <div className="bio-container">
+      <div className={`bio-container ${compact ? 'bio-compact' : ''}`}>
         <div className="bio-avatar skeleton"></div>
-        <div className="bio-name skeleton">Loading...</div>
+        <div className="bio-name skeleton" style={{ height: '16px', width: '80px' }}>
+          <span style={{ opacity: 0 }}>Loading</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bio-container">
+    <div className={`bio-container ${compact ? 'bio-compact' : ''}`}>
       <img 
         className="bio-avatar"
         src={profileData.avatar} 
         alt={`${profileData.name}'s avatar`}
         onError={(e) => {
-          e.target.src = "/ID.jpeg"; // Fallback image
+          // Prevent infinite loop if fallback also fails
+          if (e.target.src !== "/ID.jpeg") {
+            e.target.src = "/ID.jpeg";
+          }
         }}
+        loading="lazy"
       />
-      <div className="bio-name">
+      <div className="bio-name" title={profileData.name}>
         {profileData.name}
       </div>
-      {error && (
-        <div className="bio-error">
-        </div>
-      )}
     </div>
   );
 }

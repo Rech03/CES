@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getAdaptiveQuiz, submitAdaptiveQuiz, getStudentAvailableQuizzes, studentAdaptiveProgress } from '../../api/ai-quiz';
+import { getAdaptiveQuiz, submitAdaptiveQuiz, studentAdaptiveProgress } from '../../api/ai-quiz';
 import MultipleChoiceQuestion from '../../Componets/Student/MultipleChoiceQuestion';
 import './QuizInterface.css';
-
-const DIFF_ORDER = { easy: 1, medium: 2, hard: 3 };
-const MAX_ATTEMPTS = 3;
 
 const QuizInterface = () => {
   const navigate = useNavigate();
@@ -36,6 +33,7 @@ const QuizInterface = () => {
   const [resolvedTitle, setResolvedTitle] = useState(quizEnv.quizTitle);
   const [currentAttempts, setCurrentAttempts] = useState(0);
   const [quizDifficulty, setQuizDifficulty] = useState(null);
+  const [isPracticeMode, setIsPracticeMode] = useState(false);
 
   const getSecondsFromDuration = (duration) => {
     if (typeof duration === 'number') return duration * 60;
@@ -104,42 +102,6 @@ const QuizInterface = () => {
     }
   };
 
-  // Find next level quiz
-  const findNextLevelQuiz = async (currentSlideId, currentDifficulty) => {
-    try {
-      const av = await getStudentAvailableQuizzes();
-      const slides = Array.isArray(av?.data?.slides) ? av.data.slides : [];
-      
-      for (const s of slides) {
-        const slideInfo = s?.slide_info || {};
-        if (slideInfo.slide_id !== currentSlideId) continue;
-        
-        const qs = Array.isArray(s?.quizzes) ? s.quizzes : [];
-        const currentOrder = DIFF_ORDER[currentDifficulty] || 1;
-        
-        // Find next difficulty level
-        const nextLevel = qs.find(q => {
-          const qDiff = (q.difficulty || '').toLowerCase();
-          return DIFF_ORDER[qDiff] === currentOrder + 1;
-        });
-        
-        if (nextLevel) {
-          return {
-            quiz_id: nextLevel.quiz_id,
-            slide_id: slideInfo.slide_id,
-            difficulty: nextLevel.difficulty,
-            topic_name: slideInfo.topic_name
-          };
-        }
-      }
-      
-      return null;
-    } catch (e) {
-      console.warn('Failed to find next level:', e);
-      return null;
-    }
-  };
-
   // Load quiz data
   const fetchQuiz = async (qid) => {
     try {
@@ -180,6 +142,11 @@ const QuizInterface = () => {
       // Check attempts
       const attempts = await checkAttempts(qid);
       setCurrentAttempts(attempts);
+      
+      // Check if in practice mode (more than 3 attempts)
+      if (attempts >= 3) {
+        setIsPracticeMode(true);
+      }
     } catch (err) {
       console.error('Error fetching quiz:', err);
       throw err;
@@ -264,27 +231,70 @@ const QuizInterface = () => {
       }
 
       // Convert answers to letter format (A, B, C, D)
-      // Backend expects answers like: { "question_0": "A", "question_1": "B", "question_2": "C" }
       const answersDict = {};
       
       questions.forEach((question, questionIndex) => {
         const userAnswer = answers[question.id];
         
         if (userAnswer !== undefined && userAnswer !== null) {
-          // Find which choice was selected
           const choiceIndex = question.choices.findIndex(
             choice => String(choice.id) === String(userAnswer)
           );
           
           if (choiceIndex >= 0) {
-            // Convert index to letter: 0->A, 1->B, 2->C, 3->D
             const letterAnswer = String.fromCharCode(65 + choiceIndex);
-            // KEY FIX: Use "question_X" as key to match backend expectation
             answersDict[`question_${questionIndex}`] = letterAnswer;
           }
         }
       });
 
+      // PRACTICE MODE: If more than 3 attempts, don't submit to backend
+      if (isPracticeMode) {
+        console.log('Practice mode - not submitting to backend');
+        
+        // Calculate score locally
+        let correctCount = 0;
+        const localExplanations = [];
+        
+        questions.forEach((question, idx) => {
+          const userAnswer = answersDict[`question_${idx}`];
+          // We don't have correct answers on frontend, so we can't calculate accurate score
+          // Just show that it was recorded
+          localExplanations.push({
+            index: idx,
+            question: question.question,
+            choices: question.choices,
+            is_correct: null, // Unknown in practice mode
+          });
+        });
+        
+        // Navigate to results with practice mode data
+        navigate('/QuizResultsPage', {
+          state: {
+            score: null, // Can't calculate without correct answers
+            correct_count: null,
+            total_questions: questions.length,
+            time_taken: getSecondsFromDuration(quizEnv.quizDuration) - timeRemaining,
+            practice_mode: true,
+            attempt_number: currentAttempts + 1,
+            show_explanation: false, // Can't show explanations without backend
+            questions,
+            answers,
+            answersDict,
+            explanations: localExplanations,
+            quizData: {
+              ...quizEnv,
+              quizId: adaptiveQuizId,
+              quizTitle: resolvedTitle,
+              difficulty: quizDifficulty
+            },
+            feedback: 'Practice mode: Your answers have been recorded but not graded. Only your first 3 attempts count toward your grade.'
+          }
+        });
+        return;
+      }
+
+      // GRADED MODE: Submit to backend for attempts 1-3
       const payload = {
         adaptive_quiz_id: adaptiveQuizId,
         answers: answersDict
@@ -302,15 +312,7 @@ const QuizInterface = () => {
 
       console.log('Quiz submission response:', resultData);
 
-      // Calculate if this is the 3rd attempt
       const attemptNumber = resultData.attempt_number || currentAttempts + 1;
-      const isThirdAttempt = attemptNumber >= MAX_ATTEMPTS;
-
-      // Check if next level should be unlocked
-      let nextLevelInfo = null;
-      if (isThirdAttempt || resultData.unlocked_next) {
-        nextLevelInfo = await findNextLevelQuiz(quizEnv.slideId, quizDifficulty);
-      }
 
       // Navigate to results with all data
       navigate('/QuizResultsPage', {
@@ -318,7 +320,7 @@ const QuizInterface = () => {
           ...resultData,
           questions,
           answers,
-          answersDict, // Pass the letter-based answers for results display
+          answersDict,
           quizData: {
             ...quizEnv,
             quizId: adaptiveQuizId,
@@ -327,11 +329,7 @@ const QuizInterface = () => {
           },
           attempts_meta: {
             attempt_number: attemptNumber,
-            attempts_count: attemptNumber,
-            max_attempts: MAX_ATTEMPTS,
-            is_final_attempt: isThirdAttempt,
-            next_level_unlocked: isThirdAttempt && nextLevelInfo !== null,
-            next_level_info: nextLevelInfo
+            attempts_count: attemptNumber
           }
         }
       });
@@ -364,7 +362,7 @@ const QuizInterface = () => {
         <div className="error-content">
           <h2>Error</h2>
           <p>{fatalError}</p>
-          <button onClick={() => navigate('/Dashboard')} className="nav-btn">
+          <button onClick={() => navigate('/StudentDashboard')} className="nav-btn">
             Return to Dashboard
           </button>
         </div>
@@ -377,7 +375,7 @@ const QuizInterface = () => {
       <div className="quiz-interface-container">
         <div className="no-questions-content">
           <h2>No Questions Available</h2>
-          <button onClick={() => navigate('/Dashboard')} className="nav-btn">
+          <button onClick={() => navigate('/StudentDashboard')} className="nav-btn">
             Return to Dashboard
           </button>
         </div>
@@ -396,7 +394,7 @@ const QuizInterface = () => {
           <p>Your answers have been recorded. Redirecting to results...</p>
           <div className="submission-summary">
             <p>Questions answered: {getAnsweredCount()}/{questions.length}</p>
-            <p>Attempt: {currentAttempts + 1} of {MAX_ATTEMPTS}</p>
+            <p>Attempt: {currentAttempts + 1}</p>
           </div>
         </div>
       </div>
@@ -405,6 +403,20 @@ const QuizInterface = () => {
 
   return (
     <div className="quiz-interface-container">
+      {isPracticeMode && (
+        <div className="practice-mode-banner" style={{
+          background: 'linear-gradient(135deg, #F39C12 0%, #F1C40F 100%)',
+          color: 'white',
+          padding: '12px 20px',
+          textAlign: 'center',
+          fontWeight: '600',
+          fontSize: '14px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+          🎯 Practice Mode - Your score will not be recorded after 3 attempts
+        </div>
+      )}
+      
       <div className="quiz-headerA">
         <div className="quiz-info">
           <h1 className="quiz-title">
@@ -420,7 +432,7 @@ const QuizInterface = () => {
             <span>•</span>
             <span>{getAnsweredCount()} answered</span>
             <span>•</span>
-            <span>Attempt {currentAttempts + 1} of {MAX_ATTEMPTS}</span>
+            <span>Attempt {currentAttempts + 1}</span>
           </div>
         </div>
 
@@ -500,11 +512,18 @@ const QuizInterface = () => {
                 You have answered <strong>{getAnsweredCount()}</strong> out of{' '}
                 <strong>{questions.length}</strong> questions.
               </p>
-              <p>This is attempt <strong>{currentAttempts + 1}</strong> of <strong>{MAX_ATTEMPTS}</strong>.</p>
-              {currentAttempts + 1 >= MAX_ATTEMPTS && (
-                <p className="final-attempt-warning">
-                  ⚠️ This is your final attempt. After submission, you'll be able to view results and proceed to the next level.
-                </p>
+              <p>This is attempt <strong>{currentAttempts + 1}</strong>.</p>
+              {isPracticeMode && (
+                <div className="practice-mode-notice" style={{
+                  background: '#FFF3CD',
+                  border: '1px solid #FFE69C',
+                  borderRadius: '6px',
+                  padding: '12px',
+                  marginTop: '12px',
+                  color: '#856404'
+                }}>
+                  <strong>📝 Practice Mode:</strong> This score will not be recorded (you've completed 3 graded attempts).
+                </div>
               )}
               {getUnanswered().length > 0 && (
                 <div className="unanswered-warning">
@@ -521,7 +540,7 @@ const QuizInterface = () => {
               )}
             </div>
 
-            <p>Are you sure you want to submit? This action cannot be undone.</p>
+            <p>Are you sure you want to submit?</p>
 
             <div className="modal-actions">
               <button className="modal-btn cancel-btn" onClick={() => setShowSubmitModal(false)}>

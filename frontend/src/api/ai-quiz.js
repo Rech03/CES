@@ -29,3 +29,4 @@ export const getStudentQuizSummary = () => api.get('ai-quiz/student/quiz-summary
 // AI QUIZ ANALYTICS
 export const getAdaptiveSlideStats = (slideId) => api.get(`ai-quiz/slide/${slideId}/stats/`);
 export const getProgressAnalytics = (params) => api.get('ai-quiz/progress-analytics/', { params }); // { student_id?, course_id? }
+

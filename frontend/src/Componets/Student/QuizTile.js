@@ -22,7 +22,6 @@ function QuizTile({
   accessReason = "",
   hasExhaustedAttempts = false,
   onStartQuiz,
-  onViewResults,
   onClick
 }) {
   const navigate = useNavigate();
@@ -42,21 +41,11 @@ function QuizTile({
     }
   };
 
-  const getDifficultyColor = (difficulty) => {
-    const diffLower = (difficulty || '').toLowerCase();
-    if (diffLower.includes('easy')) return '#27AE60';
-    if (diffLower.includes('medium')) return '#F39C12';
-    if (diffLower.includes('hard')) return '#E74C3C';
-    return '#95A5A6';
-  };
-
   const handleStartQuiz = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
 
-    if (!canAccess || status === 'locked') {
-      return;
-    }
+    if (!canAccess || status === 'locked') return;
 
     navigate('/QuizCountdownPage', {
       state: {
@@ -76,25 +65,23 @@ function QuizTile({
     onStartQuiz?.();
   };
 
-  const handleViewResults = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigate('/QuizAnalyticsPage', {
-      state: { quizId, slideId, quizTitle: title, isStudent: true }
-    });
-    onViewResults?.();
-  };
-
+  // Tile click behavior: always start/retake the quiz
   const handleTileClick = () => {
     if (onClick) {
       onClick();
       return;
     }
-    if ((status === 'available' || status === 'in_progress') && canAccess) {
-      handleStartQuiz({ preventDefault: () => {}, stopPropagation: () => {} });
-    } else if (status === 'completed' || hasExhaustedAttempts) {
-      handleViewResults({ preventDefault: () => {}, stopPropagation: () => {} });
+    if (canAccess && status !== 'locked') {
+      handleStartQuiz();
     }
+  };
+
+  const getDifficultyColor = (difficulty) => {
+    const diffLower = (difficulty || '').toLowerCase();
+    if (diffLower.includes('easy')) return '#27AE60';
+    if (diffLower.includes('medium')) return '#F39C12';
+    if (diffLower.includes('hard')) return '#E74C3C';
+    return '#95A5A6';
   };
 
   const statusInfo = getStatusInfo(status);
@@ -104,7 +91,7 @@ function QuizTile({
       className={`quiz-tile-container ${courseCode} ${status} ${!canAccess ? 'locked' : ''}`}
       onClick={handleTileClick}
       style={{
-        cursor: canAccess && (status === 'available' || status === 'in_progress' || status === 'completed') ? 'pointer' : 'default',
+        cursor: canAccess && status !== 'locked' ? 'pointer' : 'default',
         opacity: canAccess ? 1 : 0.7
       }}
     >
@@ -131,45 +118,52 @@ function QuizTile({
         </div>
       </div>
 
-      {/* Performance Info - Show after first attempt */}
+      {/* Performance Info - after first attempt */}
       {attemptsUsed > 0 && canAccess && (
-        <div className="student-performance" style={{
-          position: 'absolute',
-          bottom: '65px',
-          left: '15px',
-          right: '15px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '11px',
-          padding: '8px 10px',
-          background: 'rgba(255, 255, 255, 0.9)',
-          borderRadius: '6px',
-          border: '1px solid #E0E0E0'
-        }}>
+        <div
+          className="student-performance"
+          style={{
+            position: 'absolute',
+            bottom: '65px',
+            left: '15px',
+            right: '15px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '11px',
+            padding: '8px 10px',
+            background: 'rgba(255, 255, 255, 0.9)',
+            borderRadius: '6px',
+            border: '1px solid #E0E0E0'
+          }}
+        >
           {bestScore && (
-            <div style={{ 
-              fontWeight: '600', 
-              color: bestScoreValue > 50 ? '#27AE60' : '#E74C3C',
-              fontSize: '12px'
-            }}>
+            <div
+              style={{
+                fontWeight: '600',
+                color: bestScoreValue > 50 ? '#27AE60' : '#E74C3C',
+                fontSize: '12px'
+              }}
+            >
               Best: {bestScore}
             </div>
           )}
           <div style={{ color: '#666', fontSize: '11px' }}>
-            Retakes: {retakesLeft}
+            Attempts: {attemptsUsed}
           </div>
         </div>
       )}
 
       {/* Actions */}
       <div className="quiz-actions">
-        {(status === 'available' || status === 'in_progress') && canAccess && !hasExhaustedAttempts && (
+        {canAccess && status !== 'locked' && (
           <button
             className="action-btn start-btn"
             onClick={handleStartQuiz}
             style={{
-              background: 'linear-gradient(135deg, #27AE60 0%, #2ECC71 100%)',
+              background: attemptsUsed > 0 
+                ? 'linear-gradient(135deg, #3498DB 0%, #5DADE2 100%)'
+                : 'linear-gradient(135deg, #27AE60 0%, #2ECC71 100%)',
               color: 'white',
               border: 'none',
               padding: '10px 12px',
@@ -183,27 +177,6 @@ function QuizTile({
             }}
           >
             {attemptsUsed > 0 ? 'Retake Quiz' : 'Start Quiz'}
-          </button>
-        )}
-
-        {(status === 'completed' || hasExhaustedAttempts) && canAccess && (
-          <button
-            className="action-btn view-results-btn"
-            onClick={handleViewResults}
-            style={{
-              background: 'linear-gradient(135deg, #3498DB 0%, #5DADE2 100%)',
-              color: 'white',
-              border: 'none',
-              padding: '10px 12px',
-              borderRadius: '6px',
-              fontSize: '11px',
-              fontWeight: '600',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
-              width: '100%'
-            }}
-          >
-            View Results
           </button>
         )}
 

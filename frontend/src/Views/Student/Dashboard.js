@@ -13,7 +13,7 @@ import QuizTile from "../../Componets/Student/QuizTile";
 import SearchBar from "../../Componets/Student/SearchBar";
 import "./Dashboard.css";
 
-const MAX_ATTEMPTS = 3;
+const PASS_THRESHOLD = 50; // Only used for unlocking next level
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -98,48 +98,31 @@ function Dashboard() {
       let accessReason = '';
 
       if (item.difficulty === 'medium') {
-        // Check if easy level exists and meets unlock criteria
+        // Check if easy level exists and meets unlock criteria (3 attempts)
         const easyQuiz = slideQuizzes.find(q => q.difficulty === 'easy');
         if (easyQuiz) {
           const easyAttempts = easyQuiz.progress?.attempts_count || 0;
-          const easyBestScore = easyQuiz.progress?.best_score || 0;
           
-          // Unlock if: 3 attempts OR passed (>50%)
-          const unlocked = easyAttempts >= MAX_ATTEMPTS || easyBestScore > 50;
+          // Unlock after 3 attempts
+          const unlocked = easyAttempts >= 3;
           
           if (!unlocked) {
             canAccess = false;
-            accessReason = `Complete Easy level first (3 attempts or 50%+ score)`;
+            accessReason = `Complete Easy level 3 times first (${easyAttempts}/3 attempts)`;
           }
         }
       } else if (item.difficulty === 'hard') {
-        // Check if easy level unlocks hard (3 attempts OR >50%)
-        const easyQuiz = slideQuizzes.find(q => q.difficulty === 'easy');
-        if (easyQuiz) {
-          const easyAttempts = easyQuiz.progress?.attempts_count || 0;
-          const easyBestScore = easyQuiz.progress?.best_score || 0;
-          
-          // Hard unlocks if easy has 3 attempts OR >50% score
-          const unlockedByEasy = easyAttempts >= MAX_ATTEMPTS || easyBestScore > 50;
-          
-          if (!unlockedByEasy) {
-            canAccess = false;
-            accessReason = `Complete Easy level first (3 attempts or 50%+ score)`;
-          }
-        }
-        
-        // Also check medium level
+        // Check if medium level has 3 attempts
         const mediumQuiz = slideQuizzes.find(q => q.difficulty === 'medium');
-        if (mediumQuiz && canAccess) {
+        if (mediumQuiz) {
           const mediumAttempts = mediumQuiz.progress?.attempts_count || 0;
-          const mediumBestScore = mediumQuiz.progress?.best_score || 0;
           
-          // Hard also needs medium to have 3 attempts OR >50%
-          const unlockedByMedium = mediumAttempts >= MAX_ATTEMPTS || mediumBestScore > 50;
+          // Hard unlocks after medium has 3 attempts
+          const unlockedByMedium = mediumAttempts >= 3;
           
           if (!unlockedByMedium) {
             canAccess = false;
-            accessReason = `Complete Medium level first (3 attempts or 50%+ score)`;
+            accessReason = `Complete Medium level 3 times first (${mediumAttempts}/3 attempts)`;
           }
         }
       }
@@ -153,9 +136,6 @@ function Dashboard() {
       } else if (attemptsUsed > 0) {
         status = 'in_progress';
       }
-
-      // Calculate retakes left
-      const retakesLeft = Math.max(0, MAX_ATTEMPTS - attemptsUsed);
 
       const difficultyDisplay = item.difficulty 
         ? item.difficulty.charAt(0).toUpperCase() + item.difficulty.slice(1)
@@ -177,8 +157,7 @@ function Dashboard() {
         topicName: item.topic_name || item.slide_title || 'Topic',
         difficulty: item.difficulty || 'medium',
         attemptsUsed: attemptsUsed,
-        retakesLeft: retakesLeft,
-        attemptsDisplay: `${attemptsUsed}/${MAX_ATTEMPTS} attempts`,
+        attemptsDisplay: `${attemptsUsed} attempt${attemptsUsed !== 1 ? 's' : ''}`,
         bestScore: bestScore != null ? `${Math.round(bestScore)}%` : null,
         bestScoreValue: bestScore,
         latestScore: item.progress?.latest_score != null ? `${Math.round(item.progress.latest_score)}%` : null,
@@ -188,15 +167,9 @@ function Dashboard() {
         accessReason: accessReason,
         createdAt: item.created_at || null,
         lastAttemptAt: lastAttemptAt || null,
-        hasExhaustedAttempts: attemptsUsed >= MAX_ATTEMPTS,
       };
     }).sort((a, b) => {
-      // First: Sort by whether attempts are exhausted
-      // Quizzes with remaining attempts come first
-      if (!a.hasExhaustedAttempts && b.hasExhaustedAttempts) return -1;
-      if (a.hasExhaustedAttempts && !b.hasExhaustedAttempts) return 1;
-
-      // Within same exhausted status: sort by last attempt (most recent first)
+      // Sort by last attempt (most recent first)
       const dateA = new Date(a.lastAttemptAt || a.createdAt || 0);
       const dateB = new Date(b.lastAttemptAt || b.createdAt || 0);
       
@@ -283,12 +256,6 @@ function Dashboard() {
         difficulty: quiz.difficulty
       }
     });
-  };
-
-  const handleViewResults = (quiz) => {
-    if (!quiz?.adaptiveQuizId) return;
-    
-    navigate(`/QuizAnalyticsPage?quizId=${quiz.adaptiveQuizId}${quiz.slideId ? `&slideId=${quiz.slideId}` : ''}`);
   };
 
   if (loading) {
@@ -424,7 +391,6 @@ function Dashboard() {
                 topicName={quiz.topicName}
                 difficulty={quiz.difficulty}
                 attemptsUsed={quiz.attemptsUsed}
-                retakesLeft={quiz.retakesLeft}
                 attemptsDisplay={quiz.attemptsDisplay}
                 bestScore={quiz.bestScore}
                 bestScoreValue={quiz.bestScoreValue}
@@ -432,10 +398,8 @@ function Dashboard() {
                 isLive={quiz.isLive}
                 canAccess={quiz.canAccess}
                 accessReason={quiz.accessReason}
-                hasExhaustedAttempts={quiz.hasExhaustedAttempts}
                 onStartQuiz={() => handleStartQuiz(quiz)}
-                onViewResults={() => handleViewResults(quiz)}
-                onClick={() => quiz.status === 'completed' || quiz.hasExhaustedAttempts ? handleViewResults(quiz) : handleStartQuiz(quiz)}
+                onClick={() => handleStartQuiz(quiz)}
               />
             ))
           ) : (

@@ -6,6 +6,8 @@ const BASE_URL = process.env.NODE_ENV === 'development'
   ? '/api/'  // This will use the proxy in package.json
   : (process.env.REACT_APP_API_URL || 'http://196.42.127.6:8000/api/');
 
+console.log("===============",BASE_URL,"===========",process.env.NODE_ENV);
+
 // Debug logging
 console.log('=== CLIENT.JS DEBUG ===');
 console.log('NODE_ENV:', process.env.NODE_ENV);

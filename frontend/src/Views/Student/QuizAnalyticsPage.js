@@ -24,7 +24,6 @@ function QuizAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedAttempt, setSelectedAttempt] = useState(null);
-  const [quizStatistics, setQuizStatistics] = useState(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [attemptsCount, setAttemptsCount] = useState(0);
   const [bestScore, setBestScore] = useState(0);
@@ -48,21 +47,6 @@ function QuizAnalyticsPage() {
       created_at: a.last_attempt_at || new Date().toISOString(),
       latest_score: toNum(a.latest_score, 0),
       best_score: toNum(a.best_score, 0),
-    };
-  };
-
-  const computeClassStatsForQuiz = (attempts, quizId) => {
-    const scoped = attempts.filter(a => a.quiz_id === quizId && a.is_completed);
-    if (scoped.length === 0) return null;
-    
-    // For this data, we only have one "attempt" record per quiz (which contains attempts_count)
-    const record = scoped[0];
-    
-    return {
-      average_score: record.score,
-      total_attempts: record.attempts_count,
-      pass_rate: record.score > PASS_THRESHOLD ? 100 : 0,
-      highest_score: record.score
     };
   };
 
@@ -159,7 +143,6 @@ function QuizAnalyticsPage() {
             setSelectedQuizId(matchingRecord.quiz_id);
             setSelectedSlideId(targetSlideId);
             setSelectedAttempt(matchingRecord);
-            setQuizStatistics(computeClassStatsForQuiz(processed, matchingRecord.quiz_id));
           } else {
             setAccessDenied(true);
             setError('No progress found for this quiz. Complete at least one attempt first.');
@@ -180,7 +163,6 @@ function QuizAnalyticsPage() {
             
             setSelectedQuizId(mostRecent.quiz_id);
             setSelectedAttempt(mostRecent);
-            setQuizStatistics(computeClassStatsForQuiz(processed, mostRecent.quiz_id));
           }
         }
 
@@ -203,14 +185,6 @@ function QuizAnalyticsPage() {
 
     fetchData();
   }, [location]);
-
-  useEffect(() => {
-    if (!selectedQuizId) {
-      setQuizStatistics(null);
-      return;
-    }
-    setQuizStatistics(computeClassStatsForQuiz(quizAttempts, selectedQuizId));
-  }, [selectedQuizId, quizAttempts]);
 
   const handleQuizSelect = (attempt) => {
     const access = checkQuizAccess(attempt);
@@ -487,7 +461,7 @@ function QuizAnalyticsPage() {
               No Analytics Available
             </h3>
             <p style={{ color: '#666', marginBottom: '24px', fontSize: '14px' }}>
-              Complete at least {MIN_ATTEMPTS_REQUIRED} attempts OR pass any quiz (>{PASS_THRESHOLD}%) to view detailed analytics.
+              Complete at least {MIN_ATTEMPTS_REQUIRED} attempts OR pass any quiz ({'>'}{PASS_THRESHOLD}%) to view detailed analytics.
             </p>
             <button
               onClick={handleBackToDashboard}
@@ -508,29 +482,29 @@ function QuizAnalyticsPage() {
           </div>
         )}
 
-        {quizStatistics && selectedQuizId && (
+        {selectedAttempt && selectedQuizId && (
           <div className="quiz-statistics-summary">
             <h3>Quiz Statistics</h3>
             <div className="stats-grid">
               <div className="stat-card">
                 <div className="stat-value">
-                  {quizStatistics.average_score != null ? quizStatistics.average_score.toFixed(1) : 'N/A'}%
+                  {selectedAttempt.best_score != null ? selectedAttempt.best_score.toFixed(1) : 'N/A'}%
                 </div>
                 <div className="stat-label">Best Score</div>
               </div>
               <div className="stat-card">
-                <div className="stat-value">{quizStatistics.total_attempts ?? 0}</div>
+                <div className="stat-value">{selectedAttempt.attempts_count ?? 0}</div>
                 <div className="stat-label">Total Attempts</div>
               </div>
               <div className="stat-card">
                 <div className="stat-value">
-                  {quizStatistics.pass_rate != null ? quizStatistics.pass_rate.toFixed(1) : 'N/A'}%
+                  {selectedAttempt.best_score > PASS_THRESHOLD ? '100' : '0'}%
                 </div>
                 <div className="stat-label">Pass Rate</div>
               </div>
               <div className="stat-card">
-                <div className="stat-value">{quizStatistics.highest_score ?? 'N/A'}%</div>
-                <div className="stat-label">Highest Score</div>
+                <div className="stat-value">{selectedAttempt.latest_score ?? 'N/A'}%</div>
+                <div className="stat-label">Latest Score</div>
               </div>
             </div>
           </div>

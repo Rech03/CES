@@ -101,35 +101,35 @@ function CoursesList({
         const processedCourses = processCourses(rawCourses);
         setCourses(processedCourses);
         console.log('CoursesList: Processed courses:', processedCourses);
+        setError('');
       } else {
         console.warn('CoursesList: No valid courses array found');
         setCourses([]);
+        setError('');
       }
 
     } catch (err) {
-      console.error('CoursesList: Error fetching courses:', err);
+      console.warn('CoursesList: Error fetching courses, using empty state', err);
       
-      let errorMessage = 'Failed to load courses';
+      // Silently fail for 404 errors (endpoint doesn't exist)
+      if (err.response?.status === 404) {
+        console.info('CoursesList: Courses endpoint not available (404)');
+        setCourses([]);
+        setError('');
+        return;
+      }
       
+      let errorMessage = '';
+      
+      // Only show error for non-404 issues
       if (err.response?.status === 403) {
         errorMessage = 'Access denied';
       } else if (err.response?.status === 401) {
         errorMessage = 'Please log in';
-      } else if (err.response?.status === 404) {
-        errorMessage = 'Courses not found';
-      } else if (err.response?.data) {
-        const errorData = err.response.data;
-        if (typeof errorData === 'string') {
-          errorMessage = errorData;
-        } else if (errorData.detail) {
-          errorMessage = errorData.detail;
-        } else if (errorData.message) {
-          errorMessage = errorData.message;
-        } else if (errorData.error) {
-          errorMessage = errorData.error;
-        }
-      } else if (err.message) {
-        errorMessage = err.message;
+      } else if (err.response?.status >= 500) {
+        errorMessage = 'Server error';
+      } else if (!navigator.onLine) {
+        errorMessage = 'No internet connection';
       }
       
       setError(errorMessage);
@@ -198,7 +198,7 @@ function CoursesList({
         <div className="courses-title-section">
           <h3 className="courses-title">{compact ? 'Courses' : title}</h3>
           <span className="courses-count">
-            {effectiveLoading ? '...' : `${courses.length} enrolled`}
+            {effectiveLoading ? '...' : courses.length > 0 ? `${courses.length} enrolled` : 'None'}
           </span>
         </div>
         
@@ -217,7 +217,7 @@ function CoursesList({
         )}
       </div>
 
-      {/* Error Message */}
+      {/* Error Message - Only show for critical errors */}
       {effectiveError && (
         <div className="courses-error">
           <div className="error-icon">⚠️</div>
@@ -256,19 +256,10 @@ function CoursesList({
           // Empty state
           <div className="no-courses">
             <div className="empty-icon">📚</div>
-            <div className="empty-title">No courses enrolled</div>
+            <div className="empty-title">No courses</div>
             <div className="empty-subtitle">
-              {compact ? 'Contact instructor' : 'Contact your instructor to get enrolled'}
+              {compact ? 'Not enrolled' : 'You are not enrolled in any courses'}
             </div>
-            {(onRefresh || !propCourses) && (
-              <button
-                className="empty-action-btn"
-                onClick={handleRefreshClick}
-                disabled={effectiveLoading}
-              >
-                Refresh
-              </button>
-            )}
           </div>
         ) : (
           // Course list

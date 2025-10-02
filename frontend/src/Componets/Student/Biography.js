@@ -1,24 +1,18 @@
-// src/Components/Profile/Biography.js
 import { useState, useEffect } from 'react';
-
-// Profile API
-import { getProfile, getDashboard as getUserDashboard } from '../../api/users';
-
-// Primary stats source - achievements
+import { getProfile, getDashboard } from '../../api/auth';
 import { getStats as getAchievementStats } from '../../api/achievements';
-
-// Fallback sources
-import { getStudentDashboard as getCoursesStudentDashboard } from '../../api/courses';
-
+import { getStudentDashboard } from '../../api/courses';
+import { studentAdaptiveProgress } from '../../api/ai-quiz';
+import { getMyCourses } from '../../api/courses';
 import './Biography.css';
 
 function Biography({
   name,
   title,
   avatar,
+  coursesCount,
   quizzesCompleted,
-  correctAnswers,
-  currentStreak,
+  totalAttempts,
   compact = false,
   showLoading = true
 }) {
@@ -26,9 +20,9 @@ function Biography({
     name: name || "Student",
     title: title || "Student",
     avatar: avatar || "/ID.jpeg",
+    coursesCount: (coursesCount ?? "0").toString(),
     quizzesCompleted: (quizzesCompleted ?? "0").toString(),
-    correctAnswers: (correctAnswers ?? "0").toString(),
-    currentStreak: (currentStreak ?? "0").toString(),
+    totalAttempts: (totalAttempts ?? "0").toString(),
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -51,9 +45,9 @@ function Biography({
     const fetchStudentStats = async () => {
       // Only auto-fetch if no explicit props provided
       const hasExplicitProps = name != null || title != null || 
+                              coursesCount != null ||
                               quizzesCompleted != null || 
-                              correctAnswers != null || 
-                              currentStreak != null;
+                              totalAttempts != null;
 
       if (!hasExplicitProps) {
         setLoading(true);
@@ -61,14 +55,14 @@ function Biography({
         
         try {
           // 1) Fetch Profile Information
-          let userName = name || "Student";
-          let userTitle = title || "Student";
-          let userAvatar = avatar || "/ID.jpeg";
+          let userName = "Student";
+          let userTitle = "Student";
+          let userAvatar = "/ID.jpeg";
 
           try {
-            const { data: user } = await getProfile();
+            const { data } = await getProfile();
+            const user = data.user || data; // Handle both response formats
             
-            // Based on Django backend serializers, extract user data
             userName =
               user?.full_name ||
               (user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}`.trim() : null) ||
@@ -76,7 +70,6 @@ function Biography({
               user?.email?.split("@")[0] ||
               "Student";
             
-            // Extract title/role - the Django backend returns user_type
             userTitle = 
               user?.user_type === 'student' ? 'Student' :
               user?.user_type === 'lecturer' ? 'Lecturer' :
@@ -85,21 +78,35 @@ function Biography({
               user?.role ||
               "Student";
             
-            // Extract avatar
             userAvatar = 
               user?.profile_picture || 
               user?.avatar || 
               "/ID.jpeg";
               
           } catch (e) {
-            console.warn('Biography: Profile fetch failed, using defaults/props');
+            console.warn('Biography: Profile fetch failed, using defaults');
+            
+            if (e.response?.status === 404) {
+              console.info('Biography: Profile endpoint not available (404)');
+            }
           }
 
-          // 2) Fetch Statistics - Try multiple sources
-          let stats = { quizzesCompleted: 0, correctAnswers: 0, currentStreak: 0 };
+          // 2) Fetch Statistics
+          let stats = { coursesCount: 0, quizzesCompleted: 0, totalAttempts: 0 };
           let statsSource = 'default';
 
-          // Try achievements API first (most comprehensive)
+          // Fetch number of courses
+          try {
+            const { data: coursesData } = await getMyCourses();
+            const courses = Array.isArray(coursesData) 
+              ? coursesData 
+              : coursesData?.courses || coursesData?.results || [];
+            stats.coursesCount = courses.length;
+          } catch (coursesError) {
+            console.warn('Biography: Could not fetch courses count');
+          }
+
+          // Try achievements API first
           try {
             const { data: achievementStats } = await getAchievementStats();
             
@@ -108,81 +115,72 @@ function Biography({
               'quizzesCompleted', 'quiz_count', 'quizzes'
             );
 
-            stats.correctAnswers = extractNumber(achievementStats,
-              'correct_answers', 'total_correct_answers', 'total_correct',
-              'correctAnswers', 'correct_count', 'score_total'
-            );
-
-            stats.currentStreak = extractNumber(achievementStats,
-              'current_streak', 'streak_days', 'day_streak',
-              'currentStreak', 'streak', 'consecutive_days'
+            stats.totalAttempts = extractNumber(achievementStats,
+              'total_attempts', 'quiz_attempts', 'attempts_count',
+              'totalAttempts', 'total_quiz_attempts'
             );
 
             statsSource = 'achievements';
             
           } catch (achievementError) {
-            console.warn('Biography: Achievements API failed, trying user dashboard...');
+            console.warn('Biography: Achievements API not available, trying alternatives');
             
             // Fallback to user dashboard
             try {
-              const { data: userDash } = await getUserDashboard();
+              const { data: userDash } = await getDashboard();
               
               stats.quizzesCompleted = extractNumber(userDash,
-                'quizzes_completed', 'total_quizzes', 'quiz_count'
+                'quizzes_completed', 'total_quizzes', 'quiz_count', 'total_quizzes_taken'
               );
 
-              stats.correctAnswers = extractNumber(userDash,
-                'correct_answers', 'total_correct', 'score_total'
-              );
-
-              stats.currentStreak = extractNumber(userDash,
-                'current_streak', 'streak_days', 'streak'
+              stats.totalAttempts = extractNumber(userDash,
+                'total_attempts', 'quiz_attempts', 'attempts_count', 'total_quiz_attempts'
               );
 
               statsSource = 'user_dashboard';
               
             } catch (userDashError) {
-              console.warn('Biography: User dashboard failed, trying courses dashboard...');
+              console.warn('Biography: User dashboard not available, trying adaptive progress');
               
-              // Final fallback to courses student dashboard
+              // Calculate from adaptive progress
               try {
-                const { data: coursesDash } = await getCoursesStudentDashboard();
+                const { data: progressData } = await studentAdaptiveProgress();
+                const progressArray = Array.isArray(progressData) ? progressData : progressData?.data || [];
                 
-                stats.quizzesCompleted = extractNumber(coursesDash,
-                  'quizzes_completed', 'total_quizzes', 'quiz_count'
-                );
-
-                stats.correctAnswers = extractNumber(coursesDash,
-                  'correct_answers', 'total_correct', 'score_total'
-                );
-
-                stats.currentStreak = extractNumber(coursesDash,
-                  'current_streak', 'streak_days', 'streak'
-                );
-
-                statsSource = 'courses_dashboard';
+                // Count completed quizzes
+                stats.quizzesCompleted = progressArray.filter(p => p.completed || p.attempts_count > 0).length;
                 
-              } catch (coursesDashError) {
-                console.warn('Biography: All stat sources failed, using defaults');
+                // Sum up total attempts
+                stats.totalAttempts = progressArray.reduce((sum, p) => {
+                  return sum + (p.attempts_count || 0);
+                }, 0);
+                
+                statsSource = 'adaptive_progress';
+                
+              } catch (progressError) {
+                console.warn('Biography: All stat sources unavailable, using defaults');
                 statsSource = 'fallback';
               }
             }
           }
 
+          console.log(`Biography: Loaded stats from ${statsSource}:`, stats);
+
           setProfileData({
             name: userName,
             title: userTitle,
             avatar: userAvatar,
+            coursesCount: String(stats.coursesCount),
             quizzesCompleted: String(stats.quizzesCompleted),
-            correctAnswers: String(stats.correctAnswers),
-            currentStreak: String(stats.currentStreak),
+            totalAttempts: String(stats.totalAttempts),
             _statsSource: statsSource,
           });
 
+          setError(null);
+
         } catch (err) {
-          console.error('Biography: Error fetching data:', err);
-          setError('Could not load profile data');
-          // Keep defaults
+          console.error('Biography: Unexpected error:', err);
+          setError(null);
         } finally {
           setLoading(false);
         }
@@ -190,7 +188,7 @@ function Biography({
     };
 
     fetchStudentStats();
-  }, [name, title, avatar, quizzesCompleted, correctAnswers, currentStreak]);
+  }, [name, title, avatar, coursesCount, quizzesCompleted, totalAttempts]);
 
   if (loading && showLoading) {
     return (
@@ -201,17 +199,17 @@ function Biography({
         <div className="quiz-section">
           <div className="quiz-icon-container"><div className="quiz-icon"></div></div>
           <div className="quiz-count skeleton">--</div>
-          <div className="quiz-label">Quizzes</div>
+          <div className="quiz-label">Courses</div>
         </div>
         <div className="students-section">
           <div className="students-icon-container"><div className="students-icon"></div></div>
           <div className="students-count skeleton">--</div>
-          <div className="students-label">Correct</div>
+          <div className="students-label">Quizzes</div>
         </div>
         <div className="streak-section">
           <div className="streak-icon-container"><div className="streak-icon"></div></div>
           <div className="streak-count skeleton">--</div>
-          <div className="streak-label">Streak</div>
+          <div className="streak-label">Attempts</div>
         </div>
       </div>
     );
@@ -223,19 +221,26 @@ function Biography({
         className="biography-avatar"
         src={profileData.avatar}
         alt={`${profileData.name}'s profile`}
-        onError={(e) => { e.currentTarget.src = "/ID.jpeg"; }}
+        onError={(e) => { 
+          if (e.currentTarget.src !== "/ID.jpeg") {
+            e.currentTarget.src = "/ID.jpeg"; 
+          }
+        }}
+        loading="lazy"
       />
 
-      <div className="biography-name">{profileData.name}</div>
+      <div className="biography-name" title={profileData.name}>
+        {profileData.name}
+      </div>
       <div className="biography-title">{profileData.title}</div>
 
       <div className="quiz-section">
         <div className="quiz-icon-container">
           <div className="quiz-icon"></div>
         </div>
-        <div className="quiz-count">{profileData.quizzesCompleted}</div>
+        <div className="quiz-count">{profileData.coursesCount}</div>
         <div className="quiz-label">
-          {compact ? 'Quizzes' : 'Quizzes Completed'}
+          {compact ? 'Courses' : 'Number of Courses'}
         </div>
       </div>
 
@@ -243,9 +248,9 @@ function Biography({
         <div className="students-icon-container">
           <div className="students-icon"></div>
         </div>
-        <div className="students-count">{profileData.correctAnswers}</div>
+        <div className="students-count">{profileData.quizzesCompleted}</div>
         <div className="students-label">
-          {compact ? 'Correct' : 'Correct Answers'}
+          {compact ? 'Quizzes' : 'Total Quizzes'}
         </div>
       </div>
 
@@ -253,22 +258,11 @@ function Biography({
         <div className="streak-icon-container">
           <div className="streak-icon"></div>
         </div>
-        <div className="streak-count">{profileData.currentStreak}</div>
+        <div className="streak-count">{profileData.totalAttempts}</div>
         <div className="streak-label">
-          {compact ? 'Streak' : 'Day Streak'}
+          {compact ? 'Attempts' : 'Quiz Attempts'}
         </div>
       </div>
-
-      {error && (
-        <div className="biography-error" style={{ 
-          fontSize: '10px', 
-          color: '#999', 
-          marginTop: '8px',
-          textAlign: 'center' 
-        }}>
-          Using defaults
-        </div>
-      )}
     </div>
   );
 }
